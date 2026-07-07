@@ -1,0 +1,21 @@
+Alex Rivera
+Python & FastAPI Developer
+
+SUMMARY:
+Results-oriented software engineer with 4+ years of professional experience in backend development. Specialized in building scalable web APIs with FastAPI and Flask, and containerizing systems with Docker.
+
+TECHNICAL SKILLS:
+- Languages: Python, SQL, JavaScript, HTML, CSS
+- Web Frameworks: FastAPI, Flask, Django
+- Databases: PostgreSQL, MongoDB, Redis
+- Tools & Cloud: Docker, Git, CI/CD, AWS (S3, EC2)
+
+PROFESSIONAL EXPERIENCE:
+Backend Engineer | TechFlow Solutions (2024 - Present)
+- Designed and maintained REST APIs using Python and FastAPI.
+- Optimized PostgreSQL database queries, reducing response times by 30%.
+- Packaged services into Docker containers for seamless deployment.
+- Set up automated testing and GitLab CI/CD pipelines.
+
+Education:
+B.S. in Computer Science | State University

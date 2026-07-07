@@ -1,0 +1,20 @@
+Sarah Jenkins
+Senior Frontend React Developer
+
+SUMMARY:
+Vibrant Frontend Developer with 5 years of experience crafting modern, accessible web interfaces. Highly skilled in React, Next.js, TypeScript, and responsive CSS architectures.
+
+SKILLS:
+- Core Languages: JavaScript (ES6+), TypeScript, HTML5, CSS3, Sass
+- Frameworks: React, Next.js, Angular, Vue.js, Tailwind CSS, Bootstrap
+- Tools: Git, GitHub, Webpack, Figma, Jest
+
+EXPERIENCE:
+Frontend Developer | PixelCraft Studio (2023 - Present)
+- Developed and shipped 10+ pixel-perfect responsive websites using React and Next.js.
+- Integrated REST APIs and optimized frontend state management with Redux.
+- Built reusable component library using Tailwind CSS.
+- Participated in Scrum/Agile development workflows.
+
+Education:
+B.A. in Web Design & Development | Art Institute

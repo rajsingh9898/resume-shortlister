@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TalentAI - AI-Based Resume Shortlisting System</title>
+    <!-- Google Fonts: Outfit and Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="glass-bg"></div>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <i class="fa-solid fa-wand-magic-sparkles magic-icon"></i>
+                <h1>Talent<span>AI</span></h1>
+            </div>
+            <p class="subtitle">AI-Powered Resume Shortlisting & Candidate Ranking Dashboard</p>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="app-main">
+            <!-- Left Panel: Inputs -->
+            <section class="panel input-panel">
+                <div class="panel-header">
+                    <i class="fa-solid fa-sliders"></i>
+                    <h2>Parameters</h2>
+                </div>
+                
+                <form id="shortlist-form" onsubmit="return false;">
+                    <!-- Job Description Input -->
+                    <div class="input-group">
+                        <label for="job-description">
+                            <span>Job Description (JD)</span>
+                            <span class="tooltip" title="Paste the requirements of the job. NLP will extract skills and requirements."><i class="fa-solid fa-circle-question"></i></span>
+                        </label>
+                        <textarea id="job-description" name="jd" placeholder="Paste the job requirements here (e.g. Looking for a Python Backend Developer with 3 years of experience in FastAPI, Docker, and SQL databases...)" required></textarea>
+                    </div>
+
+                    <!-- Resume Dropzone -->
+                    <div class="input-group">
+                        <label>
+                            <span>Upload Resumes</span>
+                            <span class="tooltip" title="Supports multiple files: PDF, DOCX, TXT"><i class="fa-solid fa-circle-question"></i></span>
+                        </label>
+                        <div id="dropzone" class="dropzone">
+                            <i class="fa-solid fa-cloud-arrow-up cloud-icon"></i>
+                            <p class="dropzone-text">Drag & drop files here or <span>browse files</span></p>
+                            <p class="dropzone-sub">Supports PDF, DOCX, TXT (Max 15 files)</p>
+                            <input type="file" id="resume-input" name="resumes" multiple accept=".pdf,.docx,.doc,.txt" style="display: none;">
+                        </div>
+                        <!-- Uploaded Files List -->
+                        <div id="file-list" class="file-list"></div>
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="btn primary-btn">
+                        <span class="btn-text">Rank Candidates</span>
+                        <i class="fa-solid fa-bolt"></i>
+                        <span class="loader" id="btn-loader" style="display: none;"></span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Right Panel: Dashboard / Output -->
+            <section class="panel output-panel">
+                <div class="panel-header">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <h2>Dashboard</h2>
+                </div>
+
+                <!-- Empty State (Shown before analysis) -->
+                <div id="empty-state" class="dashboard-state active">
+                    <div class="empty-visual">
+                        <div class="pulse-ring"></div>
+                        <i class="fa-solid fa-magnifying-glass-chart empty-icon"></i>
+                    </div>
+                    <h3>Ready for Analysis</h3>
+                    <p>Provide a job description and upload candidate resumes on the left to analyze, score, and rank applications instantly with NLP.</p>
+                </div>
+
+                <!-- Results State -->
+                <div id="results-state" class="dashboard-state">
+                    <!-- Stats Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-icon blue"><i class="fa-solid fa-users"></i></span>
+                            <div class="stat-info">
+                                <span class="stat-label">Total Resumes</span>
+                                <span class="stat-value" id="stat-total">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-icon green"><i class="fa-solid fa-circle-check"></i></span>
+                            <div class="stat-info">
+                                <span class="stat-label">Strong Matches (>70%)</span>
+                                <span class="stat-value" id="stat-matches">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-icon purple"><i class="fa-solid fa-gauge-high"></i></span>
+                            <div class="stat-info">
+                                <span class="stat-label">Average Score</span>
+                                <span class="stat-value" id="stat-avg">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ranked Candidate List -->
+                    <div class="ranking-header">
+                        <h3>Ranked Candidates</h3>
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="search-candidate" placeholder="Filter candidates...">
+                        </div>
+                    </div>
+
+                    <div id="candidates-container" class="candidates-container">
+                        <!-- Candidate items will be loaded dynamically -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Candidate Detailed Drawer / Modal -->
+    <div id="detail-drawer" class="drawer">
+        <div class="drawer-overlay" onclick="closeDrawer()"></div>
+        <div class="drawer-content">
+            <button class="close-btn" onclick="closeDrawer()"><i class="fa-solid fa-xmark"></i></button>
+            <div class="drawer-body">
+                <!-- Header details -->
+                <div class="candidate-detail-header">
+                    <span class="candidate-badge" id="c-rank">#1</span>
+                    <h2 id="c-name">candidate_name.pdf</h2>
+                </div>
+                
+                <!-- Score breakdown -->
+                <div class="score-breakdown-card">
+                    <div class="score-ring-container">
+                        <svg class="progress-ring" width="100" height="100">
+                            <circle class="progress-ring-bg" stroke="rgba(255,255,255,0.06)" stroke-width="8" fill="transparent" r="42" cx="50" cy="50"/>
+                            <circle class="progress-ring-value" id="detail-ring-val" stroke="var(--primary-color)" stroke-width="8" stroke-dasharray="263.89" stroke-dashoffset="263.89" stroke-linecap="round" fill="transparent" r="42" cx="50" cy="50"/>
+                        </svg>
+                        <div class="score-ring-text">
+                            <span class="percentage" id="detail-score">0%</span>
+                            <span class="label">Match</span>
+                        </div>
+                    </div>
+                    <div class="score-meters">
+                        <div class="meter-group">
+                            <div class="meter-label">
+                                <span>Semantic Relevance (TF-IDF Cosine)</span>
+                                <span id="detail-cosine-score">0%</span>
+                            </div>
+                            <div class="meter-bar-container">
+                                <div class="meter-bar-fill blue" id="detail-cosine-bar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        <div class="meter-group">
+                            <div class="meter-label">
+                                <span>Required Skills Coverage</span>
+                                <span id="detail-skills-score">0%</span>
+                            </div>
+                            <div class="meter-bar-container">
+                                <div class="meter-bar-fill purple" id="detail-skills-bar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skill Matching Details -->
+                <div class="detail-section">
+                    <h3>JD Matching Summary</h3>
+                    <div class="skills-comparison">
+                        <!-- Matched Skills -->
+                        <div class="comparison-card success-card">
+                            <h4><i class="fa-solid fa-circle-check"></i> Matched Required Skills</h4>
+                            <div class="badge-list" id="detail-matched-skills">
+                                <!-- Dyn -->
+                            </div>
+                        </div>
+                        <!-- Missing Skills -->
+                        <div class="comparison-card warning-card">
+                            <h4><i class="fa-solid fa-triangle-exclamation"></i> Missing Required Skills</h4>
+                            <div class="badge-list" id="detail-missing-skills">
+                                <!-- Dyn -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extracted Skills Matrix -->
+                <div class="detail-section">
+                    <h3>All Extracted Skills (NER)</h3>
+                    <div id="detail-all-skills-categories" class="skills-matrix">
+                        <!-- Dynamic categories -->
+                    </div>
+                </div>
+
+                <!-- Document Snippet -->
+                <div class="detail-section">
+                    <h3>Resume Raw Preview</h3>
+                    <div class="raw-preview" id="detail-snippet">
+                        <!-- Raw snippet text -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
