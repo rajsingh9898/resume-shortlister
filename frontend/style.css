@@ -27,6 +27,10 @@
     --purple-bg: rgba(168, 85, 247, 0.1);
     --purple-border: rgba(168, 85, 247, 0.2);
 
+    --orange: #f97316;
+    --orange-bg: rgba(249, 115, 22, 0.1);
+    --orange-border: rgba(249, 115, 22, 0.2);
+
     --text-primary: #f3f4f6;
     --text-muted: #9ca3af;
     --text-dark: #6b7280;
@@ -37,7 +41,7 @@
     --border-radius: 16px;
 }
 
-/* Base Resets & Structure */
+/* Base Resets */
 * {
     margin: 0;
     padding: 0;
@@ -139,7 +143,7 @@ body {
 /* Main Grid Layout */
 .app-main {
     display: grid;
-    grid-template-columns: 450px 1fr;
+    grid-template-columns: 460px 1fr;
     gap: 30px;
     align-items: start;
     animation: fadeInUp 0.8s ease-out;
@@ -184,11 +188,32 @@ body {
     font-weight: 600;
 }
 
+.panel-sub-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.panel-sub-header i {
+    font-size: 1rem;
+    color: var(--primary-color);
+}
+
+.panel-sub-header h3 {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 600;
+    flex: 1;
+}
+
 /* Forms & Input Groups */
 #shortlist-form {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
 }
 
 .input-group {
@@ -218,11 +243,11 @@ body {
 
 textarea {
     width: 100%;
-    height: 180px;
+    height: 160px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
-    padding: 15px;
+    padding: 12px 15px;
     color: var(--text-primary);
     font-family: var(--font-body);
     font-size: 0.95rem;
@@ -242,14 +267,14 @@ textarea:focus {
 .dropzone {
     border: 2px dashed rgba(255, 255, 255, 0.15);
     border-radius: 12px;
-    padding: 30px 20px;
+    padding: 24px 20px;
     text-align: center;
     background: rgba(255, 255, 255, 0.01);
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     transition: all var(--transition-speed);
 }
 
@@ -259,7 +284,7 @@ textarea:focus {
 }
 
 .cloud-icon {
-    font-size: 2.2rem;
+    font-size: 2rem;
     color: var(--text-muted);
     transition: color var(--transition-speed);
 }
@@ -270,7 +295,7 @@ textarea:focus {
 }
 
 .dropzone-text {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: var(--text-primary);
 }
 
@@ -289,16 +314,16 @@ textarea:focus {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 200px;
+    max-height: 160px;
     overflow-y: auto;
-    margin-top: 10px;
+    margin-top: 5px;
 }
 
 .file-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
+    padding: 8px 12px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 8px;
@@ -321,7 +346,7 @@ textarea:focus {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 250px;
+    max-width: 280px;
 }
 
 .file-remove {
@@ -332,6 +357,219 @@ textarea:focus {
 
 .file-remove:hover {
     color: var(--danger);
+}
+
+/* Slider Controls */
+.weight-settings-panel {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.slider-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.slider-info span:last-child {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.weight-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 5px;
+    outline: none;
+    transition: background var(--transition-speed);
+}
+
+.weight-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--primary-glow);
+    transition: transform 0.1s ease, background-color 0.2s;
+}
+
+.weight-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    background: var(--primary-hover);
+}
+
+.weight-total-badge {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-family: var(--font-heading);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.weight-total-badge.valid {
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid var(--success-border);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
+}
+
+.weight-total-badge.invalid {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid var(--danger-border);
+    animation: flash 1s infinite alternate;
+}
+
+@keyframes flash {
+    from { opacity: 0.6; box-shadow: none; }
+    to { opacity: 1; box-shadow: 0 0 10px rgba(244, 63, 94, 0.4); }
+}
+
+.weight-note {
+    font-size: 0.75rem;
+    color: var(--text-dark);
+    line-height: 1.4;
+}
+
+.weight-note i {
+    color: var(--primary-color);
+}
+
+/* JD Requirements Panel (Chips) */
+.jd-requirements-panel {
+    display: none;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 20px;
+    flex-direction: column;
+    gap: 16px;
+    animation: fadeIn 0.5s ease;
+}
+
+.jd-requirements-panel.active {
+    display: flex;
+}
+
+.req-meta-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.02);
+}
+
+.meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.meta-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.meta-val {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.jd-skills-chips-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 150px;
+    overflow-y: auto;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+}
+
+.jd-chip {
+    background: rgba(99, 102, 241, 0.12);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    transition: all var(--transition-speed);
+}
+
+.jd-chip:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.jd-chip-remove {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    transition: color var(--transition-speed);
+}
+
+.jd-chip-remove:hover {
+    color: var(--danger);
+}
+
+.add-skill-control {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.add-skill-control input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.add-skill-control input:focus {
+    border-color: var(--primary-color);
+}
+
+.secondary-btn {
+    width: 40px;
+    height: 36px;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.secondary-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--primary-color);
 }
 
 /* Buttons */
@@ -450,7 +688,7 @@ textarea:focus {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
-    margin-bottom: 30px;
+    margin-bottom: 25px;
 }
 
 @media (max-width: 640px) {
@@ -517,21 +755,41 @@ textarea:focus {
 /* Candidate Rankings Header */
 .ranking-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
+    flex-direction: column;
     gap: 15px;
+    margin-bottom: 20px;
 }
 
-.ranking-header h3 {
+.ranking-header-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ranking-header-title h3 {
     font-family: var(--font-heading);
-    font-size: 1.15rem;
+    font-size: 1.2rem;
     font-weight: 600;
+}
+
+.export-btn {
+    width: auto;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-primary);
+}
+
+.export-btn:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: var(--primary-color);
 }
 
 .search-box {
     position: relative;
-    width: 250px;
+    width: 100%;
 }
 
 .search-box i {
@@ -540,7 +798,7 @@ textarea:focus {
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-dark);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
 }
 
 .search-box input {
@@ -548,9 +806,9 @@ textarea:focus {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 8px;
-    padding: 8px 12px 8px 34px;
+    padding: 10px 12px 10px 36px;
     color: var(--text-primary);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     outline: none;
     transition: all var(--transition-speed);
 }
@@ -564,8 +822,8 @@ textarea:focus {
 .candidates-container {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    max-height: 520px;
+    gap: 12px;
+    max-height: 480px;
     overflow-y: auto;
     padding-right: 5px;
 }
@@ -574,7 +832,7 @@ textarea:focus {
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 12px;
-    padding: 16px 20px;
+    padding: 14px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -632,7 +890,7 @@ textarea:focus {
 .candidate-profile {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     overflow: hidden;
 }
 
@@ -642,18 +900,30 @@ textarea:focus {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 300px;
+    max-width: 340px;
 }
 
 .candidate-subtitle {
     font-size: 0.8rem;
     color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.cand-meta-badge {
+    font-size: 0.75rem;
+    color: #818cf8;
+    background: rgba(99,102,241,0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
 }
 
 .candidate-right {
     display: flex;
     align-items: center;
-    gap: 25px;
+    gap: 20px;
 }
 
 .score-badge {
@@ -723,8 +993,8 @@ textarea:focus {
 .drawer-content {
     position: absolute;
     top: 0;
-    right: -600px;
-    width: 600px;
+    right: -620px;
+    width: 620px;
     height: 100%;
     background: #0f131d;
     border-left: 1px solid rgba(255, 255, 255, 0.08);
@@ -734,7 +1004,7 @@ textarea:focus {
     transition: right var(--transition-speed) cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 25px;
 }
 
 @media (max-width: 640px) {
@@ -782,7 +1052,7 @@ textarea:focus {
 
 .candidate-detail-header h2 {
     font-family: var(--font-heading);
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     font-weight: 700;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -790,13 +1060,13 @@ textarea:focus {
 }
 
 .candidate-badge {
-    background: var(--primary-bg);
+    background: rgba(99,102,241,0.1);
     color: var(--primary-color);
     padding: 4px 10px;
     border-radius: 6px;
     font-family: var(--font-heading);
     font-weight: 700;
-    border: 1px solid var(--primary-border);
+    border: 1px solid rgba(99,102,241,0.2);
 }
 
 /* Score cards */
@@ -807,7 +1077,7 @@ textarea:focus {
     padding: 20px 25px;
     display: flex;
     align-items: center;
-    gap: 30px;
+    gap: 25px;
 }
 
 @media (max-width: 480px) {
@@ -860,20 +1130,20 @@ textarea:focus {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
     width: 100%;
 }
 
 .meter-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 
 .meter-label {
     display: flex;
     justify-content: space-between;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--text-muted);
 }
 
@@ -897,6 +1167,64 @@ textarea:focus {
 
 .meter-bar-fill.blue { background: var(--blue); }
 .meter-bar-fill.purple { background: var(--purple); }
+.meter-bar-fill.orange { background: var(--orange); }
+
+/* Profile Meta Grid (Exp & Education breakdown) */
+.profile-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+@media (max-width: 480px) {
+    .profile-meta-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.profile-meta-card {
+    background: rgba(255,255,255,0.015);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+}
+
+.meta-card-title {
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #818cf8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.meta-card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.meta-card-details strong {
+    color: var(--text-primary);
+}
+
+.meta-card-status {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    font-size: 1.1rem;
+}
+
+.meta-card-status.match { color: var(--success); }
+.meta-card-status.partial { color: var(--warning); }
+.meta-card-status.fail { color: var(--danger); }
 
 /* Detail Sections */
 .detail-section {
@@ -1026,7 +1354,7 @@ textarea:focus {
     font-size: 0.8rem;
     color: var(--text-muted);
     line-height: 1.6;
-    max-height: 250px;
+    max-height: 220px;
     overflow-y: auto;
     white-space: pre-wrap;
 }

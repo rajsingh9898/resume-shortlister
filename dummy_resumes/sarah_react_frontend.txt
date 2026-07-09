@@ -11,7 +11,7 @@ SKILLS:
 
 EXPERIENCE:
 Frontend Developer | PixelCraft Studio (2023 - Present)
-- Developed and shipped 10+ pixel-perfect responsive websites using React and Next.js.
+- Developed and shipped 10+ responsive websites using React and Next.js.
 - Integrated REST APIs and optimized frontend state management with Redux.
 - Built reusable component library using Tailwind CSS.
 - Participated in Scrum/Agile development workflows.

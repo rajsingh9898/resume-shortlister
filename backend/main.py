@@ -16,11 +16,11 @@ app = FastAPI(title="AI-Based Resume Shortlisting System")
 
 # Enable CORS for local development flexibility
 app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.post("/api/shortlist")
@@ -47,8 +47,12 @@ async def shortlist(jd: str = Form(...), resumes: List[UploadFile] = File(...)):
             })
             
     try:
-        ranked_list = nlp_engine.compute_nlp_shortlist(jd, resume_data)
-        return {"success": True, "candidates": ranked_list}
+        results = nlp_engine.compute_nlp_shortlist(jd, resume_data)
+        return {
+            "success": True, 
+            "candidates": results["candidates"],
+            "jd_requirements": results["jd_requirements"]
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"NLP computations failed: {str(e)}")
 

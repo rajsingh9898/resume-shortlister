@@ -103,11 +103,62 @@ def extract_text(filename: str, file_bytes: bytes) -> str:
 def preprocess_text(text: str) -> str:
     """Cleans text: lowercases, tokenizes, and removes common stopwords."""
     text = text.lower()
-    # Find all words, allowing characters commonly found in tech terms
     words = re.findall(r'\b[a-z0-9#\+\-\.]+\b', text)
-    # Filter stopwords and short tokens
     cleaned = [w for w in words if w not in STOPWORDS and len(w) > 1]
     return " ".join(cleaned)
+
+def parse_experience_years(text: str) -> float:
+    """
+    Parses years of experience from text using regular expressions.
+    Returns maximum years of experience found, limited to a realistic range (< 40).
+    """
+    text_lower = text.lower()
+    
+    # Matching phrases like "5+ years", "3 years of experience", "4 yrs in industry", "10 years exp", "total of 6 years"
+    patterns = [
+        r'(\d+(?:\.\d+)?)\s*(?:\+|plus)?\s*(?:years?|yrs?)\b(?:\s*(?:of)?\s*(?:experience|exp|work|industry|professional|in))?',
+        r'(?:experience|exp|work)\s*(?:of)?\s*(?:at\s+least|over)?\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?)',
+        r'total\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?)'
+    ]
+    
+    max_years = 0.0
+    for pattern in patterns:
+        matches = re.findall(pattern, text_lower)
+        for m in matches:
+            try:
+                val = float(m)
+                if val > max_years and val < 40:  # Avoid matching future years e.g., 2026
+                    max_years = val
+            except ValueError:
+                pass
+    return max_years
+
+def parse_education_degrees(text: str) -> list:
+    """
+    Identifies academic degrees in text.
+    Returns list containing matched standard categories e.g., ['PhD', 'Master', 'Bachelor']
+    """
+    text_lower = text.lower()
+    degrees = []
+    
+    degree_map = {
+        "PhD": ["ph.d", "phd", "doctor of philosophy", "doctorate"],
+        "Master": ["master", "m.s.", "ms", "m.tech", "mtech", "mba", "mca", "m.sc", "msc"],
+        "Bachelor": ["bachelor", "b.s.", "bs", "b.tech", "btech", "b.a.", "ba", "bca", "b.sc", "bsc"]
+    }
+    
+    for deg_type, terms in degree_map.items():
+        for term in terms:
+            # Anchor search with word boundaries
+            pattern = r'\b' + re.escape(term) + r'\b'
+            if term.endswith('.'):
+                pattern = r'\b' + re.escape(term)
+                
+            if re.search(pattern, text_lower):
+                degrees.append(deg_type)
+                break  # Match only once per category
+                
+    return degrees
 
 def extract_skills_from_text(text: str) -> dict:
     """Identifies skills from the skills lexicon present in the raw text."""
@@ -117,18 +168,14 @@ def extract_skills_from_text(text: str) -> dict:
     for category, skills in SKILLS_DB.items():
         matched = []
         for skill in skills:
-            # Create regex pattern representing the skill
-            # Handle special characters like C++, C#, .NET, Node.js
             if '+' in skill or '#' in skill or '.' in skill:
                 pattern = r'(?:^|\s|[.,/():\-])' + skill + r'(?:$|\s|[.,/():\-])'
             else:
                 pattern = r'\b' + skill + r'\b'
                 
             if re.search(pattern, text_lower):
-                # Clean up backslashes used for regex escaping
                 clean_name = skill.replace("\\", "")
                 
-                # Normalize common variations for display
                 if clean_name == "nextjs":
                     clean_name = "next.js"
                 elif clean_name == "nodejs":
@@ -144,9 +191,6 @@ def extract_skills_from_text(text: str) -> dict:
                 elif clean_name == "google cloud":
                     clean_name = "gcp"
                 
-                # Capitalize nicely for display
-                display_name = clean_name
-                # List of standard formats to keep consistent case
                 proper_cases = {
                     "python": "Python", "javascript": "JavaScript", "typescript": "TypeScript",
                     "java": "Java", "c++": "C++", "c#": "C#", "ruby": "Ruby", "golang": "Go",
@@ -192,20 +236,23 @@ def extract_skills_from_text(text: str) -> dict:
 
 def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
     """
-    Parses JD and candidates resumes. Ranks candidates by score.
-    resumes format: list of dicts like {'filename': str, 'raw_text': str}
+    Parses JD and candidate resumes.
+    Returns list of candidates ranked by overall score.
+    Now extracts years of experience and degrees as separate factors.
     """
-    # 1. Preprocess Job Description
+    # 1. Parse Job Description Parameters
     jd_clean = preprocess_text(jd_raw)
     jd_skills_dict = extract_skills_from_text(jd_raw)
+    jd_exp = parse_experience_years(jd_raw)
+    jd_degrees = parse_education_degrees(jd_raw)
     
-    # Flatten JD skills to list
+    # Flatten JD skills
     jd_skills = []
     for cat_skills in jd_skills_dict.values():
         jd_skills.extend(cat_skills)
     jd_skills_set = set(jd_skills)
     
-    # If cleaned JD is empty, use raw text
+    # Cleaned JD backup
     if not jd_clean.strip():
         jd_clean = jd_raw.lower()
         
@@ -220,16 +267,13 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
             documents = [jd_clean] + cleaned_resumes
             vectorizer = TfidfVectorizer()
             tfidf_matrix = vectorizer.fit_transform(documents)
-            
-            # Cosine similarity between JD (first row) and each resume (subsequent rows)
             sim_scores = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:])
             similarities = sim_scores[0].tolist()
-        except Exception as e:
-            # Fallback if vectorization fails (e.g. empty vocab)
+        except Exception:
             pass
             
-    # 3. Compile report and calculate final hybrid score
-    ranked_candidates = []
+    # 3. Calculate candidate scores and compile analysis reports
+    candidates_list = []
     for idx, res in enumerate(resumes):
         raw_txt = res['raw_text']
         c_skills_dict = extract_skills_from_text(raw_txt)
@@ -240,36 +284,64 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
             c_skills.extend(cat_skills)
         c_skills_set = set(c_skills)
         
-        # Find matched & missing JD skills
+        # Skill matching
         matched_skills = sorted(list(jd_skills_set.intersection(c_skills_set)))
         missing_skills = sorted(list(jd_skills_set.difference(c_skills_set)))
         
-        # Calculate Skill Coverage Ratio
-        skill_score = 0.0
+        skills_score = 0.0
         if jd_skills_set:
-            skill_score = len(matched_skills) / len(jd_skills_set)
+            skills_score = len(matched_skills) / len(jd_skills_set)
             
-        # Hybrid Score: 60% TF-IDF Cosine Similarity + 40% Skill Coverage Score
-        cosine_sim = similarities[idx]
-        # Normalize cosine_sim to be 0 to 1 range (in case of floating point quirks, clip to [0,1])
-        cosine_sim = max(0.0, min(1.0, cosine_sim))
+        # Experience matching
+        candidate_exp = parse_experience_years(raw_txt)
+        experience_score = 0.0
+        if jd_exp > 0.0:
+            if candidate_exp >= jd_exp:
+                experience_score = 1.0
+            else:
+                experience_score = candidate_exp / jd_exp
+        else:
+            experience_score = 1.0 # 100% match if experience not specified in JD
+            
+        # Degree matching
+        candidate_degrees = parse_education_degrees(raw_txt)
+        degree_match = False
+        if jd_degrees:
+            # Match if candidate has any of the degrees in the JD (or higher, handled by simple intersection)
+            degree_match = len(set(jd_degrees).intersection(set(candidate_degrees))) > 0
+        else:
+            degree_match = True # Match if not specified
+            
+        # Calculate scores
+        cosine_sim = max(0.0, min(1.0, similarities[idx]))
         
-        final_score = (cosine_sim * 0.6) + (skill_score * 0.4)
+        # Default weights: 50% Cosine Similarity, 35% Skills Matching, 15% Experience Matching
+        final_score = (cosine_sim * 0.5) + (skills_score * 0.35) + (experience_score * 0.15)
         
-        # Convert to percentage
-        match_percentage = round(final_score * 100, 1)
-        
-        ranked_candidates.append({
+        candidates_list.append({
             "filename": res['filename'],
-            "score": match_percentage,
+            "score": round(final_score * 100, 1),
             "cosine_score": round(cosine_sim * 100, 1),
-            "skills_score": round(skill_score * 100, 1),
+            "skills_score": round(skills_score * 100, 1),
+            "experience_score": round(experience_score * 100, 1),
             "matched_skills": matched_skills,
             "missing_skills": missing_skills,
             "all_extracted_skills": c_skills_dict,
+            "candidate_exp": candidate_exp,
+            "candidate_degrees": candidate_degrees,
+            "degree_match": degree_match,
             "snippet": raw_txt[:400] + ("..." if len(raw_txt) > 400 else "")
         })
         
     # Sort candidates by score descending
-    ranked_candidates.sort(key=lambda x: x['score'], reverse=True)
-    return ranked_candidates
+    candidates_list.sort(key=lambda x: x['score'], reverse=True)
+    
+    # Return both the ranked list and the parsed JD requirements
+    return {
+        "candidates": candidates_list,
+        "jd_requirements": {
+            "skills": sorted(list(jd_skills_set)),
+            "experience_years": jd_exp,
+            "degrees": jd_degrees
+        }
+    }

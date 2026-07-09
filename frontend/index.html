@@ -26,11 +26,11 @@
 
         <!-- Main Content Area -->
         <main class="app-main">
-            <!-- Left Panel: Inputs -->
+            <!-- Left Panel: Inputs & Dynamic Controls -->
             <section class="panel input-panel">
                 <div class="panel-header">
                     <i class="fa-solid fa-sliders"></i>
-                    <h2>Parameters</h2>
+                    <h2>Parameters & Inputs</h2>
                 </div>
                 
                 <form id="shortlist-form" onsubmit="return false;">
@@ -38,9 +38,9 @@
                     <div class="input-group">
                         <label for="job-description">
                             <span>Job Description (JD)</span>
-                            <span class="tooltip" title="Paste the requirements of the job. NLP will extract skills and requirements."><i class="fa-solid fa-circle-question"></i></span>
+                            <span class="tooltip" title="Paste the requirements of the job. NLP will extract skills, experience, and degrees."><i class="fa-solid fa-circle-question"></i></span>
                         </label>
-                        <textarea id="job-description" name="jd" placeholder="Paste the job requirements here (e.g. Looking for a Python Backend Developer with 3 years of experience in FastAPI, Docker, and SQL databases...)" required></textarea>
+                        <textarea id="job-description" name="jd" placeholder="Paste job requirements here (e.g. Looking for a Python Developer with 3+ years of experience in FastAPI and a Bachelor's degree...)" required></textarea>
                     </div>
 
                     <!-- Resume Dropzone -->
@@ -59,12 +59,79 @@
                         <div id="file-list" class="file-list"></div>
                     </div>
 
+                    <!-- Submit Button -->
                     <button type="submit" id="submit-btn" class="btn primary-btn">
                         <span class="btn-text">Rank Candidates</span>
                         <i class="fa-solid fa-bolt"></i>
                         <span class="loader" id="btn-loader" style="display: none;"></span>
                     </button>
                 </form>
+
+                <!-- Interactive Scoring Weights (Dynamic Slider Settings) -->
+                <div class="weight-settings-panel">
+                    <div class="panel-sub-header">
+                        <i class="fa-solid fa-weight-hanging"></i>
+                        <h3>Scoring Weights</h3>
+                        <span id="weight-total" class="weight-total-badge valid">100%</span>
+                    </div>
+                    
+                    <div class="slider-group">
+                        <div class="slider-info">
+                            <span>Semantic Relevance (TF-IDF)</span>
+                            <span id="lbl-weight-semantic">50%</span>
+                        </div>
+                        <input type="range" id="weight-semantic" min="0" max="100" value="50" step="5" class="weight-slider">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-info">
+                            <span>Required Skills Match</span>
+                            <span id="lbl-weight-skills">35%</span>
+                        </div>
+                        <input type="range" id="weight-skills" min="0" max="100" value="35" step="5" class="weight-slider">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-info">
+                            <span>Years of Experience Match</span>
+                            <span id="lbl-weight-experience">15%</span>
+                        </div>
+                        <input type="range" id="weight-experience" min="0" max="100" value="15" step="5" class="weight-slider">
+                    </div>
+                    <p class="weight-note"><i class="fa-solid fa-circle-info"></i> Adjust sliders to re-sort candidates instantly. Weights must sum to 100%.</p>
+                </div>
+
+                <!-- Dynamic JD Requirements Editor (Visible after analysis) -->
+                <div id="jd-requirements-panel" class="jd-requirements-panel">
+                    <div class="panel-sub-header">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <h3>Extracted Requirements</h3>
+                    </div>
+                    
+                    <!-- Exp & Degree Requirements -->
+                    <div class="req-meta-details">
+                        <div class="meta-item">
+                            <span class="meta-label">Min Experience:</span>
+                            <span id="req-experience-val" class="meta-val">0 Years</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Degrees Required:</span>
+                            <span id="req-degrees-val" class="meta-val">Any</span>
+                        </div>
+                    </div>
+
+                    <!-- Skills Editor -->
+                    <div class="input-group">
+                        <label>Required Skills Index</label>
+                        <div id="jd-skills-chips-list" class="jd-skills-chips-list">
+                            <!-- Dynamic skills list -->
+                        </div>
+                        <div class="add-skill-control">
+                            <input type="text" id="new-skill-input" placeholder="Add a required skill...">
+                            <button type="button" id="add-skill-btn" class="btn secondary-btn"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- Right Panel: Dashboard / Output -->
@@ -113,10 +180,13 @@
 
                     <!-- Ranked Candidate List -->
                     <div class="ranking-header">
-                        <h3>Ranked Candidates</h3>
+                        <div class="ranking-header-title">
+                            <h3>Ranked Shortlist</h3>
+                            <button id="export-btn" class="btn export-btn"><i class="fa-solid fa-file-csv"></i> Export Report</button>
+                        </div>
                         <div class="search-box">
                             <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="search-candidate" placeholder="Filter candidates...">
+                            <input type="text" id="search-candidate" placeholder="Filter candidates by name...">
                         </div>
                     </div>
 
@@ -169,6 +239,37 @@
                             </div>
                             <div class="meter-bar-container">
                                 <div class="meter-bar-fill purple" id="detail-skills-bar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        <div class="meter-group">
+                            <div class="meter-label">
+                                <span>Experience Alignment</span>
+                                <span id="detail-experience-score">0%</span>
+                            </div>
+                            <div class="meter-bar-container">
+                                <div class="meter-bar-fill orange" id="detail-experience-bar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Education & Experience Breakdown Cards -->
+                <div class="detail-section">
+                    <h3>Profile Matching Details</h3>
+                    <div class="profile-meta-grid">
+                        <div class="profile-meta-card">
+                            <span class="meta-card-title"><i class="fa-solid fa-briefcase"></i> Experience Profile</span>
+                            <div class="meta-card-details">
+                                <div>Required: <strong id="detail-req-exp">0 Years</strong></div>
+                                <div>Found: <strong id="detail-cand-exp">0 Years</strong></div>
+                                <div class="meta-card-status" id="detail-exp-status-icon"></div>
+                            </div>
+                        </div>
+                        <div class="profile-meta-card">
+                            <span class="meta-card-title"><i class="fa-solid fa-graduation-cap"></i> Education Profile</span>
+                            <div class="meta-card-details">
+                                <div>Degrees Found: <strong id="detail-cand-degrees">None</strong></div>
+                                <div>Requirements Match: <strong id="detail-degree-match-status">Yes</strong></div>
                             </div>
                         </div>
                     </div>
