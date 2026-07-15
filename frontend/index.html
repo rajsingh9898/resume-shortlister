@@ -178,12 +178,36 @@
                         </div>
                     </div>
 
+                    <!-- Visual Skill Frequency Chart widget (New Phase 3) -->
+                    <div class="pool-skills-chart-panel">
+                        <div class="panel-sub-header">
+                            <i class="fa-solid fa-chart-simple"></i>
+                            <h3>Skill Frequency in Candidate Pool</h3>
+                            <span class="chart-info-tip" title="Click a bar to filter candidates containing that skill."><i class="fa-solid fa-circle-info"></i></span>
+                        </div>
+                        <div id="pool-skills-chart" class="pool-skills-chart">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+
                     <!-- Ranked Candidate List -->
                     <div class="ranking-header">
                         <div class="ranking-header-title">
                             <h3>Ranked Shortlist</h3>
                             <button id="export-btn" class="btn export-btn"><i class="fa-solid fa-file-csv"></i> Export Report</button>
                         </div>
+
+                        <!-- Quick Filters Badges (New Phase 3) -->
+                        <div class="filters-panel">
+                            <div class="filter-badges-container" id="filter-badges-container">
+                                <span class="filter-badge active" data-filter="all">All</span>
+                                <span class="filter-badge" data-filter="high">High (>70%)</span>
+                                <span class="filter-badge" data-filter="mid">Mid (40-70%)</span>
+                                <span class="filter-badge" data-filter="exp">Experience Fit</span>
+                                <span class="filter-badge" data-filter="edu">Degree Fit</span>
+                            </div>
+                        </div>
+
                         <div class="search-box">
                             <i class="fa-solid fa-magnifying-glass"></i>
                             <input type="text" id="search-candidate" placeholder="Filter candidates by name...">
@@ -304,11 +328,12 @@
                     </div>
                 </div>
 
-                <!-- Document Snippet -->
+                <!-- Document Snippet (Highlighter enabled Phase 3) -->
                 <div class="detail-section">
-                    <h3>Resume Raw Preview</h3>
+                    <h3>Resume Highlights Preview</h3>
+                    <p class="highlight-info-note"><i class="fa-solid fa-lightbulb"></i> Matched skills are highlighted in <span class="highlight-match-sample">green</span>, missing required skills are highlighted in <span class="highlight-miss-sample">red</span>.</p>
                     <div class="raw-preview" id="detail-snippet">
-                        <!-- Raw snippet text -->
+                        <!-- Raw highlighted text -->
                     </div>
                 </div>
             </div>

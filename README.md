@@ -4,23 +4,30 @@
 
 The application is completely self-contained, offline-compatible, and features a state-of-the-art glassmorphic dark dashboard.
 
-**Author:** Raj Singh (AI & Full Stack Developer) 
+**Author:** Raj Singh  
 
 ---
 
 ## Key Features
 
 1. **Robust Multi-format Document Ingestion**: Supports parsing text from PDF (`PyPDF2`), Word (`python-docx`), and raw text files (`.txt`).
-2. **Hybrid NLP Scoring Algorithm**: Computes final scores using three key parameters:
+2. **Parallel & Efficient Processing (Phase 3)**: leverages python `ThreadPoolExecutor` and async file loaders to parse multiple resume documents concurrently, reducing backend extraction bottlenecks.
+3. **Hybrid NLP Scoring Algorithm**: Computes final scores using three key parameters:
    - **Semantic Relevance (TF-IDF & Cosine Similarity)**: Measures context alignment of vocabulary.
    - **Required Skills Match**: Computes skill coverage percentage based on a standard professional skills index.
    - **Years of Experience Match**: Extracts experience durations using pattern matching rules to verify if candidates meet the job threshold.
-3. **Interactive JD Requirements Editor**:
+4. **Interactive JD Requirements Editor**:
    - Extracted job requirements (skills, min experience, degrees) display as interactive chips.
    - Recruiters can add or delete required skills, which **instantly recalculates scores and re-ranks candidates** on the client side without needing server round-trips.
-4. **Dynamic Score Sliders**: Recalculate candidate matching scores dynamically by adjusting parameter weight sliders (Semantic Relevance, Skills Match, and Experience Match).
-5. **Detailed Evaluation Drawer**: Opens a slide-out inspect drawer mapping matched vs. missing skills, degree requirements alignment, and raw resume snippet previews.
-6. **CSV Shortlist Export**: Export shortlisting results into a professional spreadsheet format with a single click.
+5. **Interactive Skill Frequency Breakdown (Phase 3)**:
+   - Renders a pool breakdown chart showing the distribution of skills in the candidate pool.
+   - Clicking a skill bar filters the candidate shortlist deck to show only candidates possessing that specific skill.
+6. **Smart Category Filter Badges (Phase 3)**:
+   - Toggle filters for score tiers (`High >70%`, `Mid 40-70%`), `Experience Fit`, and `Degree Fit` with animated CSS transitions.
+7. **Dynamic Resume Skill Highlighter (Phase 3)**:
+   - Scans candidate text and highlights matched skills in glowing emerald and missing required skills in soft coral inside the resume inspection drawer.
+8. **Dynamic Score Sliders**: Recalculate candidate matching scores dynamically by adjusting parameter weight sliders.
+9. **CSV Shortlist Export**: Export shortlisting results into a professional spreadsheet format with a single click.
 
 ---
 
@@ -29,20 +36,21 @@ The application is completely self-contained, offline-compatible, and features a
 ### Initial Web Dashboard View
 ![Initial Web Dashboard View](screenshots/initial_page_load.png)
 
-### Uploading Resume And divide score on which basis
-![Resume Upload View](screenshots/resume_uploading.png)
+### Candidate Detailed Drawer Open (with Highlighter)
+![Candidate Detailed Drawer Open](screenshots/drawer_highlights_view.png)
 
-### Candidate Detailed Drawer Open
-![Candidate Detailed Drawer Open](screenshots/dashboard_with_drawer.png)
+### Skill Chart Filter Applied
+![Skill Chart Filter Applied](screenshots/chart_filtered_candidates.png)
 
-
+### Live Test Demo In Action
+![Live Test Demo](screenshots/talentai_phase3_demo.webp)
 
 ---
 
 ## Technology Stack
 
-- **Backend Architecture**: Python 3, FastAPI, Uvicorn, Scikit-learn (Machine Learning TF-IDF), PyPDF2, python-docx.
-- **Frontend Architecture**: HTML5, Vanilla CSS3 (Custom Glassmorphism, animations), Modern ES6 JavaScript.
+- **Backend Architecture**: Python 3, FastAPI, Uvicorn, Scikit-learn (Machine Learning TF-IDF), PyPDF2, python-docx, Asyncio, ThreadPoolExecutor.
+- **Frontend Architecture**: HTML5, Vanilla CSS3 (Custom Glassmorphism, charts, filters), Modern ES6 JavaScript.
 
 ---
 
@@ -83,7 +91,7 @@ resume-shortlister/
 │   ├── style.css        # Glassmorphic styles & animations
 │   └── app.js           # Client-side recalculations, sorting & export controls
 ├── dummy_resumes/       # Sample candidate resumes for evaluation
-├── screenshots/         # Captured images
+├── screenshots/         # Captured images & demo webp
 ├── requirements.txt     # Python package requirements
 └── start.bat            # Quick application launcher
 ```

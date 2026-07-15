@@ -1,10 +1,12 @@
 import os
 import uvicorn
+import asyncio
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from typing import List
+from concurrent.futures import ThreadPoolExecutor
 
 # Import our NLP parser
 try:
@@ -23,6 +25,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Allocate thread pool executor for CPU-bound document parsing tasks (PDF/DOCX rendering)
+executor = ThreadPoolExecutor(max_workers=6)
+
+def parse_document_sync(filename: str, file_bytes: bytes) -> str:
+    """Helper executed in a worker thread to extract document text without blocking the event loop."""
+    return nlp_engine.extract_text(filename, file_bytes)
+
 @app.post("/api/shortlist")
 async def shortlist(jd: str = Form(...), resumes: List[UploadFile] = File(...)):
     if not jd.strip():
@@ -30,21 +39,35 @@ async def shortlist(jd: str = Form(...), resumes: List[UploadFile] = File(...)):
     if not resumes:
         raise HTTPException(status_code=400, detail="Please upload at least one resume.")
         
-    resume_data = []
-    for res in resumes:
-        try:
-            contents = await res.read()
-            raw_text = nlp_engine.extract_text(res.filename, contents)
+    try:
+        # 1. Concurrently read file contents from FastAPI upload streams (Async I/O)
+        read_tasks = [res.read() for res in resumes]
+        file_contents = await asyncio.gather(*read_tasks)
+        
+        # 2. Concurrently extract text from files offloaded to thread executor (Parallel CPU operations)
+        loop = asyncio.get_running_loop()
+        parse_tasks = []
+        for idx, res in enumerate(resumes):
+            task = loop.run_in_executor(
+                executor, 
+                parse_document_sync, 
+                res.filename, 
+                file_contents[idx]
+            )
+            parse_tasks.append(task)
+            
+        parsed_texts = await asyncio.gather(*parse_tasks)
+        
+        # Assemble resume data structure
+        resume_data = []
+        for idx, res in enumerate(resumes):
             resume_data.append({
                 "filename": res.filename,
-                "raw_text": raw_text
+                "raw_text": parsed_texts[idx]
             })
-        except Exception as e:
-            # Append filename but with error message to allow system to process other files
-            resume_data.append({
-                "filename": res.filename,
-                "raw_text": f"Error loading file: {str(e)}"
-            })
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Concurrently reading/parsing documents failed: {str(e)}")
             
     try:
         results = nlp_engine.compute_nlp_shortlist(jd, resume_data)
