@@ -25,117 +25,129 @@
         </header>
 
         <!-- Main Content Area -->
-        <main class="app-main">
-            <!-- Left Panel: Inputs & Dynamic Controls -->
-            <section class="panel input-panel">
-                <div class="panel-header">
-                    <i class="fa-solid fa-sliders"></i>
-                    <h2>Parameters & Inputs</h2>
-                </div>
-                
-                <form id="shortlist-form" onsubmit="return false;">
-                    <!-- Job Description Input -->
-                    <div class="input-group">
-                        <label for="job-description">
-                            <span>Job Description (JD)</span>
-                            <span class="tooltip" title="Paste the requirements of the job. NLP will extract skills, experience, and degrees."><i class="fa-solid fa-circle-question"></i></span>
-                        </label>
-                        <textarea id="job-description" name="jd" placeholder="Paste job requirements here (e.g. Looking for a Python Developer with 3+ years of experience in FastAPI and a Bachelor's degree...)" required></textarea>
-                    </div>
-
-                    <!-- Resume Dropzone -->
-                    <div class="input-group">
-                        <label>
-                            <span>Upload Resumes</span>
-                            <span class="tooltip" title="Supports multiple files: PDF, DOCX, TXT"><i class="fa-solid fa-circle-question"></i></span>
-                        </label>
-                        <div id="dropzone" class="dropzone">
-                            <i class="fa-solid fa-cloud-arrow-up cloud-icon"></i>
-                            <p class="dropzone-text">Drag & drop files here or <span>browse files</span></p>
-                            <p class="dropzone-sub">Supports PDF, DOCX, TXT (Max 15 files)</p>
-                            <input type="file" id="resume-input" name="resumes" multiple accept=".pdf,.docx,.doc,.txt" style="display: none;">
-                        </div>
-                        <!-- Uploaded Files List -->
-                        <div id="file-list" class="file-list"></div>
-                    </div>
-
-                    <!-- Submit Button -->
-                    <button type="submit" id="submit-btn" class="btn primary-btn">
-                        <span class="btn-text">Rank Candidates</span>
-                        <i class="fa-solid fa-bolt"></i>
-                        <span class="loader" id="btn-loader" style="display: none;"></span>
-                    </button>
-                </form>
-
-                <!-- Interactive Scoring Weights (Dynamic Slider Settings) -->
-                <div class="weight-settings-panel">
-                    <div class="panel-sub-header">
-                        <i class="fa-solid fa-weight-hanging"></i>
-                        <h3>Scoring Weights</h3>
-                        <span id="weight-total" class="weight-total-badge valid">100%</span>
+        <main class="app-main" id="app-main">
+            
+            <!-- Left Panel wrapper for Collapsing functionality -->
+            <div class="sidebar-wrapper" id="sidebar-wrapper">
+                <!-- Left Panel: Inputs & Dynamic Controls -->
+                <section class="panel input-panel">
+                    <div class="panel-header">
+                        <i class="fa-solid fa-sliders"></i>
+                        <h2>Parameters & Inputs</h2>
+                        <button id="collapse-sidebar-btn" class="toggle-layout-btn" title="Collapse Requirements sidebar">
+                            <i class="fa-solid fa-angle-left"></i>
+                        </button>
                     </div>
                     
-                    <div class="slider-group">
-                        <div class="slider-info">
-                            <span>Semantic Relevance (TF-IDF)</span>
-                            <span id="lbl-weight-semantic">50%</span>
+                    <form id="shortlist-form" onsubmit="return false;">
+                        <!-- Job Description Input -->
+                        <div class="input-group">
+                            <label for="job-description">
+                                <span>Job Description (JD)</span>
+                                <span class="tooltip" title="Paste the requirements of the job. NLP will extract skills, experience, and degrees."><i class="fa-solid fa-circle-question"></i></span>
+                            </label>
+                            <textarea id="job-description" name="jd" placeholder="Paste job requirements here (e.g. Looking for a Python Developer with 3+ years of experience in FastAPI and a Bachelor's degree...)" required></textarea>
                         </div>
-                        <input type="range" id="weight-semantic" min="0" max="100" value="50" step="5" class="weight-slider">
+
+                        <!-- Resume Dropzone -->
+                        <div class="input-group">
+                            <label>
+                                <span>Upload Resumes</span>
+                                <span class="tooltip" title="Supports multiple files: PDF, DOCX, TXT"><i class="fa-solid fa-circle-question"></i></span>
+                            </label>
+                            <div id="dropzone" class="dropzone">
+                                <i class="fa-solid fa-cloud-arrow-up cloud-icon"></i>
+                                <p class="dropzone-text">Drag & drop files here or <span>browse files</span></p>
+                                <p class="dropzone-sub">Supports PDF, DOCX, TXT (Max 15 files)</p>
+                                <input type="file" id="resume-input" name="resumes" multiple accept=".pdf,.docx,.doc,.txt" style="display: none;">
+                            </div>
+                            <!-- Uploaded Files List -->
+                            <div id="file-list" class="file-list"></div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" id="submit-btn" class="btn primary-btn">
+                            <span class="btn-text">Rank Candidates</span>
+                            <i class="fa-solid fa-bolt"></i>
+                            <span class="loader" id="btn-loader" style="display: none;"></span>
+                        </button>
+                    </form>
+
+                    <!-- Interactive Scoring Weights (Dynamic Slider Settings) -->
+                    <div class="weight-settings-panel">
+                        <div class="panel-sub-header">
+                            <i class="fa-solid fa-weight-hanging"></i>
+                            <h3>Scoring Weights</h3>
+                            <span id="weight-total" class="weight-total-badge valid">100%</span>
+                        </div>
+                        
+                        <div class="slider-group">
+                            <div class="slider-info">
+                                <span>Semantic Relevance (TF-IDF)</span>
+                                <span id="lbl-weight-semantic">50%</span>
+                            </div>
+                            <input type="range" id="weight-semantic" min="0" max="100" value="50" step="5" class="weight-slider">
+                        </div>
+
+                        <div class="slider-group">
+                            <div class="slider-info">
+                                <span>Required Skills Match</span>
+                                <span id="lbl-weight-skills">35%</span>
+                            </div>
+                            <input type="range" id="weight-skills" min="0" max="100" value="35" step="5" class="weight-slider">
+                        </div>
+
+                        <div class="slider-group">
+                            <div class="slider-info">
+                                <span>Years of Experience Match</span>
+                                <span id="lbl-weight-experience">15%</span>
+                            </div>
+                            <input type="range" id="weight-experience" min="0" max="100" value="15" step="5" class="weight-slider">
+                        </div>
+                        <p class="weight-note"><i class="fa-solid fa-circle-info"></i> Adjust sliders to re-sort candidates instantly. Weights must sum to 100%.</p>
                     </div>
 
-                    <div class="slider-group">
-                        <div class="slider-info">
-                            <span>Required Skills Match</span>
-                            <span id="lbl-weight-skills">35%</span>
+                    <!-- Dynamic JD Requirements Editor (Visible after analysis) -->
+                    <div id="jd-requirements-panel" class="jd-requirements-panel">
+                        <div class="panel-sub-header">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                            <h3>Extracted Requirements</h3>
                         </div>
-                        <input type="range" id="weight-skills" min="0" max="100" value="35" step="5" class="weight-slider">
-                    </div>
+                        
+                        <!-- Exp & Degree Requirements -->
+                        <div class="req-meta-details">
+                            <div class="meta-item">
+                                <span class="meta-label">Min Experience:</span>
+                                <span id="req-experience-val" class="meta-val">0 Years</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Degrees Required:</span>
+                                <span id="req-degrees-val" class="meta-val">Any</span>
+                            </div>
+                        </div>
 
-                    <div class="slider-group">
-                        <div class="slider-info">
-                            <span>Years of Experience Match</span>
-                            <span id="lbl-weight-experience">15%</span>
-                        </div>
-                        <input type="range" id="weight-experience" min="0" max="100" value="15" step="5" class="weight-slider">
-                    </div>
-                    <p class="weight-note"><i class="fa-solid fa-circle-info"></i> Adjust sliders to re-sort candidates instantly. Weights must sum to 100%.</p>
-                </div>
-
-                <!-- Dynamic JD Requirements Editor (Visible after analysis) -->
-                <div id="jd-requirements-panel" class="jd-requirements-panel">
-                    <div class="panel-sub-header">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                        <h3>Extracted Requirements</h3>
-                    </div>
-                    
-                    <!-- Exp & Degree Requirements -->
-                    <div class="req-meta-details">
-                        <div class="meta-item">
-                            <span class="meta-label">Min Experience:</span>
-                            <span id="req-experience-val" class="meta-val">0 Years</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">Degrees Required:</span>
-                            <span id="req-degrees-val" class="meta-val">Any</span>
+                        <!-- Skills Editor -->
+                        <div class="input-group">
+                            <label>Required Skills Index</label>
+                            <div id="jd-skills-chips-list" class="jd-skills-chips-list">
+                                <!-- Dynamic skills list -->
+                            </div>
+                            <div class="add-skill-control">
+                                <input type="text" id="new-skill-input" placeholder="Add a required skill...">
+                                <button type="button" id="add-skill-btn" class="btn secondary-btn"><i class="fa-solid fa-plus"></i></button>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- Skills Editor -->
-                    <div class="input-group">
-                        <label>Required Skills Index</label>
-                        <div id="jd-skills-chips-list" class="jd-skills-chips-list">
-                            <!-- Dynamic skills list -->
-                        </div>
-                        <div class="add-skill-control">
-                            <input type="text" id="new-skill-input" placeholder="Add a required skill...">
-                            <button type="button" id="add-skill-btn" class="btn secondary-btn"><i class="fa-solid fa-plus"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </section>
+                </section>
+            </div>
 
             <!-- Right Panel: Dashboard / Output -->
-            <section class="panel output-panel">
+            <section class="panel output-panel" id="output-panel">
+                <!-- Floating Expand Sidebar button (New Phase 4) -->
+                <button id="expand-sidebar-btn" class="floating-layout-btn hidden">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Modify Criteria
+                </button>
+
                 <div class="panel-header">
                     <i class="fa-solid fa-chart-line"></i>
                     <h2>Dashboard</h2>
@@ -178,7 +190,7 @@
                         </div>
                     </div>
 
-                    <!-- Visual Skill Frequency Chart widget (New Phase 3) -->
+                    <!-- Visual Skill Frequency Chart widget -->
                     <div class="pool-skills-chart-panel">
                         <div class="panel-sub-header">
                             <i class="fa-solid fa-chart-simple"></i>
@@ -190,14 +202,14 @@
                         </div>
                     </div>
 
-                    <!-- Ranked Candidate List -->
+                    <!-- Shortlist Header -->
                     <div class="ranking-header">
                         <div class="ranking-header-title">
                             <h3>Ranked Shortlist</h3>
                             <button id="export-btn" class="btn export-btn"><i class="fa-solid fa-file-csv"></i> Export Report</button>
                         </div>
 
-                        <!-- Quick Filters Badges (New Phase 3) -->
+                        <!-- Filters panel (Filters + Match Threshold Slider) -->
                         <div class="filters-panel">
                             <div class="filter-badges-container" id="filter-badges-container">
                                 <span class="filter-badge active" data-filter="all">All</span>
@@ -205,6 +217,12 @@
                                 <span class="filter-badge" data-filter="mid">Mid (40-70%)</span>
                                 <span class="filter-badge" data-filter="exp">Experience Fit</span>
                                 <span class="filter-badge" data-filter="edu">Degree Fit</span>
+                            </div>
+                            
+                            <!-- Dynamic Score Threshold Slider (New Phase 4) -->
+                            <div class="threshold-slider-group">
+                                <span class="threshold-slider-label">Min Match Score: <strong id="lbl-threshold-val">0%</strong></span>
+                                <input type="range" id="score-threshold-slider" min="0" max="95" value="0" step="5" class="threshold-slider">
                             </div>
                         </div>
 
@@ -328,7 +346,7 @@
                     </div>
                 </div>
 
-                <!-- Document Snippet (Highlighter enabled Phase 3) -->
+                <!-- Document Snippet -->
                 <div class="detail-section">
                     <h3>Resume Highlights Preview</h3>
                     <p class="highlight-info-note"><i class="fa-solid fa-lightbulb"></i> Matched skills are highlighted in <span class="highlight-match-sample">green</span>, missing required skills are highlighted in <span class="highlight-miss-sample">red</span>.</p>
@@ -337,6 +355,54 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Candidate Checkbox Floating Action Bar (New Phase 4) -->
+    <div id="compare-bar" class="compare-bar">
+        <div class="compare-bar-content">
+            <span id="compare-bar-text"><i class="fa-solid fa-circle-info"></i> Selected 0 candidates for comparison.</span>
+            <div class="compare-bar-actions">
+                <button id="compare-clear-btn" class="btn text-btn">Clear Selection</button>
+                <button id="compare-trigger-btn" class="btn primary-btn compare-trigger-btn">Compare Candidates <i class="fa-solid fa-scale-balanced"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Side-by-Side Comparison Matrix Modal Overlay (New Phase 4) -->
+    <div id="compare-modal" class="modal">
+        <div class="modal-overlay" onclick="closeCompareModal()"></div>
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeCompareModal()"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-scale-balanced"></i> Shortlist Comparison Grid</h2>
+                <p>Side-by-side analysis of candidate alignments and qualifications.</p>
+            </div>
+            <div class="compare-table-container">
+                <table class="compare-table" id="compare-table">
+                    <!-- Injected dynamically in JS -->
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multi-stage Processing Loader Overlay (New Phase 4) -->
+    <div id="processing-overlay" class="processing-overlay">
+        <div class="processing-card">
+            <div class="processing-spinner-container">
+                <div class="processing-ring-outer"></div>
+                <div class="processing-ring-inner"></div>
+                <i class="fa-solid fa-brain processing-brain-icon"></i>
+            </div>
+            <h3>Processing Documents</h3>
+            <p>TalentAI NLP Pipeline is ranking candidates...</p>
+            
+            <ul class="processing-stages" id="processing-stages">
+                <li id="stage-ingest" class="pending"><i class="fa-regular fa-circle"></i> Ingesting files in parallel...</li>
+                <li id="stage-tfidf" class="pending"><i class="fa-regular fa-circle"></i> Performing TF-IDF vocabulary mapping...</li>
+                <li id="stage-cosine" class="pending"><i class="fa-regular fa-circle"></i> Computing semantic cosine similarities...</li>
+                <li id="stage-skills" class="pending"><i class="fa-regular fa-circle"></i> Aligning skills & experience data...</li>
+            </ul>
         </div>
     </div>
 

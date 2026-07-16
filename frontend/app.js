@@ -5,11 +5,16 @@ let activeJdSkills = [];
 let jdExperienceRequired = 0;
 let jdDegreesRequired = [];
 
-// Filtering states (Phase 3)
+// Filtering states
 let activeFilterCategory = 'all'; // 'all', 'high', 'mid', 'exp', 'edu'
 let activeChartSkillFilter = null; // Filter candidates by specific clicked chart skill bar
+let activeMatchThreshold = 0; // Filter candidates by minimum score slider (Phase 4)
+
+// Candidate Checkbox Selection states (Phase 4)
+let selectedCandidates = [];
 
 // DOM Elements
+const appMain = document.getElementById('app-main');
 const dropzone = document.getElementById('dropzone');
 const resumeInput = document.getElementById('resume-input');
 const fileList = document.getElementById('file-list');
@@ -18,6 +23,10 @@ const jobDescriptionInput = document.getElementById('job-description');
 const submitBtn = document.getElementById('submit-btn');
 const btnLoader = document.getElementById('btn-loader');
 const btnText = submitBtn.querySelector('.btn-text');
+
+// Layout control buttons
+const collapseSidebarBtn = document.getElementById('collapse-sidebar-btn');
+const expandSidebarBtn = document.getElementById('expand-sidebar-btn');
 
 // Weight Sliders
 const sliderSemantic = document.getElementById('weight-semantic');
@@ -36,12 +45,16 @@ const jdSkillsChipsList = document.getElementById('jd-skills-chips-list');
 const newSkillInput = document.getElementById('new-skill-input');
 const addSkillBtn = document.getElementById('add-skill-btn');
 
-// Pool Skills Chart DOM (Phase 3)
+// Pool Skills Chart DOM
 const poolSkillsChartPanel = document.querySelector('.pool-skills-chart-panel');
 const poolSkillsChart = document.getElementById('pool-skills-chart');
 
-// Filter Badges DOM (Phase 3)
+// Filter Badges DOM
 const filterBadgesContainer = document.getElementById('filter-badges-container');
+
+// Threshold Filter DOM (Phase 4)
+const scoreThresholdSlider = document.getElementById('score-threshold-slider');
+const lblThresholdVal = document.getElementById('lbl-threshold-val');
 
 // Dashboard State DOM Elements
 const emptyState = document.getElementById('empty-state');
@@ -76,6 +89,19 @@ const detailMatchedSkills = document.getElementById('detail-matched-skills');
 const detailMissingSkills = document.getElementById('detail-missing-skills');
 const detailAllSkillsCategories = document.getElementById('detail-all-skills-categories');
 const detailSnippet = document.getElementById('detail-snippet');
+
+// Floating Compare Bar DOM (Phase 4)
+const compareBar = document.getElementById('compare-bar');
+const compareBarText = document.getElementById('compare-bar-text');
+const compareClearBtn = document.getElementById('compare-clear-btn');
+const compareTriggerBtn = document.getElementById('compare-trigger-btn');
+
+// Comparison Modal DOM (Phase 4)
+const compareModal = document.getElementById('compare-modal');
+const compareTable = document.getElementById('compare-table');
+
+// Full-screen stage loader DOM (Phase 4)
+const processingOverlay = document.getElementById('processing-overlay');
 
 // Toast DOM Element
 const toast = document.getElementById('toast');
@@ -164,6 +190,20 @@ function updateFileListUI() {
     });
 }
 
+/* Sidebar Collapsing Layout Toggles (Phase 4) */
+collapseSidebarBtn.addEventListener('click', collapseSidebar);
+expandSidebarBtn.addEventListener('click', expandSidebar);
+
+function collapseSidebar() {
+    appMain.classList.add('collapsed');
+    expandSidebarBtn.classList.remove('hidden');
+}
+
+function expandSidebar() {
+    appMain.classList.remove('collapsed');
+    expandSidebarBtn.classList.add('hidden');
+}
+
 /* Dynamic Weights (Slider Recalculations) */
 [sliderSemantic, sliderSkills, sliderExperience].forEach(slider => {
     slider.addEventListener('input', () => {
@@ -213,7 +253,6 @@ function recalculateRanking() {
     const activeSkillsSet = new Set(activeJdSkills);
 
     rankedCandidates.forEach(cand => {
-        // 1. Recalculate Skills Score based on dynamic chip tags
         const candSkillsList = [];
         Object.values(cand.all_extracted_skills).forEach(catSkills => {
             candSkillsList.push(...catSkills);
@@ -232,7 +271,6 @@ function recalculateRanking() {
             cand.skills_score = 100.0;
         }
 
-        // 2. Recalculate Experience Score dynamically
         if (jdExperienceRequired > 0.0) {
             if (cand.candidate_exp >= jdExperienceRequired) {
                 cand.experience_score = 100.0;
@@ -243,7 +281,6 @@ function recalculateRanking() {
             cand.experience_score = 100.0;
         }
 
-        // 3. Compute final weighted combination
         const finalScore = (cand.cosine_score * w.semantic / 100) + 
                              (cand.skills_score * w.skills / 100) + 
                              (cand.experience_score * w.experience / 100);
@@ -252,12 +289,41 @@ function recalculateRanking() {
     });
 
     rankedCandidates.sort((a, b) => b.score - a.score);
-    
-    // Refresh UI display list and dashboard metrics
     renderDashboard(rankedCandidates);
-    
-    // Re-draw skill frequency chart
     renderPoolSkillsChart();
+}
+
+/* Multi-stage Processing Loader Controllers (Phase 4) */
+function showStageLoader() {
+    processingOverlay.classList.add('active');
+    
+    // Reset all checkpoints to pending
+    const stages = ['ingest', 'tfidf', 'cosine', 'skills'];
+    stages.forEach(st => setStageStatus(st, 'pending'));
+}
+
+function hideStageLoader() {
+    processingOverlay.classList.remove('active');
+}
+
+function setStageStatus(stageId, status) {
+    const el = document.getElementById(`stage-${stageId}`);
+    if (!el) return;
+
+    el.className = status;
+    const icon = el.querySelector('i');
+    
+    if (status === 'pending') {
+        icon.className = 'fa-regular fa-circle';
+    } else if (status === 'active') {
+        icon.className = 'fa-solid fa-spinner fa-spin';
+    } else if (status === 'completed') {
+        icon.className = 'fa-solid fa-circle-check';
+    }
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /* Submit Form to Backend API */
@@ -280,11 +346,9 @@ shortlistForm.addEventListener('submit', async (e) => {
         return;
     }
 
-    // Enter Loading State
-    submitBtn.disabled = true;
-    btnLoader.style.display = 'inline-block';
-    btnText.textContent = 'Analyzing...';
-    submitBtn.style.opacity = '0.85';
+    // Toggle multi-stage full-screen loader overlay
+    showStageLoader();
+    setStageStatus('ingest', 'active');
 
     const formData = new FormData();
     formData.append('jd', jd);
@@ -298,40 +362,61 @@ shortlistForm.addEventListener('submit', async (e) => {
             body: formData
         });
 
+        // Simulating the stage visual updates for user experience mapping
+        setStageStatus('ingest', 'completed');
+        setStageStatus('tfidf', 'active');
+        await delay(600);
+
+        setStageStatus('tfidf', 'completed');
+        setStageStatus('cosine', 'active');
+        await delay(600);
+
         const data = await response.json();
+
+        setStageStatus('cosine', 'completed');
+        setStageStatus('skills', 'active');
+        await delay(500);
 
         if (response.ok && data.success) {
             rankedCandidates = data.candidates;
             
-            // Populate extracted requirements
+            // Populate requirements
             activeJdSkills = data.jd_requirements.skills;
             jdExperienceRequired = data.jd_requirements.experience_years;
             jdDegreesRequired = data.jd_requirements.degrees;
 
-            // Reset dashboard filters
+            // Reset checklist metrics & sliders
             activeFilterCategory = 'all';
             activeChartSkillFilter = null;
+            activeMatchThreshold = 0;
+            scoreThresholdSlider.value = 0;
+            lblThresholdVal.textContent = '0%';
+            selectedCandidates = [];
+            updateCompareBar();
             updateFilterBadgesUI();
 
-            // Load requirements editor panel
             renderRequirementsEditor();
-            
-            // Perform ranking calculations
             recalculateRanking();
-            showToast("Resumes ranked and dashboard loaded successfully!", "success");
+            
+            setStageStatus('skills', 'completed');
+            await delay(400);
+            hideStageLoader();
+            
+            showToast("Resumes parsed and ranked successfully!", "success");
+            
+            // Auto collapse left panel sidebar to allow ranked list to expand (UX improvement)
+            setTimeout(() => {
+                collapseSidebar();
+            }, 1000);
         } else {
+            hideStageLoader();
             const errorMsg = data.detail || "Failed to process resumes. Try again.";
             showToast(errorMsg, "error");
         }
     } catch (error) {
+        hideStageLoader();
         console.error(error);
         showToast("Server connection error. Ensure backend is running.", "error");
-    } finally {
-        // Exit Loading State
-        submitBtn.disabled = false;
-        btnLoader.style.display = 'none';
-        btnText.textContent = 'Rank Candidates';
-        submitBtn.style.opacity = '1';
     }
 });
 
@@ -340,7 +425,6 @@ function renderDashboard(candidates) {
     emptyState.classList.remove('active');
     resultsState.classList.add('active');
 
-    // Update Stats Cards
     statTotal.textContent = candidates.length;
     
     const strongMatchesCount = candidates.filter(c => c.score >= 70.0).length;
@@ -349,11 +433,10 @@ function renderDashboard(candidates) {
     const avgScore = candidates.reduce((acc, c) => acc + c.score, 0) / candidates.length;
     statAvg.textContent = `${avgScore.toFixed(1)}%`;
 
-    // Apply active filters on candidates list before rendering
     applyCandidatesFiltering();
 }
 
-/* Filter Application Engine (Phase 3) */
+/* Filter Application Engine */
 function applyCandidatesFiltering() {
     let filteredList = [...rankedCandidates];
 
@@ -368,7 +451,12 @@ function applyCandidatesFiltering() {
         filteredList = filteredList.filter(c => c.degree_match === true);
     }
 
-    // 2. Filter by Active clicked skill bar from pool chart
+    // 2. Filter by Minimum Score Match Threshold slider (Phase 4)
+    if (activeMatchThreshold > 0) {
+        filteredList = filteredList.filter(c => c.score >= activeMatchThreshold);
+    }
+
+    // 3. Filter by Active clicked skill bar from pool chart
     if (activeChartSkillFilter) {
         filteredList = filteredList.filter(c => {
             const candSkillsList = [];
@@ -379,7 +467,7 @@ function applyCandidatesFiltering() {
         });
     }
 
-    // 3. Filter by Search Query
+    // 4. Filter by Search Query
     const query = searchCandidate.value.toLowerCase().trim();
     if (query) {
         filteredList = filteredList.filter(c => c.filename.toLowerCase().includes(query));
@@ -408,7 +496,13 @@ function renderCandidatesList(candidates) {
 
         const item = document.createElement('div');
         item.className = 'candidate-card';
-        item.onclick = () => openDrawer(candidate, index + 1);
+        // Open drawer on click, but ignore checks
+        item.onclick = (e) => {
+            if (e.target.closest('.candidate-checkbox-container') || e.target.closest('.candidate-card-checkbox')) {
+                return; // Prevent clicking checkbox opening drawer
+            }
+            openDrawer(candidate, index + 1);
+        };
 
         const expLabel = candidate.candidate_exp > 0 ? `${candidate.candidate_exp} Yrs Exp` : 'Exp not listed';
         const degreeLabel = candidate.candidate_degrees.length > 0 ? candidate.candidate_degrees.join(', ') : 'No Degree listed';
@@ -418,7 +512,12 @@ function renderCandidatesList(candidates) {
             `<span class="cand-meta-badge skills-micro">${skill}</span>`
         ).join('');
 
+        const isChecked = selectedCandidates.includes(candidate.filename);
+
         item.innerHTML = `
+            <div class="candidate-checkbox-container">
+                <input type="checkbox" class="candidate-card-checkbox" data-filename="${candidate.filename}" ${isChecked ? 'checked' : ''}>
+            </div>
             <div class="candidate-main">
                 <span class="rank-badge">#${index + 1}</span>
                 <div class="candidate-profile">
@@ -438,6 +537,13 @@ function renderCandidatesList(candidates) {
                 <i class="fa-solid fa-chevron-right arrow-icon"></i>
             </div>
         `;
+        
+        // Checkbox event binding
+        const cb = item.querySelector('.candidate-card-checkbox');
+        cb.addEventListener('change', (e) => {
+            handleCandidateSelection(e.target.getAttribute('data-filename'), e.target.checked);
+        });
+
         candidatesContainer.appendChild(item);
     });
 }
@@ -447,7 +553,7 @@ searchCandidate.addEventListener('input', () => {
     applyCandidatesFiltering();
 });
 
-/* Toggle Quick Filter Badges (Phase 3) */
+/* Toggle Quick Filter Badges */
 filterBadgesContainer.addEventListener('click', (e) => {
     const badge = e.target.closest('.filter-badge');
     if (!badge) return;
@@ -470,7 +576,169 @@ function updateFilterBadgesUI() {
     });
 }
 
-/* Pool Skills Frequency Chart rendering (Phase 3) */
+/* Match Score Threshold Slider Listener (Phase 4) */
+scoreThresholdSlider.addEventListener('input', (e) => {
+    activeMatchThreshold = parseInt(e.target.value);
+    lblThresholdVal.textContent = `${activeMatchThreshold}%`;
+    applyCandidatesFiltering();
+});
+
+/* Candidate Compare Selections Logic (Phase 4) */
+function handleCandidateSelection(filename, isChecked) {
+    if (isChecked) {
+        if (!selectedCandidates.includes(filename)) {
+            if (selectedCandidates.length >= 3) {
+                showToast("You can compare a maximum of 3 candidates side-by-side.", "error");
+                // Revert checkbox state visually
+                const box = candidatesContainer.querySelector(`.candidate-card-checkbox[data-filename="${filename}"]`);
+                if (box) box.checked = false;
+                return;
+            }
+            selectedCandidates.push(filename);
+        }
+    } else {
+        selectedCandidates = selectedCandidates.filter(f => f !== filename);
+    }
+    updateCompareBar();
+}
+
+function updateCompareBar() {
+    const count = selectedCandidates.length;
+    if (count > 0) {
+        compareBar.classList.add('show');
+        compareBarText.innerHTML = `<i class="fa-solid fa-circle-info"></i> Selected <strong>${count}</strong> candidate${count > 1 ? 's' : ''} for comparison.`;
+        
+        // Compare button enabled only for 2 or 3 selected items
+        if (count >= 2 && count <= 3) {
+            compareTriggerBtn.disabled = false;
+            compareTriggerBtn.style.opacity = '1';
+        } else {
+            compareTriggerBtn.disabled = true;
+            compareTriggerBtn.style.opacity = '0.5';
+        }
+    } else {
+        compareBar.classList.remove('show');
+    }
+}
+
+// Clear selections
+compareClearBtn.addEventListener('click', () => {
+    selectedCandidates = [];
+    updateCompareBar();
+    
+    // Uncheck boxes in DOM
+    const checkboxes = candidatesContainer.querySelectorAll('.candidate-card-checkbox');
+    checkboxes.forEach(c => c.checked = false);
+});
+
+// Compare trigger
+compareTriggerBtn.addEventListener('click', () => {
+    if (selectedCandidates.length < 2 || selectedCandidates.length > 3) return;
+    
+    renderComparisonTable();
+    compareModal.classList.add('open');
+});
+
+function closeCompareModal() {
+    compareModal.classList.remove('open');
+}
+
+/* Render side-by-side matrices (Phase 4) */
+function renderComparisonTable() {
+    compareTable.innerHTML = '';
+    
+    // Retrieve target candidates objects in original order
+    const targets = rankedCandidates.filter(c => selectedCandidates.includes(c.filename));
+    
+    // 1. Render Table Header
+    const headRow = document.createElement('tr');
+    const headerLabelCol = document.createElement('th');
+    headerLabelCol.textContent = 'Qualification / Metric';
+    headRow.appendChild(headerLabelCol);
+    
+    targets.forEach((cand, idx) => {
+        const th = document.createElement('th');
+        th.innerHTML = `<div style="color: var(--primary-color);">Candidate #${idx+1}</div><div style="font-size:0.85rem; word-break:break-all;">${cand.filename}</div>`;
+        headRow.appendChild(th);
+    });
+    compareTable.appendChild(headRow);
+
+    // Rows map configurations
+    const rowsMap = [
+        {
+            label: "Overall Match Score",
+            renderer: (cand) => {
+                let scoreClass = 'low';
+                if (cand.score >= 70) scoreClass = 'high';
+                else if (cand.score >= 40) scoreClass = 'mid';
+                return `<strong class="compare-score ${scoreClass}">${cand.score}%</strong>`;
+            }
+        },
+        {
+            label: "Semantic Relevance",
+            renderer: (cand) => `${cand.cosine_score}%`
+        },
+        {
+            label: "Skills Coverage",
+            renderer: (cand) => `${cand.skills_score.toFixed(1)}%`
+        },
+        {
+            label: "Experience Alignment",
+            renderer: (cand) => `${cand.experience_score.toFixed(1)}%`
+        },
+        {
+            label: "Years of Experience",
+            renderer: (cand) => `<strong>${cand.candidate_exp} Years</strong> (Required: ${jdExperienceRequired} Yrs)`
+        },
+        {
+            label: "Degree Extracted",
+            renderer: (cand) => cand.candidate_degrees.length > 0 ? cand.candidate_degrees.join(', ') : 'None listed'
+        },
+        {
+            label: "Degree Match Status",
+            renderer: (cand) => cand.degree_match ? 
+                '<span style="color:var(--success); font-weight:600;"><i class="fa-solid fa-circle-check"></i> Matched</span>' : 
+                '<span style="color:var(--danger); font-weight:600;"><i class="fa-solid fa-circle-xmark"></i> Not Matched</span>'
+        },
+        {
+            label: "Matched Skills",
+            renderer: (cand) => {
+                if (cand.matched_skills.length === 0) return '<span style="color:var(--text-dark);">None</span>';
+                return `<div class="compare-badge-list">${cand.matched_skills.map(s => `<span class="badge" style="background:var(--success-bg); color:#34d399; border:1px solid var(--success-border);">${s}</span>`).join('')}</div>`;
+            }
+        },
+        {
+            label: "Missing Required Skills",
+            renderer: (cand) => {
+                if (cand.missing_skills.length === 0) return '<span style="color:var(--text-dark);">None</span>';
+                return `<div class="compare-badge-list">${cand.missing_skills.map(s => `<span class="badge" style="background:var(--danger-bg); color:#fb7185; border:1px solid var(--danger-border);">${s}</span>`).join('')}</div>`;
+            }
+        }
+    ];
+
+    rowsMap.forEach(rowData => {
+        const row = document.createElement('tr');
+        const labelCol = document.createElement('td');
+        labelCol.textContent = rowData.label;
+        row.appendChild(labelCol);
+        
+        targets.forEach(cand => {
+            const td = document.createElement('td');
+            td.innerHTML = rowData.renderer(cand);
+            row.appendChild(td);
+        });
+        compareTable.appendChild(row);
+    });
+}
+
+// Close modals on ESC key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && compareModal.classList.contains('open')) {
+        closeCompareModal();
+    }
+});
+
+/* Pool Skills Frequency Chart rendering */
 function renderPoolSkillsChart() {
     if (rankedCandidates.length === 0) {
         poolSkillsChartPanel.classList.remove('active');
@@ -480,7 +748,6 @@ function renderPoolSkillsChart() {
     poolSkillsChartPanel.classList.add('active');
     poolSkillsChart.innerHTML = '';
 
-    // Count skills frequencies across candidates
     const freq = {};
     rankedCandidates.forEach(cand => {
         const skillsSet = new Set();
@@ -492,10 +759,9 @@ function renderPoolSkillsChart() {
         });
     });
 
-    // Sort skills by frequency descending
     const sortedSkills = Object.keys(freq).map(skill => {
         return { name: skill, count: freq[skill] };
-    }).sort((a, b) => b.count - a.count).slice(0, 5); // Take top 5 skills
+    }).sort((a, b) => b.count - a.count).slice(0, 5);
 
     if (sortedSkills.length === 0) {
         poolSkillsChart.innerHTML = '<span class="text-dark" style="font-size: 0.8rem;">No skills identified in the candidate pool.</span>';
@@ -523,7 +789,6 @@ function renderPoolSkillsChart() {
         
         poolSkillsChart.appendChild(barGroup);
         
-        // Trigger width animation in next frame
         setTimeout(() => {
             const fill = barGroup.querySelector('.bar-fill');
             if (fill) fill.style.width = `${percentage}%`;
@@ -533,7 +798,7 @@ function renderPoolSkillsChart() {
 
 function toggleSkillChartFilter(skillName) {
     if (activeChartSkillFilter === skillName) {
-        activeChartSkillFilter = null; // Clear filter if clicked again
+        activeChartSkillFilter = null;
         showToast("Cleared skill chart filter.", "info");
     } else {
         activeChartSkillFilter = skillName;
@@ -605,18 +870,16 @@ newSkillInput.addEventListener('keydown', (e) => {
     }
 });
 
-/* Dynamic Skill Highlighter (Phase 3) */
+/* Dynamic Skill Highlighter */
 function highlightTextSkills(rawText, matchedSkills, missingSkills) {
     let tempText = rawText;
     const replacements = {};
     let tokenIndex = 0;
     
-    // Gather all keywords to highlight and flag their types
     const keywords = [];
     matchedSkills.forEach(s => keywords.push({ word: s, type: 'match' }));
     missingSkills.forEach(s => keywords.push({ word: s, type: 'miss' }));
     
-    // Sort keywords by length descending to prevent shorter words eating longer matches
     keywords.sort((a, b) => b.word.length - a.word.length);
     
     function escapeRegExp(str) {
@@ -633,12 +896,10 @@ function highlightTextSkills(rawText, matchedSkills, missingSkills) {
         });
     });
     
-    // HTML escape the text to prevent any visual scripts, keeping placeholders intact
     const dummyDiv = document.createElement('div');
     dummyDiv.innerText = tempText;
     let safeHtml = dummyDiv.innerHTML;
     
-    // Finally replace placeholders with marked HTML
     Object.keys(replacements).forEach(token => {
         safeHtml = safeHtml.replace(token, replacements[token]);
     });
@@ -755,7 +1016,7 @@ function openDrawer(candidate, rank) {
         });
     }
 
-    // Highlight candidate raw snippet details (Phase 3)
+    // Highlight candidate raw snippet details
     const highlightedSnippet = highlightTextSkills(candidate.snippet, candidate.matched_skills, candidate.missing_skills);
     detailSnippet.innerHTML = highlightedSnippet;
 
