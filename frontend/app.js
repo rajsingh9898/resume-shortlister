@@ -6,12 +6,15 @@ let jdExperienceRequired = 0;
 let jdDegreesRequired = [];
 
 // Filtering states
-let activeFilterCategory = 'all'; // 'all', 'high', 'mid', 'exp', 'edu'
+let activeFilterCategory = 'all'; // 'all', 'high', 'mid', 'exp', 'edu', 'shortlisted', 'rejected'
 let activeChartSkillFilter = null; // Filter candidates by specific clicked chart skill bar
-let activeMatchThreshold = 0; // Filter candidates by minimum score slider (Phase 4)
+let activeMatchThreshold = 0; // Filter candidates by minimum score slider
 
-// Candidate Checkbox Selection states (Phase 4)
+// Candidate Checkbox Selection states
 let selectedCandidates = [];
+
+// Active Candidate in Details Drawer (Phase 5)
+let currentDrawerCandidate = null;
 
 // DOM Elements
 const appMain = document.getElementById('app-main');
@@ -52,7 +55,7 @@ const poolSkillsChart = document.getElementById('pool-skills-chart');
 // Filter Badges DOM
 const filterBadgesContainer = document.getElementById('filter-badges-container');
 
-// Threshold Filter DOM (Phase 4)
+// Threshold Filter DOM
 const scoreThresholdSlider = document.getElementById('score-threshold-slider');
 const lblThresholdVal = document.getElementById('lbl-threshold-val');
 
@@ -90,17 +93,25 @@ const detailMissingSkills = document.getElementById('detail-missing-skills');
 const detailAllSkillsCategories = document.getElementById('detail-all-skills-categories');
 const detailSnippet = document.getElementById('detail-snippet');
 
-// Floating Compare Bar DOM (Phase 4)
+// Drawer Evaluation components (Phase 5)
+const btnStatusShortlisted = document.getElementById('btn-status-shortlisted');
+const btnStatusReview = document.getElementById('btn-status-review');
+const btnStatusRejected = document.getElementById('btn-status-rejected');
+const drawerRecruiterNotes = document.getElementById('drawer-recruiter-notes');
+const detailAiVerdictText = document.getElementById('detail-ai-verdict-text');
+const detailInterviewQuestionsList = document.getElementById('detail-interview-questions-list');
+
+// Floating Compare Bar DOM
 const compareBar = document.getElementById('compare-bar');
 const compareBarText = document.getElementById('compare-bar-text');
 const compareClearBtn = document.getElementById('compare-clear-btn');
 const compareTriggerBtn = document.getElementById('compare-trigger-btn');
 
-// Comparison Modal DOM (Phase 4)
+// Comparison Modal DOM
 const compareModal = document.getElementById('compare-modal');
 const compareTable = document.getElementById('compare-table');
 
-// Full-screen stage loader DOM (Phase 4)
+// Full-screen stage loader DOM
 const processingOverlay = document.getElementById('processing-overlay');
 
 // Toast DOM Element
@@ -190,7 +201,7 @@ function updateFileListUI() {
     });
 }
 
-/* Sidebar Collapsing Layout Toggles (Phase 4) */
+/* Sidebar Collapsing Layout Toggles */
 collapseSidebarBtn.addEventListener('click', collapseSidebar);
 expandSidebarBtn.addEventListener('click', expandSidebar);
 
@@ -293,11 +304,9 @@ function recalculateRanking() {
     renderPoolSkillsChart();
 }
 
-/* Multi-stage Processing Loader Controllers (Phase 4) */
+/* Multi-stage Processing Loader Controllers */
 function showStageLoader() {
     processingOverlay.classList.add('active');
-    
-    // Reset all checkpoints to pending
     const stages = ['ingest', 'tfidf', 'cosine', 'skills'];
     stages.forEach(st => setStageStatus(st, 'pending'));
 }
@@ -346,7 +355,6 @@ shortlistForm.addEventListener('submit', async (e) => {
         return;
     }
 
-    // Toggle multi-stage full-screen loader overlay
     showStageLoader();
     setStageStatus('ingest', 'active');
 
@@ -362,7 +370,6 @@ shortlistForm.addEventListener('submit', async (e) => {
             body: formData
         });
 
-        // Simulating the stage visual updates for user experience mapping
         setStageStatus('ingest', 'completed');
         setStageStatus('tfidf', 'active');
         await delay(600);
@@ -380,12 +387,10 @@ shortlistForm.addEventListener('submit', async (e) => {
         if (response.ok && data.success) {
             rankedCandidates = data.candidates;
             
-            // Populate requirements
             activeJdSkills = data.jd_requirements.skills;
             jdExperienceRequired = data.jd_requirements.experience_years;
             jdDegreesRequired = data.jd_requirements.degrees;
 
-            // Reset checklist metrics & sliders
             activeFilterCategory = 'all';
             activeChartSkillFilter = null;
             activeMatchThreshold = 0;
@@ -404,7 +409,6 @@ shortlistForm.addEventListener('submit', async (e) => {
             
             showToast("Resumes parsed and ranked successfully!", "success");
             
-            // Auto collapse left panel sidebar to allow ranked list to expand (UX improvement)
             setTimeout(() => {
                 collapseSidebar();
             }, 1000);
@@ -440,7 +444,7 @@ function renderDashboard(candidates) {
 function applyCandidatesFiltering() {
     let filteredList = [...rankedCandidates];
 
-    // 1. Filter by Active Filter Badges Category
+    // 1. Filter by Active Filter Badges Category (including Phase 5 Status markers)
     if (activeFilterCategory === 'high') {
         filteredList = filteredList.filter(c => c.score >= 70.0);
     } else if (activeFilterCategory === 'mid') {
@@ -449,9 +453,13 @@ function applyCandidatesFiltering() {
         filteredList = filteredList.filter(c => jdExperienceRequired === 0 || c.candidate_exp >= jdExperienceRequired);
     } else if (activeFilterCategory === 'edu') {
         filteredList = filteredList.filter(c => c.degree_match === true);
+    } else if (activeFilterCategory === 'shortlisted') {
+        filteredList = filteredList.filter(c => localStorage.getItem(`talentai_status_${c.filename}`) === 'Shortlisted');
+    } else if (activeFilterCategory === 'rejected') {
+        filteredList = filteredList.filter(c => localStorage.getItem(`talentai_status_${c.filename}`) === 'Rejected');
     }
 
-    // 2. Filter by Minimum Score Match Threshold slider (Phase 4)
+    // 2. Filter by Minimum Score Match Threshold slider
     if (activeMatchThreshold > 0) {
         filteredList = filteredList.filter(c => c.score >= activeMatchThreshold);
     }
@@ -496,10 +504,9 @@ function renderCandidatesList(candidates) {
 
         const item = document.createElement('div');
         item.className = 'candidate-card';
-        // Open drawer on click, but ignore checks
         item.onclick = (e) => {
             if (e.target.closest('.candidate-checkbox-container') || e.target.closest('.candidate-card-checkbox')) {
-                return; // Prevent clicking checkbox opening drawer
+                return;
             }
             openDrawer(candidate, index + 1);
         };
@@ -514,6 +521,17 @@ function renderCandidatesList(candidates) {
 
         const isChecked = selectedCandidates.includes(candidate.filename);
 
+        // Retrieve saved status to display card badge overlay (Phase 5)
+        const savedStatus = localStorage.getItem(`talentai_status_${candidate.filename}`);
+        let statusBadgeHtml = '';
+        if (savedStatus) {
+            let badgeClass = 'review';
+            if (savedStatus === 'Shortlisted') badgeClass = 'shortlisted';
+            else if (savedStatus === 'Rejected') badgeClass = 'rejected';
+            
+            statusBadgeHtml = `<span class="cand-status-badge ${badgeClass}">${savedStatus}</span>`;
+        }
+
         item.innerHTML = `
             <div class="candidate-checkbox-container">
                 <input type="checkbox" class="candidate-card-checkbox" data-filename="${candidate.filename}" ${isChecked ? 'checked' : ''}>
@@ -521,8 +539,11 @@ function renderCandidatesList(candidates) {
             <div class="candidate-main">
                 <span class="rank-badge">#${index + 1}</span>
                 <div class="candidate-profile">
-                    <span class="candidate-title" title="${candidate.filename}">${candidate.filename}</span>
+                    <span class="candidate-title" title="${candidate.filename}">
+                        ${candidate.filename}
+                    </span>
                     <span class="candidate-subtitle">
+                        ${statusBadgeHtml}
                         <span class="cand-meta-badge">${expLabel}</span>
                         <span class="cand-meta-badge">${degreeLabel}</span>
                         ${microBadgesHtml}
@@ -538,7 +559,6 @@ function renderCandidatesList(candidates) {
             </div>
         `;
         
-        // Checkbox event binding
         const cb = item.querySelector('.candidate-card-checkbox');
         cb.addEventListener('change', (e) => {
             handleCandidateSelection(e.target.getAttribute('data-filename'), e.target.checked);
@@ -576,20 +596,19 @@ function updateFilterBadgesUI() {
     });
 }
 
-/* Match Score Threshold Slider Listener (Phase 4) */
+/* Match Score Threshold Slider Listener */
 scoreThresholdSlider.addEventListener('input', (e) => {
     activeMatchThreshold = parseInt(e.target.value);
     lblThresholdVal.textContent = `${activeMatchThreshold}%`;
     applyCandidatesFiltering();
 });
 
-/* Candidate Compare Selections Logic (Phase 4) */
+/* Candidate Compare Selections Logic */
 function handleCandidateSelection(filename, isChecked) {
     if (isChecked) {
         if (!selectedCandidates.includes(filename)) {
             if (selectedCandidates.length >= 3) {
                 showToast("You can compare a maximum of 3 candidates side-by-side.", "error");
-                // Revert checkbox state visually
                 const box = candidatesContainer.querySelector(`.candidate-card-checkbox[data-filename="${filename}"]`);
                 if (box) box.checked = false;
                 return;
@@ -608,7 +627,6 @@ function updateCompareBar() {
         compareBar.classList.add('show');
         compareBarText.innerHTML = `<i class="fa-solid fa-circle-info"></i> Selected <strong>${count}</strong> candidate${count > 1 ? 's' : ''} for comparison.`;
         
-        // Compare button enabled only for 2 or 3 selected items
         if (count >= 2 && count <= 3) {
             compareTriggerBtn.disabled = false;
             compareTriggerBtn.style.opacity = '1';
@@ -621,17 +639,13 @@ function updateCompareBar() {
     }
 }
 
-// Clear selections
 compareClearBtn.addEventListener('click', () => {
     selectedCandidates = [];
     updateCompareBar();
-    
-    // Uncheck boxes in DOM
     const checkboxes = candidatesContainer.querySelectorAll('.candidate-card-checkbox');
     checkboxes.forEach(c => c.checked = false);
 });
 
-// Compare trigger
 compareTriggerBtn.addEventListener('click', () => {
     if (selectedCandidates.length < 2 || selectedCandidates.length > 3) return;
     
@@ -643,14 +657,12 @@ function closeCompareModal() {
     compareModal.classList.remove('open');
 }
 
-/* Render side-by-side matrices (Phase 4) */
+/* Render side-by-side matrices */
 function renderComparisonTable() {
     compareTable.innerHTML = '';
     
-    // Retrieve target candidates objects in original order
     const targets = rankedCandidates.filter(c => selectedCandidates.includes(c.filename));
     
-    // 1. Render Table Header
     const headRow = document.createElement('tr');
     const headerLabelCol = document.createElement('th');
     headerLabelCol.textContent = 'Qualification / Metric';
@@ -663,7 +675,6 @@ function renderComparisonTable() {
     });
     compareTable.appendChild(headRow);
 
-    // Rows map configurations
     const rowsMap = [
         {
             label: "Overall Match Score",
@@ -672,6 +683,17 @@ function renderComparisonTable() {
                 if (cand.score >= 70) scoreClass = 'high';
                 else if (cand.score >= 40) scoreClass = 'mid';
                 return `<strong class="compare-score ${scoreClass}">${cand.score}%</strong>`;
+            }
+        },
+        {
+            label: "Review Status",
+            renderer: (cand) => {
+                const status = localStorage.getItem(`talentai_status_${cand.filename}`) || 'None';
+                let styleStr = 'color: var(--text-dark);';
+                if (status === 'Shortlisted') styleStr = 'color: #34d399; font-weight:700;';
+                else if (status === 'Under Review') styleStr = 'color: #fbbf24; font-weight:700;';
+                else if (status === 'Rejected') styleStr = 'color: #fb7185; font-weight:700;';
+                return `<span style="${styleStr}">${status}</span>`;
             }
         },
         {
@@ -731,11 +753,112 @@ function renderComparisonTable() {
     });
 }
 
-// Close modals on ESC key
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && compareModal.classList.contains('open')) {
         closeCompareModal();
     }
+});
+
+/* Heuristic AI Verdict Summary Card generator (Phase 5) */
+function generateCandidateVerdict(cand) {
+    const score = cand.score;
+    const matchedCount = cand.matched_skills.length;
+    const requiredCount = activeJdSkills.length;
+    
+    let summary = '';
+    
+    if (score >= 70.0) {
+        summary = `<strong>Highly Recommended</strong>: <em>${cand.filename}</em> shows an outstanding profile alignment with a <strong>${score}% Match Score</strong>. They cover <strong>${matchedCount} of ${requiredCount}</strong> required skills including core areas like <em>${cand.matched_skills.slice(0, 3).join(', ')}</em>. They meet or exceed the required experience threshold with <strong>${cand.candidate_exp} years</strong> of experience, and their educational degrees meet the criteria. Recommended next step: Schedule a direct technical interview.`;
+    } else if (score >= 40.0) {
+        const gapText = cand.missing_skills.length > 0 ? ` They exhibit missing required skills in key JD areas: <em>${cand.missing_skills.slice(0, 3).join(', ')}</em>.` : '';
+        
+        summary = `<strong>Under Review</strong>: <em>${cand.filename}</em> is a partial match with a <strong>${score}% Match Score</strong>. They have <strong>${cand.candidate_exp} years</strong> of experience and match <strong>${matchedCount} of ${requiredCount}</strong> required skills.${gapText} Recommended next step: Conduct a phone screening call to assess their competency details in the missing core skills.`;
+    } else {
+        const degreeNotice = !cand.degree_match && jdDegreesRequired.length > 0 ? ' Educational degree requirements are also not aligned.' : '';
+        
+        summary = `<strong>Not Recommended</strong>: <em>${cand.filename}</em> is a low match with a <strong>${score}% Match Score</strong>. They only match <strong>${matchedCount} of ${requiredCount}</strong> required skills, and have <strong>${cand.candidate_exp} years</strong> of experience.${degreeNotice} Recommended next step: Archive application.`;
+    }
+    
+    return summary;
+}
+
+/* Contextual Screening Questions Generator based on skill gaps (Phase 5) */
+function generateInterviewQuestions(cand) {
+    const list = [];
+    
+    // Questions mapping for missing required skills
+    const skillQuestionsTemplates = {
+        'Docker': "Could you walk us through how you would optimize a Dockerfile using multi-stage builds and minimize image sizes?",
+        'Kubernetes': "How have you managed Kubernetes secrets, resource configurations, and ingress traffic routing in staging or production?",
+        'FastAPI': "What are the core differences between FastAPI async endpoints and traditional WSGI frameworks like Flask, and how do you handle exception testing?",
+        'React': "Can you explain React fiber reconciliation and how you would prevent unnecessary re-rendering in large lists?",
+        'CI/CD': "How have you automated pipelines in your previous role, and what steps did you include to handle validation test failures?",
+        'Git': "How do you handle complex git merge conflicts or cherry-picking scenarios within a multi-developer git workflow?",
+        'PostgreSQL': "Can you describe a scenario where you had to debug a slow query in PostgreSQL, and how did you use indexing or EXPLAIN ANALYZE?",
+        'Python': "What are your preferred methods for profiling and optimizing execution speeds or memory usage in Python applications?"
+    };
+
+    // 1. Target questions to up to 3 missing required skills
+    if (cand.missing_skills.length > 0) {
+        cand.missing_skills.slice(0, 3).forEach(skill => {
+            const template = skillQuestionsTemplates[skill];
+            if (template) {
+                list.push(`<strong>Focus on ${skill}</strong>: "${template}"`);
+            } else {
+                list.push(`<strong>Focus on ${skill}</strong>: "Can you detail a scenario in a previous project where you had to implement ${skill}? What technical challenges did you encounter?"`);
+            }
+        });
+    }
+
+    // 2. Add an experience check question if candidate falls short of min experience
+    if (jdExperienceRequired > 0 && cand.candidate_exp < jdExperienceRequired) {
+        list.push(`<strong>Experience Alignment</strong>: "The JD requests ${jdExperienceRequired} years of experience, and your profile lists ${cand.candidate_exp} years. Can you describe how your intensive hands-on experience has equipped you to succeed in this role?"`);
+    }
+
+    // 3. Fallback generic technical questions if candidate has zero gaps
+    if (list.length === 0) {
+        list.push(`<strong>System Scaling</strong>: "Can you describe a complex system design challenge you resolved in a past role, focusing on security and scaling?"`);
+        list.push(`<strong>Technology Ingestion</strong>: "How do you evaluate and safely integrate new frameworks or packages into an existing production codebase?"`);
+    }
+
+    return list;
+}
+
+/* LocalStorage status rating setters (Phase 5) */
+window.setCandidateStatus = function(status) {
+    if (!currentDrawerCandidate) return;
+    
+    const filename = currentDrawerCandidate.filename;
+    localStorage.setItem(`talentai_status_${filename}`, status);
+    
+    updateDrawerStatusUI(status);
+    
+    // Refresh dashboard list and badges overlays instantly
+    applyCandidatesFiltering();
+    
+    showToast(`Status updated: ${filename} is now marked as "${status}"`, "success");
+};
+
+function updateDrawerStatusUI(status) {
+    // Reset active classes
+    btnStatusShortlisted.classList.remove('active');
+    btnStatusReview.classList.remove('active');
+    btnStatusRejected.classList.remove('active');
+    
+    if (status === 'Shortlisted') {
+        btnStatusShortlisted.classList.add('active');
+    } else if (status === 'Under Review') {
+        btnStatusReview.classList.add('active');
+    } else if (status === 'Rejected') {
+        btnStatusRejected.classList.add('active');
+    }
+}
+
+// Bind Notes updates to localStorage (Phase 5)
+drawerRecruiterNotes.addEventListener('input', (e) => {
+    if (!currentDrawerCandidate) return;
+    const filename = currentDrawerCandidate.filename;
+    localStorage.setItem(`talentai_notes_${filename}`, e.target.value);
 });
 
 /* Pool Skills Frequency Chart rendering */
@@ -909,6 +1032,8 @@ function highlightTextSkills(rawText, matchedSkills, missingSkills) {
 
 /* Detail Drawer Handlers */
 function openDrawer(candidate, rank) {
+    currentDrawerCandidate = candidate;
+    
     cRank.textContent = `#${rank}`;
     cName.textContent = candidate.filename;
     cName.title = candidate.filename;
@@ -924,6 +1049,25 @@ function openDrawer(candidate, rank) {
     if (candidate.score >= 70) scoreColor = 'var(--success)';
     else if (candidate.score >= 40) scoreColor = 'var(--warning)';
     detailRingVal.style.stroke = scoreColor;
+
+    // Load persisted status & notes from localStorage (Phase 5)
+    const savedStatus = localStorage.getItem(`talentai_status_${candidate.filename}`) || 'Under Review';
+    updateDrawerStatusUI(savedStatus);
+    
+    const savedNotes = localStorage.getItem(`talentai_notes_${candidate.filename}`) || '';
+    drawerRecruiterNotes.value = savedNotes;
+
+    // Generate dynamic Heuristic AI Verdict fit summary (Phase 5)
+    detailAiVerdictText.innerHTML = generateCandidateVerdict(candidate);
+
+    // Generate context screening questions list (Phase 5)
+    const questions = generateInterviewQuestions(candidate);
+    detailInterviewQuestionsList.innerHTML = '';
+    questions.forEach(q => {
+        const li = document.createElement('li');
+        li.innerHTML = q;
+        detailInterviewQuestionsList.appendChild(li);
+    });
 
     // Detailed scores progress bars
     detailCosineScore.textContent = `${candidate.cosine_score}%`;
@@ -1024,8 +1168,14 @@ function openDrawer(candidate, rank) {
     detailDrawer.classList.add('open');
 }
 
+// Bind button status selector events dynamically (Phase 5)
+btnStatusShortlisted.onclick = () => setCandidateStatus('Shortlisted');
+btnStatusReview.onclick = () => setCandidateStatus('Under Review');
+btnStatusRejected.onclick = () => setCandidateStatus('Rejected');
+
 function closeDrawer() {
     detailDrawer.classList.remove('open');
+    currentDrawerCandidate = null;
 }
 
 document.addEventListener('keydown', (e) => {
@@ -1042,22 +1192,30 @@ exportBtn.addEventListener('click', () => {
     }
 
     const headers = [
-        "Rank", "Candidate Name", "Match Score (%)", "Semantic Similarity (%)", 
+        "Rank", "Candidate Name", "Match Score (%)", "Evaluation Status", "Semantic Similarity (%)", 
         "Required Skills Score (%)", "Experience Score (%)", 
-        "Years of Experience", "Degrees Extracted", "Degree Match Status"
+        "Years of Experience", "Degrees Extracted", "Degree Match Status", "Recruiter Notes"
     ];
 
-    const rows = rankedCandidates.map((cand, idx) => [
-        idx + 1,
-        `"${cand.filename}"`,
-        cand.score,
-        cand.cosine_score,
-        cand.skills_score.toFixed(1),
-        cand.experience_score.toFixed(1),
-        cand.candidate_exp,
-        `"${cand.candidate_degrees.join(', ')}"`,
-        cand.degree_match ? "Yes" : "No"
-    ]);
+    const rows = rankedCandidates.map((cand, idx) => {
+        const savedStatus = localStorage.getItem(`talentai_status_${cand.filename}`) || 'Under Review';
+        const savedNotes = localStorage.getItem(`talentai_notes_${cand.filename}`) || '';
+        const cleanedNotes = savedNotes.replace(/"/g, '""');
+
+        return [
+            idx + 1,
+            `"${cand.filename}"`,
+            cand.score,
+            `"${savedStatus}"`,
+            cand.cosine_score,
+            cand.skills_score.toFixed(1),
+            cand.experience_score.toFixed(1),
+            cand.candidate_exp,
+            `"${cand.candidate_degrees.join(', ')}"`,
+            cand.degree_match ? "Yes" : "No",
+            `"${cleanedNotes}"`
+        ];
+    });
 
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

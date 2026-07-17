@@ -140,7 +140,7 @@ body {
     font-weight: 400;
 }
 
-/* Main Grid Layout (Phase 4: Collapsible Panel support) */
+/* Main Grid Layout */
 .app-main {
     display: grid;
     grid-template-columns: 460px 1fr;
@@ -216,7 +216,7 @@ body {
     flex: 1;
 }
 
-/* Collapse/Expand Sidebar Layout buttons (Phase 4) */
+/* Collapse/Expand Sidebar Layout buttons */
 .toggle-layout-btn {
     background: none;
     border: none;
@@ -724,7 +724,7 @@ textarea:focus {
     text-align: right;
 }
 
-/* Quick Filter Badges & Threshold Slider (Phase 4) */
+/* Quick Filter Badges & Threshold Slider */
 .filters-panel {
     display: flex;
     flex-direction: column;
@@ -746,6 +746,9 @@ textarea:focus {
     border-radius: 20px;
     cursor: pointer;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     transition: all var(--transition-speed);
 }
 
@@ -762,7 +765,7 @@ textarea:focus {
     box-shadow: 0 2px 10px var(--primary-glow);
 }
 
-/* Match score threshold filter slider (New Phase 4) */
+/* Match score threshold filter slider */
 .threshold-slider-group {
     background: rgba(255, 255, 255, 0.015);
     border: 1px solid rgba(255, 255, 255, 0.04);
@@ -819,7 +822,7 @@ textarea:focus {
     transform: scale(1.2);
 }
 
-/* Candidate Card selection and structure (Phase 4 check tags) */
+/* Candidate Card selection and structure */
 .candidate-checkbox-container {
     padding-right: 12px;
     display: flex;
@@ -831,6 +834,36 @@ textarea:focus {
     height: 18px;
     accent-color: var(--primary-color);
     cursor: pointer;
+}
+
+/* Candidate evaluation status card badge (New Phase 5) */
+.cand-status-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    display: inline-block;
+    align-self: flex-start;
+}
+
+.cand-status-badge.shortlisted {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.cand-status-badge.review {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.cand-status-badge.rejected {
+    background: rgba(244, 63, 94, 0.15);
+    color: #fb7185;
+    border: 1px solid rgba(244, 63, 94, 0.25);
 }
 
 /* Results State & Stats Grid */
@@ -1152,8 +1185,8 @@ textarea:focus {
 .drawer-content {
     position: absolute;
     top: 0;
-    right: -620px;
-    width: 620px;
+    right: -650px;
+    width: 650px;
     height: 100%;
     background: #0f131d;
     border-left: 1px solid rgba(255, 255, 255, 0.08);
@@ -1166,7 +1199,7 @@ textarea:focus {
     gap: 25px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 680px) {
     .drawer-content {
         width: 100%;
         right: -100%;
@@ -1226,6 +1259,140 @@ textarea:focus {
     font-family: var(--font-heading);
     font-weight: 700;
     border: 1px solid rgba(99,102,241,0.2);
+}
+
+/* Interactive Status Selector inside Drawer (New Phase 5) */
+.drawer-eval-status-panel {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+@media (max-width: 640px) {
+    .drawer-eval-status-panel {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+}
+
+.eval-panel-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.status-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.status-pill-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all var(--transition-speed);
+}
+
+.status-pill-btn:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Selected state active styling */
+.status-pill-btn.btn-shortlisted.active {
+    background: var(--success-bg);
+    color: #34d399;
+    border-color: var(--success);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
+}
+
+.status-pill-btn.btn-review.active {
+    background: var(--warning-bg);
+    color: #fbbf24;
+    border-color: var(--warning);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
+}
+
+.status-pill-btn.btn-rejected.active {
+    background: var(--danger-bg);
+    color: #fb7185;
+    border-color: var(--danger);
+    box-shadow: 0 0 10px rgba(244, 63, 94, 0.15);
+}
+
+/* Comments notes textarea (New Phase 5) */
+.notes-textarea {
+    width: 100%;
+    height: 90px;
+    background: rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    outline: none;
+    resize: none;
+    transition: border-color var(--transition-speed);
+}
+
+.notes-textarea:focus {
+    border-color: var(--primary-color) !important;
+}
+
+/* AI Verdict Card (New Phase 5) */
+.ai-verdict-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(168, 85, 247, 0.06) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+#detail-ai-verdict-text {
+    font-size: 0.86rem;
+    line-height: 1.5;
+    color: #c7d2fe;
+}
+
+/* Questionnaire Interview List (New Phase 5) */
+.questionnaire-sub {
+    font-size: 0.75rem;
+    color: var(--text-dark);
+    margin-top: -4px;
+    margin-bottom: 4px;
+}
+
+.questions-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.questions-list li {
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.015);
+    border-left: 3px solid var(--primary-color);
+    padding: 10px 14px;
+    border-radius: 4px;
 }
 
 /* Score cards */
@@ -1536,7 +1703,7 @@ textarea:focus {
     font-weight: 600;
 }
 
-/* Floating Checkbox Compare Action Bar (New Phase 4) */
+/* Floating Checkbox Compare Action Bar */
 .compare-bar {
     position: fixed;
     bottom: 24px;
@@ -1602,7 +1769,7 @@ textarea:focus {
     border-radius: 20px;
 }
 
-/* Modals structures (Comparison Grid & Stage Loader overlays) (New Phase 4) */
+/* Modals structures (Comparison Grid & Stage Loader overlays) */
 .modal {
     position: fixed;
     top: 0;
@@ -1747,7 +1914,7 @@ textarea:focus {
     overflow-y: auto;
 }
 
-/* Fullscreen Multi-stage Loader Overlays (New Phase 4) */
+/* Fullscreen Multi-stage Loader Overlays */
 .processing-overlay {
     position: fixed;
     top: 0;
@@ -1832,6 +1999,10 @@ textarea:focus {
     color: var(--primary-color);
     filter: drop-shadow(0 0 6px var(--primary-glow));
     animation: beat 1.5s infinite ease-in-out;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 @keyframes spin-reverse {

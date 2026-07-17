@@ -143,7 +143,7 @@
 
             <!-- Right Panel: Dashboard / Output -->
             <section class="panel output-panel" id="output-panel">
-                <!-- Floating Expand Sidebar button (New Phase 4) -->
+                <!-- Floating Expand Sidebar button -->
                 <button id="expand-sidebar-btn" class="floating-layout-btn hidden">
                     <i class="fa-solid fa-arrow-right-to-bracket"></i> Modify Criteria
                 </button>
@@ -217,9 +217,12 @@
                                 <span class="filter-badge" data-filter="mid">Mid (40-70%)</span>
                                 <span class="filter-badge" data-filter="exp">Experience Fit</span>
                                 <span class="filter-badge" data-filter="edu">Degree Fit</span>
+                                <!-- Evaluation Status Filters (New Phase 5) -->
+                                <span class="filter-badge" data-filter="shortlisted"><i class="fa-solid fa-circle-check"></i> Shortlisted</span>
+                                <span class="filter-badge" data-filter="rejected"><i class="fa-solid fa-circle-xmark"></i> Rejected</span>
                             </div>
                             
-                            <!-- Dynamic Score Threshold Slider (New Phase 4) -->
+                            <!-- Dynamic Score Threshold Slider -->
                             <div class="threshold-slider-group">
                                 <span class="threshold-slider-label">Min Match Score: <strong id="lbl-threshold-val">0%</strong></span>
                                 <input type="range" id="score-threshold-slider" min="0" max="95" value="0" step="5" class="threshold-slider">
@@ -250,6 +253,22 @@
                 <div class="candidate-detail-header">
                     <span class="candidate-badge" id="c-rank">#1</span>
                     <h2 id="c-name">candidate_name.pdf</h2>
+                </div>
+
+                <!-- Recruiter Interactive Review Status Selector (New Phase 5) -->
+                <div class="drawer-eval-status-panel">
+                    <span class="eval-panel-label">Evaluation Status:</span>
+                    <div class="status-pills">
+                        <button class="status-pill-btn btn-shortlisted" id="btn-status-shortlisted">
+                            <i class="fa-solid fa-circle-check"></i> Shortlisted
+                        </button>
+                        <button class="status-pill-btn btn-review" id="btn-status-review">
+                            <i class="fa-solid fa-circle-exclamation"></i> Under Review
+                        </button>
+                        <button class="status-pill-btn btn-rejected" id="btn-status-rejected">
+                            <i class="fa-solid fa-circle-xmark"></i> Rejected
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Score breakdown -->
@@ -293,6 +312,29 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- AI Verdict Heuristic Summary Card (New Phase 5) -->
+                <div class="detail-section">
+                    <h3><i class="fa-solid fa-wand-magic-sparkles"></i> AI Candidate Fit Verdict</h3>
+                    <div class="ai-verdict-card">
+                        <p id="detail-ai-verdict-text">Analyzing match metrics...</p>
+                    </div>
+                </div>
+
+                <!-- Recruiter Comments Notes Area (New Phase 5) -->
+                <div class="detail-section">
+                    <h3>Recruiter Comments & Notes</h3>
+                    <textarea id="drawer-recruiter-notes" placeholder="Write internal screening notes, candidate impressions, or feedback here... (saves automatically)" class="notes-textarea"></textarea>
+                </div>
+
+                <!-- Contextual Tailored Screening Questions (New Phase 5) -->
+                <div class="detail-section">
+                    <h3><i class="fa-solid fa-clipboard-question"></i> Tailored Screening Questions</h3>
+                    <p class="questionnaire-sub"><i class="fa-solid fa-circle-info"></i> Tailored behavioral and technical screening questions targeting candidate's requirements gaps.</p>
+                    <ul class="questions-list" id="detail-interview-questions-list">
+                        <!-- Dynamic questions list -->
+                    </ul>
                 </div>
 
                 <!-- Education & Experience Breakdown Cards -->
@@ -358,7 +400,7 @@
         </div>
     </div>
 
-    <!-- Candidate Checkbox Floating Action Bar (New Phase 4) -->
+    <!-- Candidate Checkbox Floating Action Bar -->
     <div id="compare-bar" class="compare-bar">
         <div class="compare-bar-content">
             <span id="compare-bar-text"><i class="fa-solid fa-circle-info"></i> Selected 0 candidates for comparison.</span>
@@ -369,7 +411,7 @@
         </div>
     </div>
 
-    <!-- Side-by-Side Comparison Matrix Modal Overlay (New Phase 4) -->
+    <!-- Side-by-Side Comparison Matrix Modal Overlay -->
     <div id="compare-modal" class="modal">
         <div class="modal-overlay" onclick="closeCompareModal()"></div>
         <div class="modal-content">
@@ -386,7 +428,7 @@
         </div>
     </div>
 
-    <!-- Multi-stage Processing Loader Overlay (New Phase 4) -->
+    <!-- Multi-stage Processing Loader Overlay -->
     <div id="processing-overlay" class="processing-overlay">
         <div class="processing-card">
             <div class="processing-spinner-container">
