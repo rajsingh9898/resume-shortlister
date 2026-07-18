@@ -58,9 +58,7 @@ The application is completely self-contained, offline-compatible, and features a
 ![Sidebar layout restored](screenshots/layout_restored.png)
 
 ---
-
 ## Technology Stack
-
 - **Backend Architecture**: Python 3, FastAPI, Uvicorn, Scikit-learn (Machine Learning TF-IDF), PyPDF2, python-docx, Asyncio, ThreadPoolExecutor.
 - **Frontend Architecture**: HTML5, Vanilla CSS3 (Custom Glassmorphism, charts, filters, comparison grid), Modern ES6 JavaScript.
 
