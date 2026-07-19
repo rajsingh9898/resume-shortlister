@@ -2107,7 +2107,6 @@ textarea:focus {
     border-color: var(--success);
     color: #a7f3d0;
 }
-
 /* Animations */
 @keyframes fadeIn {
     from { opacity: 0; }
@@ -2125,4 +2124,3 @@ textarea:focus {
     from { opacity: 0; transform: translateY(15px); }
     to { opacity: 1; transform: translateY(0); }
 }
-

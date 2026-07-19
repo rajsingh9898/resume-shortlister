@@ -6,9 +6,9 @@ Results-oriented software engineer with 4+ years of professional experience in b
 
 TECHNICAL SKILLS:
 - Languages: Python, SQL, JavaScript, HTML, CSS
-- Web Frameworks: FastAPI, Flask, Django
+- Web Frameworks: FastAPI, Flask, Django, Django Rest Framework
 - Databases: PostgreSQL, MongoDB, Redis
-- Tools & Cloud: Docker, Git, CI/CD, AWS (S3, EC2)
+- Tools & Cloud: Docker, Git, CI/CD, AWS (S3, EC2), LLMs, NLU/NLP frameworks, Transformers library (Hugging Face), scikit-learn, Spacy.
 
 PROFESSIONAL EXPERIENCE:
 Backend Engineer | TechFlow Solutions (2024 - Present)
@@ -18,4 +18,4 @@ Backend Engineer | TechFlow Solutions (2024 - Present)
 - Set up automated testing and GitLab CI/CD pipelines.
 
 Education:
-B.S. in Computer Science | State University
+B.Tech. in Computer Science |Abc University

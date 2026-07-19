@@ -5,6 +5,7 @@ let activeJdSkills = [];
 let jdExperienceRequired = 0;
 let jdDegreesRequired = [];
 
+
 // Filtering states
 let activeFilterCategory = 'all'; // 'all', 'high', 'mid', 'exp', 'edu', 'shortlisted', 'rejected'
 let activeChartSkillFilter = null; // Filter candidates by specific clicked chart skill bar
