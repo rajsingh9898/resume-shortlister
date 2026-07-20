@@ -5,16 +5,16 @@ let activeJdSkills = [];
 let jdExperienceRequired = 0;
 let jdDegreesRequired = [];
 
-
 // Filtering states
 let activeFilterCategory = 'all'; // 'all', 'high', 'mid', 'exp', 'edu', 'shortlisted', 'rejected'
 let activeChartSkillFilter = null; // Filter candidates by specific clicked chart skill bar
 let activeMatchThreshold = 0; // Filter candidates by minimum score slider
+let activeHistogramFilter = null; // Filter candidates by click on score distribution tier (Phase 6)
 
 // Candidate Checkbox Selection states
 let selectedCandidates = [];
 
-// Active Candidate in Details Drawer (Phase 5)
+// Active Candidate in Details Drawer
 let currentDrawerCandidate = null;
 
 // DOM Elements
@@ -52,6 +52,10 @@ const addSkillBtn = document.getElementById('add-skill-btn');
 // Pool Skills Chart DOM
 const poolSkillsChartPanel = document.querySelector('.pool-skills-chart-panel');
 const poolSkillsChart = document.getElementById('pool-skills-chart');
+
+// Score Histogram Panel DOM (Phase 6)
+const scoreHistogramPanel = document.querySelector('.score-histogram-panel');
+const scoreHistogram = document.getElementById('score-histogram');
 
 // Filter Badges DOM
 const filterBadgesContainer = document.getElementById('filter-badges-container');
@@ -94,13 +98,22 @@ const detailMissingSkills = document.getElementById('detail-missing-skills');
 const detailAllSkillsCategories = document.getElementById('detail-all-skills-categories');
 const detailSnippet = document.getElementById('detail-snippet');
 
-// Drawer Evaluation components (Phase 5)
+// Drawer Evaluation components
 const btnStatusShortlisted = document.getElementById('btn-status-shortlisted');
 const btnStatusReview = document.getElementById('btn-status-review');
 const btnStatusRejected = document.getElementById('btn-status-rejected');
 const drawerRecruiterNotes = document.getElementById('drawer-recruiter-notes');
 const detailAiVerdictText = document.getElementById('detail-ai-verdict-text');
 const detailInterviewQuestionsList = document.getElementById('detail-interview-questions-list');
+
+// SVG Donut Rings DOM (Phase 6)
+const donutSegmentLanguages = document.getElementById('donut-segment-languages');
+const donutSegmentFrameworks = document.getElementById('donut-segment-frameworks');
+const donutSegmentDatabases = document.getElementById('donut-segment-databases');
+const donutCenterTotal = document.getElementById('donut-center-total');
+const legendLanguagesVal = document.getElementById('legend-languages-val');
+const legendFrameworksVal = document.getElementById('legend-frameworks-val');
+const legendDatabasesVal = document.getElementById('legend-databases-val');
 
 // Floating Compare Bar DOM
 const compareBar = document.getElementById('compare-bar');
@@ -303,6 +316,7 @@ function recalculateRanking() {
     rankedCandidates.sort((a, b) => b.score - a.score);
     renderDashboard(rankedCandidates);
     renderPoolSkillsChart();
+    renderScoreHistogram(); // Update score bins (Phase 6)
 }
 
 /* Multi-stage Processing Loader Controllers */
@@ -394,6 +408,7 @@ shortlistForm.addEventListener('submit', async (e) => {
 
             activeFilterCategory = 'all';
             activeChartSkillFilter = null;
+            activeHistogramFilter = null;
             activeMatchThreshold = 0;
             scoreThresholdSlider.value = 0;
             lblThresholdVal.textContent = '0%';
@@ -445,7 +460,7 @@ function renderDashboard(candidates) {
 function applyCandidatesFiltering() {
     let filteredList = [...rankedCandidates];
 
-    // 1. Filter by Active Filter Badges Category (including Phase 5 Status markers)
+    // 1. Filter by Active Filter Badges Category
     if (activeFilterCategory === 'high') {
         filteredList = filteredList.filter(c => c.score >= 70.0);
     } else if (activeFilterCategory === 'mid') {
@@ -460,12 +475,23 @@ function applyCandidatesFiltering() {
         filteredList = filteredList.filter(c => localStorage.getItem(`talentai_status_${c.filename}`) === 'Rejected');
     }
 
-    // 2. Filter by Minimum Score Match Threshold slider
+    // 2. Filter by Match Tier Histogram Selection (Phase 6)
+    if (activeHistogramFilter) {
+        if (activeHistogramFilter === 'low') {
+            filteredList = filteredList.filter(c => c.score < 40.0);
+        } else if (activeHistogramFilter === 'mid') {
+            filteredList = filteredList.filter(c => c.score >= 40.0 && c.score < 70.0);
+        } else if (activeHistogramFilter === 'high') {
+            filteredList = filteredList.filter(c => c.score >= 70.0);
+        }
+    }
+
+    // 3. Filter by Minimum Score Match Threshold slider
     if (activeMatchThreshold > 0) {
         filteredList = filteredList.filter(c => c.score >= activeMatchThreshold);
     }
 
-    // 3. Filter by Active clicked skill bar from pool chart
+    // 4. Filter by Active clicked skill bar from pool chart
     if (activeChartSkillFilter) {
         filteredList = filteredList.filter(c => {
             const candSkillsList = [];
@@ -476,7 +502,7 @@ function applyCandidatesFiltering() {
         });
     }
 
-    // 4. Filter by Search Query
+    // 5. Filter by Search Query
     const query = searchCandidate.value.toLowerCase().trim();
     if (query) {
         filteredList = filteredList.filter(c => c.filename.toLowerCase().includes(query));
@@ -522,7 +548,6 @@ function renderCandidatesList(candidates) {
 
         const isChecked = selectedCandidates.includes(candidate.filename);
 
-        // Retrieve saved status to display card badge overlay (Phase 5)
         const savedStatus = localStorage.getItem(`talentai_status_${candidate.filename}`);
         let statusBadgeHtml = '';
         if (savedStatus) {
@@ -689,7 +714,7 @@ function renderComparisonTable() {
         {
             label: "Review Status",
             renderer: (cand) => {
-                const status = localStorage.getItem(`talentai_status_${cand.filename}`) || 'None';
+                const status = localStorage.getItem(`talentai_status_${cand.filename}`) || 'Under Review';
                 let styleStr = 'color: var(--text-dark);';
                 if (status === 'Shortlisted') styleStr = 'color: #34d399; font-weight:700;';
                 else if (status === 'Under Review') styleStr = 'color: #fbbf24; font-weight:700;';
@@ -760,7 +785,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-/* Heuristic AI Verdict Summary Card generator (Phase 5) */
+/* Heuristic AI Verdict Summary Card generator */
 function generateCandidateVerdict(cand) {
     const score = cand.score;
     const matchedCount = cand.matched_skills.length;
@@ -783,11 +808,10 @@ function generateCandidateVerdict(cand) {
     return summary;
 }
 
-/* Contextual Screening Questions Generator based on skill gaps (Phase 5) */
+/* Contextual Screening Questions Generator based on skill gaps */
 function generateInterviewQuestions(cand) {
     const list = [];
     
-    // Questions mapping for missing required skills
     const skillQuestionsTemplates = {
         'Docker': "Could you walk us through how you would optimize a Dockerfile using multi-stage builds and minimize image sizes?",
         'Kubernetes': "How have you managed Kubernetes secrets, resource configurations, and ingress traffic routing in staging or production?",
@@ -799,7 +823,6 @@ function generateInterviewQuestions(cand) {
         'Python': "What are your preferred methods for profiling and optimizing execution speeds or memory usage in Python applications?"
     };
 
-    // 1. Target questions to up to 3 missing required skills
     if (cand.missing_skills.length > 0) {
         cand.missing_skills.slice(0, 3).forEach(skill => {
             const template = skillQuestionsTemplates[skill];
@@ -811,12 +834,10 @@ function generateInterviewQuestions(cand) {
         });
     }
 
-    // 2. Add an experience check question if candidate falls short of min experience
     if (jdExperienceRequired > 0 && cand.candidate_exp < jdExperienceRequired) {
         list.push(`<strong>Experience Alignment</strong>: "The JD requests ${jdExperienceRequired} years of experience, and your profile lists ${cand.candidate_exp} years. Can you describe how your intensive hands-on experience has equipped you to succeed in this role?"`);
     }
 
-    // 3. Fallback generic technical questions if candidate has zero gaps
     if (list.length === 0) {
         list.push(`<strong>System Scaling</strong>: "Can you describe a complex system design challenge you resolved in a past role, focusing on security and scaling?"`);
         list.push(`<strong>Technology Ingestion</strong>: "How do you evaluate and safely integrate new frameworks or packages into an existing production codebase?"`);
@@ -825,7 +846,7 @@ function generateInterviewQuestions(cand) {
     return list;
 }
 
-/* LocalStorage status rating setters (Phase 5) */
+/* LocalStorage status rating setters */
 window.setCandidateStatus = function(status) {
     if (!currentDrawerCandidate) return;
     
@@ -833,15 +854,12 @@ window.setCandidateStatus = function(status) {
     localStorage.setItem(`talentai_status_${filename}`, status);
     
     updateDrawerStatusUI(status);
-    
-    // Refresh dashboard list and badges overlays instantly
     applyCandidatesFiltering();
     
     showToast(`Status updated: ${filename} is now marked as "${status}"`, "success");
 };
 
 function updateDrawerStatusUI(status) {
-    // Reset active classes
     btnStatusShortlisted.classList.remove('active');
     btnStatusReview.classList.remove('active');
     btnStatusRejected.classList.remove('active');
@@ -855,12 +873,162 @@ function updateDrawerStatusUI(status) {
     }
 }
 
-// Bind Notes updates to localStorage (Phase 5)
 drawerRecruiterNotes.addEventListener('input', (e) => {
     if (!currentDrawerCandidate) return;
     const filename = currentDrawerCandidate.filename;
     localStorage.setItem(`talentai_notes_${filename}`, e.target.value);
 });
+
+/* Interactive Score Distribution Histogram Rendering (Phase 6) */
+function renderScoreHistogram() {
+    if (rankedCandidates.length === 0) {
+        scoreHistogramPanel.classList.remove('active');
+        return;
+    }
+
+    scoreHistogramPanel.classList.add('active');
+    scoreHistogram.innerHTML = '';
+
+    // Calculate score bins
+    let lowCount = 0;
+    let midCount = 0;
+    let highCount = 0;
+
+    rankedCandidates.forEach(c => {
+        if (c.score < 40.0) lowCount++;
+        else if (c.score < 70.0) midCount++;
+        else highCount++;
+    });
+
+    const maxCount = Math.max(lowCount, midCount, highCount, 1);
+    
+    const bins = [
+        { key: 'low', count: lowCount, label: 'Low (<40%)' },
+        { key: 'mid', count: midCount, label: 'Mid (40-70%)' },
+        { key: 'high', count: highCount, label: 'Strong (70-100%)' }
+    ];
+
+    bins.forEach(bin => {
+        const heightPercent = (bin.count / maxCount) * 100;
+        
+        const binEl = document.createElement('div');
+        binEl.className = 'histogram-bin';
+        if (activeHistogramFilter === bin.key) {
+            binEl.classList.add('filter-active');
+        }
+        
+        binEl.onclick = () => toggleHistogramFilter(bin.key);
+
+        binEl.innerHTML = `
+            <span class="histogram-count">${bin.count}</span>
+            <div class="histogram-bar-track">
+                <div class="histogram-bar-fill" style="height: 0%;"></div>
+            </div>
+            <span class="histogram-label">${bin.label}</span>
+        `;
+
+        scoreHistogram.appendChild(binEl);
+        
+        // Trigger height transition
+        setTimeout(() => {
+            const fill = binEl.querySelector('.histogram-bar-fill');
+            if (fill) fill.style.height = `${heightPercent}%`;
+        }, 50);
+    });
+}
+
+function toggleHistogramFilter(binKey) {
+    if (activeHistogramFilter === binKey) {
+        activeHistogramFilter = null;
+        showToast("Cleared score band filter.", "info");
+    } else {
+        activeHistogramFilter = binKey;
+        showToast(`Filtering candidates by match tier: ${binKey}`, "success");
+    }
+    renderScoreHistogram();
+    applyCandidatesFiltering();
+}
+
+/* Category Skill Mapping Helper (Phase 6) */
+function getSkillCategoryRatios(candidate) {
+    // Standard professional skill categorized references
+    const categoriesMap = {
+        languages: ['Python', 'Javascript', 'Go', 'C++', 'Rust', 'Java', 'TypeScript', 'SQL', 'HTML', 'CSS', 'Ruby', 'Bash', 'C#'],
+        frameworks: ['FastAPI', 'Django', 'Flask', 'React', 'Angular', 'Vue', 'Next.js', 'Node.js', 'Express', 'Spring', 'PyTorch', 'TensorFlow', 'Keras', 'Django REST Framework', 'Tailwind', 'Sass'],
+        databases: ['Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Elasticsearch', 'Git', 'CI/CD', 'GitHub', 'Jenkins', 'Terraform', 'Ansible', 'Linux']
+    };
+
+    const candSkills = new Set();
+    Object.values(candidate.all_extracted_skills).forEach(catSkills => {
+        catSkills.forEach(s => candSkills.add(s));
+    });
+
+    const getMatchedInCategory = (catName) => {
+        const refs = categoriesMap[catName];
+        // Intersect candidate skills, JD required skills, and the target category refs
+        const matched = activeJdSkills.filter(s => candSkills.has(s) && refs.includes(s));
+        const required = activeJdSkills.filter(s => refs.includes(s));
+        
+        return {
+            matchedCount: matched.length,
+            requiredCount: required.length,
+            ratio: required.length > 0 ? (matched.length / required.length) * 100 : 100.0
+        };
+    };
+
+    return {
+        languages: getMatchedInCategory('languages'),
+        frameworks: getMatchedInCategory('frameworks'),
+        databases: getMatchedInCategory('databases')
+    };
+}
+
+/* Animate SVG Donut concentric rings (Phase 6) */
+function animateSkillDonut(candidate) {
+    const ratios = getSkillCategoryRatios(candidate);
+    
+    // Circs calculations: circumference = 2 * PI * radius
+    // Set circle radii dynamically to display as concentric circles
+    const rings = [
+        { el: donutSegmentLanguages, r: 45, ratio: ratios.languages.ratio, legend: legendLanguagesVal },
+        { el: donutSegmentFrameworks, r: 33, ratio: ratios.frameworks.ratio, legend: legendFrameworksVal },
+        { el: donutSegmentDatabases, r: 21, ratio: ratios.databases.ratio, legend: legendDatabasesVal }
+    ];
+
+    let overallSum = 0;
+    rings.forEach(ring => {
+        ring.el.setAttribute('r', ring.r);
+        
+        const circ = 2 * Math.PI * ring.r;
+        ring.el.style.strokeDasharray = `${circ}`;
+        ring.el.style.strokeDashoffset = `${circ}`;
+        
+        // Trigger stroke animation offset
+        setTimeout(() => {
+            const offset = circ - (ring.ratio / 100) * circ;
+            ring.el.style.strokeDashoffset = offset;
+        }, 50);
+        
+        ring.legend.textContent = `${ring.ratio.toFixed(0)}%`;
+        overallSum += ring.ratio;
+    });
+
+    // Animate overall total coverage text inside the donut center
+    const totalCoverage = candidate.skills_score;
+    donutCenterTotal.textContent = `${totalCoverage.toFixed(0)}%`;
+}
+
+/* PDF print candidate screening report trigger (Phase 6) */
+window.printCandidateReport = function() {
+    if (!currentDrawerCandidate) return;
+    
+    const originalTitle = document.title;
+    document.title = `TalentAI_Screening_Report_${currentDrawerCandidate.filename.replace(/\.[^/.]+$/, "")}`;
+    
+    window.print();
+    
+    document.title = originalTitle;
+};
 
 /* Pool Skills Frequency Chart rendering */
 function renderPoolSkillsChart() {
@@ -1051,17 +1219,17 @@ function openDrawer(candidate, rank) {
     else if (candidate.score >= 40) scoreColor = 'var(--warning)';
     detailRingVal.style.stroke = scoreColor;
 
-    // Load persisted status & notes from localStorage (Phase 5)
+    // Load persisted status & notes from localStorage
     const savedStatus = localStorage.getItem(`talentai_status_${candidate.filename}`) || 'Under Review';
     updateDrawerStatusUI(savedStatus);
     
     const savedNotes = localStorage.getItem(`talentai_notes_${candidate.filename}`) || '';
     drawerRecruiterNotes.value = savedNotes;
 
-    // Generate dynamic Heuristic AI Verdict fit summary (Phase 5)
+    // Generate dynamic Heuristic AI Verdict fit summary
     detailAiVerdictText.innerHTML = generateCandidateVerdict(candidate);
 
-    // Generate context screening questions list (Phase 5)
+    // Generate context screening questions list
     const questions = generateInterviewQuestions(candidate);
     detailInterviewQuestionsList.innerHTML = '';
     questions.forEach(q => {
@@ -1069,6 +1237,9 @@ function openDrawer(candidate, rank) {
         li.innerHTML = q;
         detailInterviewQuestionsList.appendChild(li);
     });
+
+    // Animate SVG category donut chart coverage (Phase 6)
+    animateSkillDonut(candidate);
 
     // Detailed scores progress bars
     detailCosineScore.textContent = `${candidate.cosine_score}%`;
@@ -1169,7 +1340,7 @@ function openDrawer(candidate, rank) {
     detailDrawer.classList.add('open');
 }
 
-// Bind button status selector events dynamically (Phase 5)
+// Bind button status selector events dynamically
 btnStatusShortlisted.onclick = () => setCandidateStatus('Shortlisted');
 btnStatusReview.onclick = () => setCandidateStatus('Under Review');
 btnStatusRejected.onclick = () => setCandidateStatus('Rejected');

@@ -190,6 +190,18 @@
                         </div>
                     </div>
 
+                    <!-- Visual Interactive Score Tier Histogram (New Phase 6) -->
+                    <div class="score-histogram-panel">
+                        <div class="panel-sub-header">
+                            <i class="fa-solid fa-chart-column"></i>
+                            <h3>Candidate Match Tier Distribution</h3>
+                            <span class="chart-info-tip" title="Click a match tier bar to filter candidate shortlist."><i class="fa-solid fa-circle-info"></i></span>
+                        </div>
+                        <div id="score-histogram" class="score-histogram">
+                            <!-- Dynamic histogram injected in JS -->
+                        </div>
+                    </div>
+
                     <!-- Visual Skill Frequency Chart widget -->
                     <div class="pool-skills-chart-panel">
                         <div class="panel-sub-header">
@@ -217,7 +229,7 @@
                                 <span class="filter-badge" data-filter="mid">Mid (40-70%)</span>
                                 <span class="filter-badge" data-filter="exp">Experience Fit</span>
                                 <span class="filter-badge" data-filter="edu">Degree Fit</span>
-                                <!-- Evaluation Status Filters (New Phase 5) -->
+                                <!-- Evaluation Status Filters -->
                                 <span class="filter-badge" data-filter="shortlisted"><i class="fa-solid fa-circle-check"></i> Shortlisted</span>
                                 <span class="filter-badge" data-filter="rejected"><i class="fa-solid fa-circle-xmark"></i> Rejected</span>
                             </div>
@@ -249,13 +261,14 @@
         <div class="drawer-content">
             <button class="close-btn" onclick="closeDrawer()"><i class="fa-solid fa-xmark"></i></button>
             <div class="drawer-body">
-                <!-- Header details -->
+                <!-- Header details (New Phase 6 Print Report button) -->
                 <div class="candidate-detail-header">
                     <span class="candidate-badge" id="c-rank">#1</span>
                     <h2 id="c-name">candidate_name.pdf</h2>
+                    <button class="btn print-btn" id="drawer-print-btn" onclick="printCandidateReport()"><i class="fa-solid fa-print"></i> PDF Report</button>
                 </div>
 
-                <!-- Recruiter Interactive Review Status Selector (New Phase 5) -->
+                <!-- Recruiter Interactive Review Status Selector -->
                 <div class="drawer-eval-status-panel">
                     <span class="eval-panel-label">Evaluation Status:</span>
                     <div class="status-pills">
@@ -314,7 +327,41 @@
                     </div>
                 </div>
 
-                <!-- AI Verdict Heuristic Summary Card (New Phase 5) -->
+                <!-- SVG Skill Category Coverage Chart (New Phase 6) -->
+                <div class="detail-section">
+                    <h3>Skill Category Coverage</h3>
+                    <div class="skill-wheel-card">
+                        <div class="svg-donut-container">
+                            <svg class="donut-svg" width="120" height="120" viewBox="0 0 120 120">
+                                <circle class="donut-track" cx="60" cy="60" r="45" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="12"></circle>
+                                <circle id="donut-segment-languages" class="donut-segment" cx="60" cy="60" r="45" fill="none" stroke="var(--blue)" stroke-width="12" stroke-dasharray="282.74" stroke-dashoffset="282.74" stroke-linecap="round"></circle>
+                                <circle id="donut-segment-frameworks" class="donut-segment" cx="60" cy="60" r="45" fill="none" stroke="var(--purple)" stroke-width="12" stroke-dasharray="282.74" stroke-dashoffset="282.74" stroke-linecap="round"></circle>
+                                <circle id="donut-segment-databases" class="donut-segment" cx="60" cy="60" r="45" fill="none" stroke="var(--orange)" stroke-width="12" stroke-dasharray="282.74" stroke-dashoffset="282.74" stroke-linecap="round"></circle>
+                            </svg>
+                            <div class="donut-center-text">
+                                <span class="donut-center-val" id="donut-center-total">0%</span>
+                                <span class="donut-center-lbl">Coverage</span>
+                            </div>
+                        </div>
+                        
+                        <div class="skill-wheel-legend">
+                            <div class="legend-item blue-dot">
+                                <span>Languages & Core:</span>
+                                <strong id="legend-languages-val">0%</strong>
+                            </div>
+                            <div class="legend-item purple-dot">
+                                <span>Frameworks & Libraries:</span>
+                                <strong id="legend-frameworks-val">0%</strong>
+                            </div>
+                            <div class="legend-item orange-dot">
+                                <span>Databases & Cloud:</span>
+                                <strong id="legend-databases-val">0%</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Verdict Heuristic Summary Card -->
                 <div class="detail-section">
                     <h3><i class="fa-solid fa-wand-magic-sparkles"></i> AI Candidate Fit Verdict</h3>
                     <div class="ai-verdict-card">
@@ -322,13 +369,13 @@
                     </div>
                 </div>
 
-                <!-- Recruiter Comments Notes Area (New Phase 5) -->
+                <!-- Recruiter Comments Notes Area -->
                 <div class="detail-section">
                     <h3>Recruiter Comments & Notes</h3>
                     <textarea id="drawer-recruiter-notes" placeholder="Write internal screening notes, candidate impressions, or feedback here... (saves automatically)" class="notes-textarea"></textarea>
                 </div>
 
-                <!-- Contextual Tailored Screening Questions (New Phase 5) -->
+                <!-- Contextual Tailored Screening Questions -->
                 <div class="detail-section">
                     <h3><i class="fa-solid fa-clipboard-question"></i> Tailored Screening Questions</h3>
                     <p class="questionnaire-sub"><i class="fa-solid fa-circle-info"></i> Tailored behavioral and technical screening questions targeting candidate's requirements gaps.</p>
