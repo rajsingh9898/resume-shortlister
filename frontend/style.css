@@ -389,6 +389,46 @@ textarea:focus {
     color: var(--text-dark);
 }
 
+/* Database Backup Restore dropzone (New Phase 7) */
+.db-dropzone {
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px 14px;
+    text-align: center;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.005);
+    transition: all var(--transition-speed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.db-dropzone:hover, .db-dropzone.dragover {
+    border-color: var(--primary-color);
+    background: rgba(99, 102, 241, 0.02);
+}
+
+.db-import-icon {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    transition: color var(--transition-speed);
+}
+
+.db-dropzone:hover .db-import-icon {
+    color: var(--primary-color);
+}
+
+.db-dropzone-text {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.db-dropzone-text span {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
 /* Uploaded File List */
 .file-list {
     display: flex;
@@ -448,6 +488,51 @@ textarea:focus {
     display: flex;
     flex-direction: column;
     gap: 15px;
+}
+
+/* Strategy Weights presets pills (New Phase 7) */
+.weight-presets {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    background: rgba(0,0,0,0.15);
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.02);
+}
+
+.preset-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-right: 4px;
+    text-transform: uppercase;
+}
+
+.preset-btn {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.preset-btn:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.preset-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 6px var(--primary-glow);
 }
 
 .slider-group {
@@ -647,7 +732,7 @@ textarea:focus {
     border-color: var(--primary-color);
 }
 
-/* Interactive Match Score Histogram Bins (New Phase 6) */
+/* Interactive Match Score Histogram Bins */
 .score-histogram-panel {
     display: none;
     background: rgba(255, 255, 255, 0.015);
@@ -1051,12 +1136,20 @@ textarea:focus {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .ranking-header-title h3 {
     font-family: var(--font-heading);
     font-size: 1.2rem;
     font-weight: 600;
+}
+
+.action-buttons-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .export-btn {
@@ -1067,6 +1160,8 @@ textarea:focus {
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
     color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-speed);
 }
 
 .export-btn:hover {
@@ -1472,7 +1567,7 @@ textarea:focus {
     color: #c7d2fe;
 }
 
-/* SVG Skill Category Coverage Chart styles (New Phase 6) */
+/* SVG Skill Category Coverage Chart styles */
 .skill-wheel-card {
     display: flex;
     align-items: center;
@@ -1560,7 +1655,7 @@ textarea:focus {
     font-weight: 700;
 }
 
-/* Print evaluations PDF triggers (New Phase 6) */
+/* Print evaluations PDF triggers */
 .print-btn {
     width: auto;
     padding: 6px 14px;
@@ -1572,11 +1667,92 @@ textarea:focus {
     display: flex;
     align-items: center;
     gap: 6px;
+    cursor: pointer;
+    transition: all var(--transition-speed);
 }
 
 .print-btn:hover {
     background: rgba(99, 102, 241, 0.2);
     border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* Pros & Cons Strength Matrix CSS (New Phase 7) */
+.pro-con-matrix {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 640px) {
+    .pro-con-matrix {
+        grid-template-columns: 1fr;
+    }
+}
+
+.pro-con-card {
+    padding: 16px 20px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pro-con-card.pro-card {
+    background: rgba(16, 185, 129, 0.04);
+    border-color: rgba(16, 185, 129, 0.15);
+}
+
+.pro-con-card.pro-card h4 {
+    color: var(--success);
+}
+
+.pro-con-card.con-card {
+    background: rgba(244, 63, 94, 0.04);
+    border-color: rgba(244, 63, 94, 0.15);
+}
+
+.pro-con-card.con-card h4 {
+    color: var(--danger);
+}
+
+.pro-con-card h4 {
+    font-family: var(--font-heading);
+    font-size: 0.88rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pro-con-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pro-con-list li {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    position: relative;
+    padding-left: 14px;
+}
+
+.pro-con-list li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    font-weight: bold;
+}
+
+.pro-card .pro-con-list li::before {
+    color: var(--success);
+}
+
+.con-card .pro-con-list li::before {
+    color: var(--danger);
 }
 
 /* Questionnaire Interview List */
@@ -1978,7 +2154,7 @@ textarea:focus {
     border-radius: 20px;
 }
 
-/* Modals structures (Comparison Grid & Stage Loader overlays) */
+/* Modals structures */
 .modal {
     position: fixed;
     top: 0;
@@ -2338,7 +2514,7 @@ textarea:focus {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Print Layout Media Stylesheet (New Phase 6) */
+/* Print Layout Media Stylesheet */
 @media print {
     body {
         background: white !important;
@@ -2443,26 +2619,22 @@ textarea:focus {
         color: black !important;
     }
     
-    .comparison-card.success-card {
+    .pro-con-card.pro-card {
         background: #ecfdf5 !important;
         border-color: #a7f3d0 !important;
     }
     
-    .comparison-card.warning-card {
+    .pro-con-card.con-card {
         background: #fff1f2 !important;
         border-color: #fecdd3 !important;
     }
     
-    .success-card .badge {
-        background: #d1fae5 !important;
-        color: #065f46 !important;
-        border: 1px solid #a7f3d0 !important;
+    .pro-card .pro-con-list li::before {
+        color: #10b981 !important;
     }
     
-    .warning-card .badge {
-        background: #ffe4e6 !important;
-        color: #9f1239 !important;
-        border: 1px solid #fecdd3 !important;
+    .con-card .pro-con-list li::before {
+        color: #f43f5e !important;
     }
     
     .skills-matrix-cat {

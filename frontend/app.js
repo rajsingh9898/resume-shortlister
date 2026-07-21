@@ -9,7 +9,7 @@ let jdDegreesRequired = [];
 let activeFilterCategory = 'all'; // 'all', 'high', 'mid', 'exp', 'edu', 'shortlisted', 'rejected'
 let activeChartSkillFilter = null; // Filter candidates by specific clicked chart skill bar
 let activeMatchThreshold = 0; // Filter candidates by minimum score slider
-let activeHistogramFilter = null; // Filter candidates by click on score distribution tier (Phase 6)
+let activeHistogramFilter = null; // Filter candidates by click on score distribution tier
 
 // Candidate Checkbox Selection states
 let selectedCandidates = [];
@@ -32,6 +32,10 @@ const btnText = submitBtn.querySelector('.btn-text');
 const collapseSidebarBtn = document.getElementById('collapse-sidebar-btn');
 const expandSidebarBtn = document.getElementById('expand-sidebar-btn');
 
+// Backup DB restore DOM (Phase 7)
+const dbDropzone = document.getElementById('db-dropzone');
+const restoreDbInput = document.getElementById('restore-db-input');
+
 // Weight Sliders
 const sliderSemantic = document.getElementById('weight-semantic');
 const sliderSkills = document.getElementById('weight-skills');
@@ -53,7 +57,7 @@ const addSkillBtn = document.getElementById('add-skill-btn');
 const poolSkillsChartPanel = document.querySelector('.pool-skills-chart-panel');
 const poolSkillsChart = document.getElementById('pool-skills-chart');
 
-// Score Histogram Panel DOM (Phase 6)
+// Score Histogram Panel DOM
 const scoreHistogramPanel = document.querySelector('.score-histogram-panel');
 const scoreHistogram = document.getElementById('score-histogram');
 
@@ -106,7 +110,11 @@ const drawerRecruiterNotes = document.getElementById('drawer-recruiter-notes');
 const detailAiVerdictText = document.getElementById('detail-ai-verdict-text');
 const detailInterviewQuestionsList = document.getElementById('detail-interview-questions-list');
 
-// SVG Donut Rings DOM (Phase 6)
+// Pros & Cons lists (Phase 7)
+const detailProsList = document.getElementById('detail-pros-list');
+const detailConsList = document.getElementById('detail-cons-list');
+
+// SVG Donut Rings DOM
 const donutSegmentLanguages = document.getElementById('donut-segment-languages');
 const donutSegmentFrameworks = document.getElementById('donut-segment-frameworks');
 const donutSegmentDatabases = document.getElementById('donut-segment-databases');
@@ -215,6 +223,68 @@ function updateFileListUI() {
     });
 }
 
+/* Backup DB Restore Handlers (Phase 7) */
+dbDropzone.addEventListener('click', () => restoreDbInput.click());
+
+dbDropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dbDropzone.classList.add('dragover');
+});
+
+dbDropzone.addEventListener('dragleave', () => {
+    dbDropzone.classList.remove('dragover');
+});
+
+dbDropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dbDropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+        processBackupJsonFile(e.dataTransfer.files[0]);
+    }
+});
+
+restoreDbInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        processBackupJsonFile(e.target.files[0]);
+    }
+});
+
+function processBackupJsonFile(file) {
+    if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+        showToast("Please upload a valid JSON backup file.", "error");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (typeof data !== 'object') {
+                showToast("Invalid database structure.", "error");
+                return;
+            }
+
+            let restoredCount = 0;
+            Object.keys(data).forEach(key => {
+                if (key.startsWith('talentai_status_') || key.startsWith('talentai_notes_')) {
+                    localStorage.setItem(key, data[key]);
+                    restoredCount++;
+                }
+            });
+
+            showToast(`Successfully restored ${restoredCount} database entries!`, "success");
+            
+            // Reload candidates list to display restored tags and comments
+            if (rankedCandidates.length > 0) {
+                applyCandidatesFiltering();
+            }
+        } catch (err) {
+            showToast("Failed to parse JSON file.", "error");
+        }
+    };
+    reader.readAsText(file);
+}
+
 /* Sidebar Collapsing Layout Toggles */
 collapseSidebarBtn.addEventListener('click', collapseSidebar);
 expandSidebarBtn.addEventListener('click', expandSidebar);
@@ -229,9 +299,41 @@ function expandSidebar() {
     expandSidebarBtn.classList.add('hidden');
 }
 
+/* Strategy Weights Presets (Phase 7) */
+window.applyWeightPreset = function(presetName) {
+    const presets = {
+        balanced: { semantic: 40, skills: 35, experience: 25 },
+        tech: { semantic: 20, skills: 60, experience: 20 },
+        leader: { semantic: 20, skills: 20, experience: 60 }
+    };
+
+    const target = presets[presetName];
+    if (!target) return;
+
+    // Toggle active state in HTML
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById(`preset-${presetName}`).classList.add('active');
+
+    // Update slider values
+    sliderSemantic.value = target.semantic;
+    sliderSkills.value = target.skills;
+    sliderExperience.value = target.experience;
+
+    updateWeightsUI();
+    if (rankedCandidates.length > 0) {
+        recalculateRanking();
+    }
+};
+
 /* Dynamic Weights (Slider Recalculations) */
 [sliderSemantic, sliderSkills, sliderExperience].forEach(slider => {
     slider.addEventListener('input', () => {
+        // Clear active class from preset buttons if user does manual adjustments
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
         updateWeightsUI();
         if (rankedCandidates.length > 0 && isWeightsSumValid()) {
             recalculateRanking();
@@ -316,7 +418,7 @@ function recalculateRanking() {
     rankedCandidates.sort((a, b) => b.score - a.score);
     renderDashboard(rankedCandidates);
     renderPoolSkillsChart();
-    renderScoreHistogram(); // Update score bins (Phase 6)
+    renderScoreHistogram();
 }
 
 /* Multi-stage Processing Loader Controllers */
@@ -475,7 +577,7 @@ function applyCandidatesFiltering() {
         filteredList = filteredList.filter(c => localStorage.getItem(`talentai_status_${c.filename}`) === 'Rejected');
     }
 
-    // 2. Filter by Match Tier Histogram Selection (Phase 6)
+    // 2. Filter by Match Tier Histogram Selection
     if (activeHistogramFilter) {
         if (activeHistogramFilter === 'low') {
             filteredList = filteredList.filter(c => c.score < 40.0);
@@ -879,7 +981,81 @@ drawerRecruiterNotes.addEventListener('input', (e) => {
     localStorage.setItem(`talentai_notes_${filename}`, e.target.value);
 });
 
-/* Interactive Score Distribution Histogram Rendering (Phase 6) */
+/* Dynamic Pros & Cons bullet points logic generator (Phase 7) */
+function renderProsAndConsList(candidate) {
+    detailProsList.innerHTML = '';
+    detailConsList.innerHTML = '';
+
+    const pros = [];
+    const cons = [];
+
+    // 1. Check Experience alignment
+    if (jdExperienceRequired > 0) {
+        if (candidate.candidate_exp >= jdExperienceRequired) {
+            const extra = candidate.candidate_exp - jdExperienceRequired;
+            if (extra > 0) {
+                pros.push(`Experience (<strong>${candidate.candidate_exp} years</strong>) exceeds requirements by <strong>${extra} Yrs</strong>.`);
+            } else {
+                pros.push(`Meets experience requirement exactly (<strong>${candidate.candidate_exp} years</strong>).`);
+            }
+        } else {
+            const short = jdExperienceRequired - candidate.candidate_exp;
+            cons.push(`Experience (<strong>${candidate.candidate_exp} Yrs</strong>) is short of requirement by <strong>${short} years</strong>.`);
+        }
+    } else {
+        if (candidate.candidate_exp > 0) {
+            pros.push(`Candidate brings <strong>${candidate.candidate_exp} years</strong> of hands-on experience.`);
+        }
+    }
+
+    // 2. Check Degree Match
+    if (jdDegreesRequired.length > 0) {
+        if (candidate.degree_match) {
+            pros.push(`Educational credentials matched: Found <strong>${candidate.candidate_degrees.join(', ')}</strong>.`);
+        } else {
+            cons.push(`Missing requested educational degree (Requires: <strong>${jdDegreesRequired.join(' or ')}</strong>).`);
+        }
+    }
+
+    // 3. Check Matched Skills strengths
+    if (candidate.matched_skills.length > 0) {
+        const topMatched = candidate.matched_skills.slice(0, 3);
+        pros.push(`Strong core matches for required skill chips: <em>${topMatched.join(', ')}</em>.`);
+    } else {
+        cons.push(`Matches 0 required skills specified on the active requirements index.`);
+    }
+
+    // 4. Check missing skills gaps
+    if (candidate.missing_skills.length > 0) {
+        const topMissing = candidate.missing_skills.slice(0, 3);
+        cons.push(`Gaps identified in required skills: <em>${topMissing.join(', ')}</em>.`);
+    } else if (activeJdSkills.length > 0) {
+        pros.push(`Flawless required skills profile - covers 100% of skills index!`);
+    }
+
+    // Render lists in HTML
+    if (pros.length === 0) {
+        detailProsList.innerHTML = '<li>No significant strengths flagged.</li>';
+    } else {
+        pros.forEach(p => {
+            const li = document.createElement('li');
+            li.innerHTML = p;
+            detailProsList.appendChild(li);
+        });
+    }
+
+    if (cons.length === 0) {
+        detailConsList.innerHTML = '<li>No significant gaps flagged.</li>';
+    } else {
+        cons.forEach(c => {
+            const li = document.createElement('li');
+            li.innerHTML = c;
+            detailConsList.appendChild(li);
+        });
+    }
+}
+
+/* Interactive Score Distribution Histogram Rendering */
 function renderScoreHistogram() {
     if (rankedCandidates.length === 0) {
         scoreHistogramPanel.classList.remove('active');
@@ -897,7 +1073,7 @@ function renderScoreHistogram() {
     rankedCandidates.forEach(c => {
         if (c.score < 40.0) lowCount++;
         else if (c.score < 70.0) midCount++;
-        else highCount++;
+        else Math.max(0, highCount++);
     });
 
     const maxCount = Math.max(lowCount, midCount, highCount, 1);
@@ -949,9 +1125,8 @@ function toggleHistogramFilter(binKey) {
     applyCandidatesFiltering();
 }
 
-/* Category Skill Mapping Helper (Phase 6) */
+/* Category Skill Mapping Helper */
 function getSkillCategoryRatios(candidate) {
-    // Standard professional skill categorized references
     const categoriesMap = {
         languages: ['Python', 'Javascript', 'Go', 'C++', 'Rust', 'Java', 'TypeScript', 'SQL', 'HTML', 'CSS', 'Ruby', 'Bash', 'C#'],
         frameworks: ['FastAPI', 'Django', 'Flask', 'React', 'Angular', 'Vue', 'Next.js', 'Node.js', 'Express', 'Spring', 'PyTorch', 'TensorFlow', 'Keras', 'Django REST Framework', 'Tailwind', 'Sass'],
@@ -965,7 +1140,6 @@ function getSkillCategoryRatios(candidate) {
 
     const getMatchedInCategory = (catName) => {
         const refs = categoriesMap[catName];
-        // Intersect candidate skills, JD required skills, and the target category refs
         const matched = activeJdSkills.filter(s => candSkills.has(s) && refs.includes(s));
         const required = activeJdSkills.filter(s => refs.includes(s));
         
@@ -983,19 +1157,16 @@ function getSkillCategoryRatios(candidate) {
     };
 }
 
-/* Animate SVG Donut concentric rings (Phase 6) */
+/* Animate SVG Donut concentric rings */
 function animateSkillDonut(candidate) {
     const ratios = getSkillCategoryRatios(candidate);
     
-    // Circs calculations: circumference = 2 * PI * radius
-    // Set circle radii dynamically to display as concentric circles
     const rings = [
         { el: donutSegmentLanguages, r: 45, ratio: ratios.languages.ratio, legend: legendLanguagesVal },
         { el: donutSegmentFrameworks, r: 33, ratio: ratios.frameworks.ratio, legend: legendFrameworksVal },
         { el: donutSegmentDatabases, r: 21, ratio: ratios.databases.ratio, legend: legendDatabasesVal }
     ];
 
-    let overallSum = 0;
     rings.forEach(ring => {
         ring.el.setAttribute('r', ring.r);
         
@@ -1003,22 +1174,19 @@ function animateSkillDonut(candidate) {
         ring.el.style.strokeDasharray = `${circ}`;
         ring.el.style.strokeDashoffset = `${circ}`;
         
-        // Trigger stroke animation offset
         setTimeout(() => {
             const offset = circ - (ring.ratio / 100) * circ;
             ring.el.style.strokeDashoffset = offset;
         }, 50);
         
         ring.legend.textContent = `${ring.ratio.toFixed(0)}%`;
-        overallSum += ring.ratio;
     });
 
-    // Animate overall total coverage text inside the donut center
     const totalCoverage = candidate.skills_score;
     donutCenterTotal.textContent = `${totalCoverage.toFixed(0)}%`;
 }
 
-/* PDF print candidate screening report trigger (Phase 6) */
+/* PDF print candidate screening report trigger */
 window.printCandidateReport = function() {
     if (!currentDrawerCandidate) return;
     
@@ -1028,6 +1196,31 @@ window.printCandidateReport = function() {
     window.print();
     
     document.title = originalTitle;
+};
+
+/* Export full recruiter database backup package (Phase 7) */
+window.exportDatabaseBackup = function() {
+    const backupObj = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('talentai_status_') || key.startsWith('talentai_notes_')) {
+            backupObj[key] = localStorage.getItem(key);
+        }
+    }
+
+    const jsonStr = JSON.stringify(backupObj, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `talentai_database_backup_${new Date().toISOString().slice(0,10)}.json`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast("JSON database backup package exported successfully!", "success");
 };
 
 /* Pool Skills Frequency Chart rendering */
@@ -1229,6 +1422,9 @@ function openDrawer(candidate, rank) {
     // Generate dynamic Heuristic AI Verdict fit summary
     detailAiVerdictText.innerHTML = generateCandidateVerdict(candidate);
 
+    // Render pros & cons list (Phase 7)
+    renderProsAndConsList(candidate);
+
     // Generate context screening questions list
     const questions = generateInterviewQuestions(candidate);
     detailInterviewQuestionsList.innerHTML = '';
@@ -1238,7 +1434,7 @@ function openDrawer(candidate, rank) {
         detailInterviewQuestionsList.appendChild(li);
     });
 
-    // Animate SVG category donut chart coverage (Phase 6)
+    // Animate SVG category donut chart coverage
     animateSkillDonut(candidate);
 
     // Detailed scores progress bars

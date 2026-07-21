@@ -65,6 +65,19 @@
                             <div id="file-list" class="file-list"></div>
                         </div>
 
+                        <!-- Restore Database Backup Dropzone (New Phase 7) -->
+                        <div class="input-group">
+                            <label for="restore-db-input">
+                                <span>Restore Database Backup (JSON)</span>
+                                <span class="tooltip" title="Upload a previously saved TalentAI JSON database backup to restore all recruiter evaluation comments and status tags."><i class="fa-solid fa-circle-question"></i></span>
+                            </label>
+                            <div id="db-dropzone" class="db-dropzone">
+                                <i class="fa-solid fa-file-import db-import-icon"></i>
+                                <p class="db-dropzone-text">Drop JSON database backup here or <span>browse</span></p>
+                                <input type="file" id="restore-db-input" accept=".json" style="display: none;">
+                            </div>
+                        </div>
+
                         <!-- Submit Button -->
                         <button type="submit" id="submit-btn" class="btn primary-btn">
                             <span class="btn-text">Rank Candidates</span>
@@ -80,13 +93,21 @@
                             <h3>Scoring Weights</h3>
                             <span id="weight-total" class="weight-total-badge valid">100%</span>
                         </div>
+
+                        <!-- Strategy Weight Presets (New Phase 7) -->
+                        <div class="weight-presets">
+                            <span class="preset-label">Presets:</span>
+                            <button type="button" class="preset-btn active" id="preset-balanced" onclick="applyWeightPreset('balanced')">Balanced</button>
+                            <button type="button" class="preset-btn" id="preset-tech" onclick="applyWeightPreset('tech')">Tech Spec</button>
+                            <button type="button" class="preset-btn" id="preset-leader" onclick="applyWeightPreset('leader')">Leader</button>
+                        </div>
                         
                         <div class="slider-group">
                             <div class="slider-info">
                                 <span>Semantic Relevance (TF-IDF)</span>
-                                <span id="lbl-weight-semantic">50%</span>
+                                <span id="lbl-weight-semantic">40%</span>
                             </div>
-                            <input type="range" id="weight-semantic" min="0" max="100" value="50" step="5" class="weight-slider">
+                            <input type="range" id="weight-semantic" min="0" max="100" value="40" step="5" class="weight-slider">
                         </div>
 
                         <div class="slider-group">
@@ -100,11 +121,11 @@
                         <div class="slider-group">
                             <div class="slider-info">
                                 <span>Years of Experience Match</span>
-                                <span id="lbl-weight-experience">15%</span>
+                                <span id="lbl-weight-experience">25%</span>
                             </div>
-                            <input type="range" id="weight-experience" min="0" max="100" value="15" step="5" class="weight-slider">
+                            <input type="range" id="weight-experience" min="0" max="100" value="25" step="5" class="weight-slider">
                         </div>
-                        <p class="weight-note"><i class="fa-solid fa-circle-info"></i> Adjust sliders to re-sort candidates instantly. Weights must sum to 100%.</p>
+                        <p class="weight-note"><i class="fa-solid fa-circle-info"></i> Adjust sliders or select presets to re-sort candidates instantly.</p>
                     </div>
 
                     <!-- Dynamic JD Requirements Editor (Visible after analysis) -->
@@ -190,7 +211,7 @@
                         </div>
                     </div>
 
-                    <!-- Visual Interactive Score Tier Histogram (New Phase 6) -->
+                    <!-- Visual Interactive Score Tier Histogram -->
                     <div class="score-histogram-panel">
                         <div class="panel-sub-header">
                             <i class="fa-solid fa-chart-column"></i>
@@ -218,7 +239,10 @@
                     <div class="ranking-header">
                         <div class="ranking-header-title">
                             <h3>Ranked Shortlist</h3>
-                            <button id="export-btn" class="btn export-btn"><i class="fa-solid fa-file-csv"></i> Export Report</button>
+                            <div class="action-buttons-group">
+                                <button id="backup-btn" class="btn export-btn" onclick="exportDatabaseBackup()"><i class="fa-solid fa-database"></i> Backup DB</button>
+                                <button id="export-btn" class="btn export-btn"><i class="fa-solid fa-file-csv"></i> Export Report</button>
+                            </div>
                         </div>
 
                         <!-- Filters panel (Filters + Match Threshold Slider) -->
@@ -261,7 +285,7 @@
         <div class="drawer-content">
             <button class="close-btn" onclick="closeDrawer()"><i class="fa-solid fa-xmark"></i></button>
             <div class="drawer-body">
-                <!-- Header details (New Phase 6 Print Report button) -->
+                <!-- Header details -->
                 <div class="candidate-detail-header">
                     <span class="candidate-badge" id="c-rank">#1</span>
                     <h2 id="c-name">candidate_name.pdf</h2>
@@ -327,7 +351,7 @@
                     </div>
                 </div>
 
-                <!-- SVG Skill Category Coverage Chart (New Phase 6) -->
+                <!-- SVG Skill Category Coverage Chart -->
                 <div class="detail-section">
                     <h3>Skill Category Coverage</h3>
                     <div class="skill-wheel-card">
@@ -373,6 +397,25 @@
                 <div class="detail-section">
                     <h3>Recruiter Comments & Notes</h3>
                     <textarea id="drawer-recruiter-notes" placeholder="Write internal screening notes, candidate impressions, or feedback here... (saves automatically)" class="notes-textarea"></textarea>
+                </div>
+
+                <!-- Pros & Cons Strength Matrix (New Phase 7) -->
+                <div class="detail-section">
+                    <h3>Pros & Cons Strength Analysis</h3>
+                    <div class="pro-con-matrix">
+                        <div class="pro-con-card pro-card">
+                            <h4><i class="fa-solid fa-circle-plus"></i> Candidate Strengths (Pros)</h4>
+                            <ul id="detail-pros-list" class="pro-con-list">
+                                <!-- Injected dynamically -->
+                            </ul>
+                        </div>
+                        <div class="pro-con-card con-card">
+                            <h4><i class="fa-solid fa-circle-minus"></i> Gaps & Development Areas (Cons)</h4>
+                            <ul id="detail-cons-list" class="pro-con-list">
+                                <!-- Injected dynamically -->
+                            </ul>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Contextual Tailored Screening Questions -->

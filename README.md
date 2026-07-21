@@ -8,7 +8,7 @@ Developed as a senior recruiter helper suite for **Raj Singh**.
 
 ## 🌟 Key Features
 
-1. **High-Efficiency Document Ingestion Engine**:
+1. **High-Efficiency Document Ingest Engine**:
    - Parses multiple resumes concurrently using an asynchronous thread executor.
    - Extracts structured details including years of experience, educational degrees, contact emails, and matched/unmatched skills.
 
@@ -17,19 +17,25 @@ Developed as a senior recruiter helper suite for **Raj Singh**.
    - Computes Cosine Similarity between job requirements and resume texts.
    - Applies custom weighting values dynamically (Semantic Similarity, Skills Match, and Experience Match).
 
-3. **Enterprise Recruiter Evaluation Suite (LocalStorage Binding)**:
+3. **Recruiter Strategy Weight Presets**:
+   - Offers quick-set weight presets to shift priorities instantly:
+     - **Balanced Fit**: 40% Semantic, 35% Skills, 25% Experience.
+     - **Tech Spec**: 20% Semantic, 60% Skills, 20% Experience.
+     - **Leader**: 20% Semantic, 20% Skills, 60% Experience.
+
+4. **Enterprise Recruiter Evaluation Suite**:
    - Interactive status tagging (Shortlisted, Under Review, Rejected) per candidate card.
    - Persistent recruiter comments and evaluation notes saved instantly.
    - Heuristic AI Candidate Fit Verdict outputs natural-language qualification summaries.
    - Custom tailored interview screening questions generated dynamically based on candidate skill gaps.
+   - **Pros & Cons Analysis Matrix**: Dynamic positive-negative bullet list outlining candidate strengths and development gaps.
 
-4. **Premium Visual Analytics & Reports Layout**:
+5. **Premium Visual Analytics & Portability**:
    - **Concentric SVG Category Coverage Progress Wheel**: Multi-ring concentric charts animating Language, Framework, and Database alignment percentages inside inspection drawers.
-   - **Match Tier Distribution Histogram**: Dynamic interactive bar chart grouping candidates into score bands (Low, Mid, Strong). Clicking histogram bars filters candidates instantly.
-   - **Candidate Pool Skill Frequency Chart**: Visual bar indicators illustrating common skills.
+   - **Match Tier Distribution Histogram**: Dynamic interactive bar chart grouping candidates into score bands. Clicking histogram bars filters candidates instantly.
    - **Candidate Summary Print PDF Engine**: Exports beautifully formatted printout templates containing verdicts, notes, and screening questions.
    - **Shortlist Comparison Grid**: Side-by-side matrices comparing up to 3 candidates simultaneously.
-   - **Match Score Threshold Filter**: Dynamic range slider to screen out low-matching resumes instantly.
+   - **Database Backup & Restoration (JSON)**: Back up all candidate statuses and notes to a JSON file, or drag-and-drop a backup to restore recruiter comments instantly.
 
 ---
 
