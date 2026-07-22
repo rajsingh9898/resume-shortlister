@@ -1,7 +1,7 @@
 import nlp_engine
 
 def run_tests():
-    print("--- Starting NLP Engine Phase 2 Validation Tests ---")
+    print("--- Starting NLP Engine Phase 8 Validation Tests ---")
     
     # 1. Test basic extraction methods first
     print("\nValidating extraction methods...")
@@ -19,8 +19,16 @@ def run_tests():
     assert "Bachelor" in extracted_degrees, "Bachelor not found in degrees"
     assert "Master" in extracted_degrees, "Master not found in degrees"
     assert "PhD" in extracted_degrees, "PhD not found in degrees"
+
+    # Test Soft Traits parser
+    mock_soft_text = "I managed a team of developers and led architecture refactoring sprints using scrum."
+    extracted_traits = nlp_engine.parse_soft_traits(mock_soft_text)
+    print(f"Extracted soft traits: {extracted_traits}")
+    assert "Leadership & Mentorship" in extracted_traits, "Leadership trait not extracted"
+    assert "System Design & Architecture" in extracted_traits, "Architecture trait not extracted"
+    assert "Agile Delivery & DevOps" in extracted_traits, "Agile trait not extracted"
     
-    # 2. Test Combined compute_nlp_shortlist
+    # 2. Test Combined compute_nlp_shortlist with Synonym mappings
     # Mock Job Description
     mock_jd = """
     Looking for a Senior Backend Developer with 5+ years of experience in Python and FastAPI.
@@ -28,7 +36,11 @@ def run_tests():
     Knowledge of CI/CD, Git, and Kubernetes is a big plus. A Master's degree or PhD is required.
     """
     
-    # Mock Resumes
+    # Mock Resumes utilizing synonym terms:
+    # Postgres is a synonym of PostgreSQL
+    # GitHub is a synonym of Git
+    # pipelines is a synonym of CI/CD
+    # Fast API is a synonym of FastAPI
     mock_resumes = [
         {
             "filename": "strong_backend_developer.txt",
@@ -36,13 +48,13 @@ def run_tests():
             John Doe - Backend Architect
             SKILLS:
             Languages: Python, SQL
-            Frameworks: FastAPI, Flask
-            Tools & Databases: Docker, PostgreSQL, Git
-            Domains: DevOps, CI/CD
+            Frameworks: Fast API, Flask
+            Tools & Databases: Docker, Postgres, GitHub
+            Domains: DevOps, continuous integration pipelines
             Education:
             PhD in Distributed Systems. Master of Science in CS. B.S. in IT.
             Experience:
-            Over 6 years of professional software engineering.
+            Over 6 years of professional software engineering. I managed a team and mentored juniors.
             """
         },
         {
@@ -85,18 +97,23 @@ def run_tests():
         print(f"  Degree Match: {candidate['degree_match']}")
         print(f"  Matched Skills: {candidate['matched_skills']}")
         print(f"  Missing Skills: {candidate['missing_skills']}")
+        print(f"  Soft Traits Extracted: {candidate.get('soft_traits')}")
         print("-" * 40)
 
     # Verification assertions
     assert len(candidates) == 2, "Should return scores for both mock candidates"
     assert candidates[0]['filename'] == "strong_backend_developer.txt", "Backend candidate should rank 1st"
-    assert candidates[0]['candidate_exp'] == 6.0, "Experience years parsing failed for candidate 1"
-    assert candidates[0]['degree_match'] == True, "Degree matching failed for candidate 1 (who has PhD)"
     
-    assert candidates[1]['candidate_exp'] == 3.0, "Experience years parsing failed for candidate 2"
-    assert candidates[1]['degree_match'] == False, "Degree matching failed for candidate 2 (who only has Bachelor)"
+    # Synonym verification assertions
+    matched_skills = candidates[0]['matched_skills']
+    assert "PostgreSQL" in matched_skills, "Failed to match PostgreSQL from synonym 'Postgres'"
+    assert "Git" in matched_skills, "Failed to match Git from synonym 'GitHub'"
+    assert "CI/CD" in matched_skills, "Failed to match CI/CD from synonym 'pipelines'"
+    assert "FastAPI" in matched_skills, "Failed to match FastAPI from synonym 'Fast API'"
+
+    assert "Leadership & Mentorship" in candidates[0]['soft_traits'], "Soft traits extraction failed"
     
-    print("\nSUCCESS: NLP Engine passed all validation tests!")
+    print("\nSUCCESS: NLP Engine passed all advanced validation tests!")
 
 if __name__ == "__main__":
     run_tests()

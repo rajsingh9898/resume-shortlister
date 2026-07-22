@@ -114,6 +114,9 @@ const detailInterviewQuestionsList = document.getElementById('detail-interview-q
 const detailProsList = document.getElementById('detail-pros-list');
 const detailConsList = document.getElementById('detail-cons-list');
 
+// Soft Skills & Traits (Phase 8)
+const detailSoftTraits = document.getElementById('detail-soft-traits');
+
 // SVG Donut Rings DOM
 const donutSegmentLanguages = document.getElementById('donut-segment-languages');
 const donutSegmentFrameworks = document.getElementById('donut-segment-frameworks');
@@ -1355,7 +1358,20 @@ newSkillInput.addEventListener('keydown', (e) => {
     }
 });
 
-/* Dynamic Skill Highlighter */
+/* Dynamic Skill Highlighter with Synonym Support (Phase 8) */
+const SKILL_SYNONYMS = {
+    "PostgreSQL": ["postgresql", "postgres", "sql database", "psql"],
+    "FastAPI": ["fastapi", "fast api", "asgi", "python asgi"],
+    "Docker": ["docker", "containers", "containerization", "dockerfiles", "dockerize"],
+    "Kubernetes": ["kubernetes", "k8s", "helm", "orchestration", "argocd"],
+    "React": ["react", "reactjs", "react.js", "react-router", "redux"],
+    "CI/CD": ["ci/cd", "pipeline", "pipelines", "jenkins", "github actions", "gitlab ci", "continuous integration"],
+    "Git": ["git", "github", "gitlab", "bitbucket", "version control"],
+    "MongoDB": ["mongodb", "mongo", "nosql", "document database"],
+    "Python": ["python", "django", "flask", "fastapi", "asyncio"],
+    "JavaScript": ["javascript", "js", "typescript", "ts", "es6"]
+};
+
 function highlightTextSkills(rawText, matchedSkills, missingSkills) {
     let tempText = rawText;
     const replacements = {};
@@ -1372,12 +1388,20 @@ function highlightTextSkills(rawText, matchedSkills, missingSkills) {
     }
     
     keywords.forEach(kw => {
-        const pattern = new RegExp('\\b(' + escapeRegExp(kw.word) + ')\\b', 'gi');
-        tempText = tempText.replace(pattern, (match) => {
-            const token = `__TOKEN_SKILL_${tokenIndex}__`;
-            replacements[token] = `<mark class="highlight-${kw.type}">${match}</mark>`;
-            tokenIndex++;
-            return token;
+        const searchWords = [kw.word];
+        if (SKILL_SYNONYMS[kw.word]) {
+            searchWords.push(...SKILL_SYNONYMS[kw.word]);
+        }
+        searchWords.sort((a, b) => b.length - a.length);
+
+        searchWords.forEach(word => {
+            const pattern = new RegExp('\\b(' + escapeRegExp(word) + ')\\b', 'gi');
+            tempText = tempText.replace(pattern, (match) => {
+                const token = `__TOKEN_SKILL_${tokenIndex}__`;
+                replacements[token] = `<mark class="highlight-${kw.type}">${match}</mark>`;
+                tokenIndex++;
+                return token;
+            });
         });
     });
     
@@ -1424,6 +1448,22 @@ function openDrawer(candidate, rank) {
 
     // Render pros & cons list (Phase 7)
     renderProsAndConsList(candidate);
+
+    // Render soft traits list (Phase 8)
+    detailSoftTraits.innerHTML = '';
+    if (!candidate.soft_traits || candidate.soft_traits.length === 0) {
+        detailSoftTraits.innerHTML = '<span class="text-dark" style="font-size: 0.8rem;">No leadership or architectural soft traits flagged.</span>';
+    } else {
+        candidate.soft_traits.forEach(trait => {
+            const badge = document.createElement('span');
+            badge.className = 'badge';
+            badge.style.background = 'rgba(192, 132, 252, 0.12)';
+            badge.style.color = '#c084fc';
+            badge.style.border = '1px solid rgba(192, 132, 252, 0.2)';
+            badge.innerHTML = `<i class="fa-solid fa-circle-nodes" style="margin-right: 5px; font-size: 0.7rem;"></i> ${trait}`;
+            detailSoftTraits.appendChild(badge);
+        });
+    }
 
     // Generate context screening questions list
     const questions = generateInterviewQuestions(candidate);

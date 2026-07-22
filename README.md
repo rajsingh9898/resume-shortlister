@@ -16,21 +16,28 @@ Developed as a senior recruiter helper suite for **Raj Singh**.
    - Computes TF-IDF vector vocabulary mappings.
    - Computes Cosine Similarity between job requirements and resume texts.
    - Applies custom weighting values dynamically (Semantic Similarity, Skills Match, and Experience Match).
+   - **Semantic Skill Synonyms**: Maps aliases and abbreviations (e.g. *postgres* to *PostgreSQL*, *pipelines* to *CI/CD*, *GitHub* to *Git*, and *Fast API* to *FastAPI*) for highly accurate parsing.
+   - **Soft Traits Extraction**: Automatically detects professional traits: *Leadership & Mentorship*, *System Design & Architecture*, and *Agile Delivery & DevOps*.
 
-3. **Recruiter Strategy Weight Presets**:
+3. **Premium Unicorn Silver Design System**:
+   - Stunning visual interface with deep metallic slate gradient background and iridescent mesh glows (pastel rose, lavender, cyan).
+   - Frosty translucent panels with silver border sheens (`rgba(255, 255, 255, 0.12)`).
+   - Reflective chrome silver button gradients (`linear-gradient(135deg, #ffffff, #cbd5e1, #94a3b8)`) for action triggers.
+
+4. **Recruiter Strategy Weight Presets**:
    - Offers quick-set weight presets to shift priorities instantly:
      - **Balanced Fit**: 40% Semantic, 35% Skills, 25% Experience.
      - **Tech Spec**: 20% Semantic, 60% Skills, 20% Experience.
      - **Leader**: 20% Semantic, 20% Skills, 60% Experience.
 
-4. **Enterprise Recruiter Evaluation Suite**:
+5. **Enterprise Recruiter Evaluation Suite**:
    - Interactive status tagging (Shortlisted, Under Review, Rejected) per candidate card.
    - Persistent recruiter comments and evaluation notes saved instantly.
    - Heuristic AI Candidate Fit Verdict outputs natural-language qualification summaries.
    - Custom tailored interview screening questions generated dynamically based on candidate skill gaps.
    - **Pros & Cons Analysis Matrix**: Dynamic positive-negative bullet list outlining candidate strengths and development gaps.
 
-5. **Premium Visual Analytics & Portability**:
+6. **Premium Visual Analytics & Portability**:
    - **Concentric SVG Category Coverage Progress Wheel**: Multi-ring concentric charts animating Language, Framework, and Database alignment percentages inside inspection drawers.
    - **Match Tier Distribution Histogram**: Dynamic interactive bar chart grouping candidates into score bands. Clicking histogram bars filters candidates instantly.
    - **Candidate Summary Print PDF Engine**: Exports beautifully formatted printout templates containing verdicts, notes, and screening questions.

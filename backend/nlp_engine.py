@@ -53,6 +53,20 @@ SKILLS_DB = {
     ]
 }
 
+# Semantic synonyms map to handle abbreviations, spellings, and variations (Phase 8 Advanced AI)
+SKILL_SYNONYMS = {
+    "PostgreSQL": ["postgresql", "postgres", "sql database", "psql"],
+    "FastAPI": ["fastapi", "fast api", "asgi", "python asgi"],
+    "Docker": ["docker", "containers", "containerization", "dockerfiles", "dockerize"],
+    "Kubernetes": ["kubernetes", "k8s", "helm", "orchestration", "argocd"],
+    "React": ["react", "reactjs", "react.js", "react-router", "redux"],
+    "CI/CD": ["ci/cd", "pipeline", "pipelines", "jenkins", "github actions", "gitlab ci", "continuous integration"],
+    "Git": ["git", "github", "gitlab", "bitbucket", "version control"],
+    "MongoDB": ["mongodb", "mongo", "nosql", "document database"],
+    "Python": ["python", "django", "flask", "fastapi", "asyncio"],
+    "JavaScript": ["javascript", "js", "typescript", "ts", "es6"]
+}
+
 def extract_text_from_pdf(file_bytes: bytes) -> str:
     """Extracts text from PDF bytes."""
     text = ""
@@ -160,6 +174,26 @@ def parse_education_degrees(text: str) -> list:
                 
     return degrees
 
+def parse_soft_traits(text: str) -> list:
+    """
+    Parses soft skills and leadership traits from text using regular expressions (Phase 8 Advanced AI).
+    """
+    text_lower = text.lower()
+    traits = []
+    
+    trait_patterns = {
+        "Leadership & Mentorship": [r"\bmanaged\b", r"\blead\b", r"\bmentor\b", r"\bspearheaded\b", r"\bdirected\b", r"\bleadership\b"],
+        "System Design & Architecture": [r"\bscalability\b", r"\barchitecture\b", r"\bmicroservices\b", r"\bsystem design\b", r"\brefactor\b"],
+        "Agile Delivery & DevOps": [r"\bagile\b", r"\bscrum\b", r"\bsprint\b", r"\bjira\b", r"\bdevops\b", r"\bci/cd\b"]
+    }
+    
+    for trait, patterns in trait_patterns.items():
+        for pat in patterns:
+            if re.search(pat, text_lower):
+                traits.append(trait)
+                break
+    return traits
+
 def extract_skills_from_text(text: str) -> dict:
     """Identifies skills from the skills lexicon present in the raw text."""
     text_lower = text.lower()
@@ -234,11 +268,38 @@ def extract_skills_from_text(text: str) -> dict:
             
     return extracted
 
+def check_skill_match_raw(jd_skill: str, candidate_text: str, candidate_skills: set) -> bool:
+    """Checks if a skill or any of its synonyms are present in candidate skills or text (Phase 8 Advanced AI)."""
+    jd_lower = jd_skill.lower()
+    cand_lower = {c.lower() for c in candidate_skills}
+    
+    # 1. Exact match in candidate extracted skills
+    if jd_lower in cand_lower:
+        return True
+        
+    # 2. Check synonyms aliases in candidate skills
+    aliases = SKILL_SYNONYMS.get(jd_skill, [])
+    for alias in aliases:
+        if alias.lower() in cand_lower:
+            return True
+            
+    # 3. Check synonyms aliases in candidate text directly (handles non-lexicon mappings)
+    text_lower = candidate_text.lower()
+    for alias in aliases:
+        if '+' in alias or '#' in alias or '.' in alias:
+            pattern = r'(?:^|\s|[.,/():\-])' + re.escape(alias.lower()) + r'(?:$|\s|[.,/():\-])'
+        else:
+            pattern = r'\b' + re.escape(alias.lower()) + r'\b'
+            
+        if re.search(pattern, text_lower):
+            return True
+            
+    return False
+
 def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
     """
     Parses JD and candidate resumes.
     Returns list of candidates ranked by overall score.
-    Now extracts years of experience and degrees as separate factors.
     """
     # 1. Parse Job Description Parameters
     jd_clean = preprocess_text(jd_raw)
@@ -284,9 +345,17 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
             c_skills.extend(cat_skills)
         c_skills_set = set(c_skills)
         
-        # Skill matching
-        matched_skills = sorted(list(jd_skills_set.intersection(c_skills_set)))
-        missing_skills = sorted(list(jd_skills_set.difference(c_skills_set)))
+        # Skill matching using Synonyms alias expanders
+        matched_skills = []
+        missing_skills = []
+        for req_skill in jd_skills_set:
+            if check_skill_match_raw(req_skill, raw_txt, c_skills_set):
+                matched_skills.append(req_skill)
+            else:
+                missing_skills.append(req_skill)
+                
+        matched_skills.sort()
+        missing_skills.sort()
         
         skills_score = 0.0
         if jd_skills_set:
@@ -307,16 +376,18 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
         candidate_degrees = parse_education_degrees(raw_txt)
         degree_match = False
         if jd_degrees:
-            # Match if candidate has any of the degrees in the JD (or higher, handled by simple intersection)
             degree_match = len(set(jd_degrees).intersection(set(candidate_degrees))) > 0
         else:
             degree_match = True # Match if not specified
             
+        # Soft Traits extraction
+        soft_traits = parse_soft_traits(raw_txt)
+            
         # Calculate scores
         cosine_sim = max(0.0, min(1.0, similarities[idx]))
         
-        # Default weights: 50% Cosine Similarity, 35% Skills Matching, 15% Experience Matching
-        final_score = (cosine_sim * 0.5) + (skills_score * 0.35) + (experience_score * 0.15)
+        # Default weights: 40% Cosine Similarity, 35% Skills Matching, 25% Experience Matching
+        final_score = (cosine_sim * 0.4) + (skills_score * 0.35) + (experience_score * 0.25)
         
         candidates_list.append({
             "filename": res['filename'],
@@ -330,6 +401,7 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
             "candidate_exp": candidate_exp,
             "candidate_degrees": candidate_degrees,
             "degree_match": degree_match,
+            "soft_traits": soft_traits,
             "snippet": raw_txt[:400] + ("..." if len(raw_txt) > 400 else "")
         })
         
