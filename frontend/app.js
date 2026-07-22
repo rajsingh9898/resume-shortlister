@@ -1637,3 +1637,31 @@ exportBtn.addEventListener('click', () => {
     document.body.removeChild(link);
     showToast("CSV report downloaded successfully!", "success");
 });
+
+// Theme switcher state management (Phase 8 Theme Toggle)
+const themeToggleBtn = document.getElementById('theme-toggle-btn');
+const savedTheme = localStorage.getItem('talentai_theme') || 'light';
+
+if (savedTheme === 'dark') {
+    document.body.classList.add('dark-theme');
+    if (themeToggleBtn) themeToggleBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+} else {
+    document.body.classList.remove('dark-theme');
+    if (themeToggleBtn) themeToggleBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+}
+
+if (themeToggleBtn) {
+    themeToggleBtn.onclick = () => {
+        if (document.body.classList.contains('dark-theme')) {
+            document.body.classList.remove('dark-theme');
+            themeToggleBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+            localStorage.setItem('talentai_theme', 'light');
+            showToast("Switched to Light Unicorn Silver theme", "success");
+        } else {
+            document.body.classList.add('dark-theme');
+            themeToggleBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+            localStorage.setItem('talentai_theme', 'dark');
+            showToast("Switched to Dark Unicorn Silver theme", "success");
+        }
+    };
+}
