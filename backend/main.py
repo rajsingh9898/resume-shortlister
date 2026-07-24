@@ -421,7 +421,9 @@ async def shortlist(
         raise HTTPException(status_code=500, detail=f"Shortlisting integration failed: {str(e)}")
 
 @app.post("/api/evaluation/update")
+@limiter.limit("30/minute")
 def update_evaluation(
+    request: Request,
     data: EvaluationUpdate, 
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -466,6 +468,9 @@ def update_evaluation(
             
         # Find or create Evaluation record
         eval_record = db.query(Evaluation).filter_by(job_id=job_id, candidate_id=candidate.id).first()
+        old_status = eval_record.status if eval_record else None
+        status_changed = False
+        
         if not eval_record:
             eval_record = Evaluation(
                 job_id=job_id,
@@ -474,18 +479,28 @@ def update_evaluation(
                 comments=data.comments if data.comments is not None else ""
             )
             db.add(eval_record)
+            status_changed = True
         else:
-            if data.status is not None:
+            if data.status is not None and eval_record.status != data.status:
+                old_status = eval_record.status
                 eval_record.status = data.status
+                status_changed = True
             if data.comments is not None:
                 eval_record.comments = data.comments
         db.commit()
         
-        # Log audit details
+        # Log audit details with what changed
+        if status_changed:
+            log_action = "STATUS_CHANGE"
+            log_details = f"Candidate '{data.filename}' status updated from '{old_status}' to '{eval_record.status}'"
+        else:
+            log_action = "update_evaluation"
+            log_details = f"Updated comments for candidate '{data.filename}'"
+            
         log = AuditLog(
             user_id=current_user.id,
-            action="update_evaluation",
-            details=f"Updated candidate {data.filename} evaluation in Job {job_id}"
+            action=log_action,
+            details=log_details
         )
         db.add(log)
         db.commit()
@@ -623,9 +638,31 @@ def delete_candidate(
     candidate = db.query(Candidate).filter_by(id=candidate_id, organization_id=current_user.organization_id).first()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found in your organization.")
+        
+    # Retrieve all associated resumes to delete files physically
+    resumes = db.query(Resume).filter_by(candidate_id=candidate.id).all()
+    for resume in resumes:
+        if resume.file_path and os.path.exists(resume.file_path):
+            try:
+                os.remove(resume.file_path)
+            except Exception as e:
+                print(f"Error purging file {resume.file_path}: {e}")
+                
+    candidate_name = candidate.name
+    
+    # Delete database candidate entity (cascades automatically to resumes/scores/evaluations)
     db.delete(candidate)
+    
+    # Log GDPR_PURGE audit trail
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="GDPR_PURGE",
+        details=f"Fully purged candidate '{candidate_name}' and all associated scores/files for GDPR Right to be Forgotten compliance."
+    )
+    db.add(audit)
     db.commit()
-    return {"success": True, "message": "Candidate deleted successfully."}
+    
+    return {"success": True, "message": "Candidate and all associated data fully purged for GDPR compliance."}
 
 # Route to serve homepage
 @app.get("/")

@@ -27,7 +27,7 @@ def run_db_tests():
             
         user = db.query(User).filter_by(email="test_user@talentai.local").first()
         if not user:
-            user = User(email="test_user@talentai.local", full_name="Test User", organization_id=org.id)
+            user = User(email="test_user@talentai.local", full_name="Test User", hashed_password="mockedpassword", organization_id=org.id)
             db.add(user)
             db.commit()
             db.refresh(user)
