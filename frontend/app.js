@@ -4,6 +4,9 @@ let rankedCandidates = [];
 let activeJdSkills = [];
 let jdExperienceRequired = 0;
 let jdDegreesRequired = [];
+let currentJobId = null;
+let currentUser = null;
+let userToken = localStorage.getItem('talentai_token') || null;
 
 // Filtering states
 let activeFilterCategory = 'all'; // 'all', 'high', 'mid', 'exp', 'edu', 'shortlisted', 'rejected'
@@ -267,20 +270,41 @@ function processBackupJsonFile(file) {
                 return;
             }
 
-            let restoredCount = 0;
-            Object.keys(data).forEach(key => {
-                if (key.startsWith('talentai_status_') || key.startsWith('talentai_notes_')) {
-                    localStorage.setItem(key, data[key]);
-                    restoredCount++;
-                }
-            });
+            // Upload backup to PostgreSQL database restore endpoint
+            fetch('/api/backup/import', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userToken}`
+                },
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(resData => {
+                if (resData.success) {
+                    // Synchronize client-side local cache
+                    let restoredCount = 0;
+                    Object.keys(data).forEach(key => {
+                        if (key.startsWith('talentai_status_') || key.startsWith('talentai_notes_')) {
+                            localStorage.setItem(key, data[key]);
+                            restoredCount++;
+                        }
+                    });
 
-            showToast(`Successfully restored ${restoredCount} database entries!`, "success");
-            
-            // Reload candidates list to display restored tags and comments
-            if (rankedCandidates.length > 0) {
-                applyCandidatesFiltering();
-            }
+                    showToast(`Successfully restored ${resData.restored_count} database entries!`, "success");
+                    
+                    // Reload candidates list to display restored tags and comments
+                    if (rankedCandidates.length > 0) {
+                        applyCandidatesFiltering();
+                    }
+                } else {
+                    showToast("Backup restore failed on PostgreSQL database.", "error");
+                }
+            })
+            .catch(err => {
+                showToast("Failed to connect to database backup service.", "error");
+                console.error(err);
+            });
         } catch (err) {
             showToast("Failed to parse JSON file.", "error");
         }
@@ -487,6 +511,9 @@ shortlistForm.addEventListener('submit', async (e) => {
     try {
         const response = await fetch('/api/shortlist', {
             method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${userToken}`
+            },
             body: formData
         });
 
@@ -506,6 +533,17 @@ shortlistForm.addEventListener('submit', async (e) => {
 
         if (response.ok && data.success) {
             rankedCandidates = data.candidates;
+            currentJobId = data.job_id;
+            
+            // Synchronize evaluations status and notes from database into localStorage
+            rankedCandidates.forEach(cand => {
+                if (cand.status) {
+                    localStorage.setItem(`talentai_status_${cand.filename}`, cand.status);
+                }
+                if (cand.notes !== undefined) {
+                    localStorage.setItem(`talentai_notes_${cand.filename}`, cand.notes);
+                }
+            });
             
             activeJdSkills = data.jd_requirements.skills;
             jdExperienceRequired = data.jd_requirements.experience_years;
@@ -951,12 +989,26 @@ function generateInterviewQuestions(cand) {
     return list;
 }
 
-/* LocalStorage status rating setters */
+/* LocalStorage status rating setters & Database synchronization */
 window.setCandidateStatus = function(status) {
     if (!currentDrawerCandidate) return;
     
     const filename = currentDrawerCandidate.filename;
     localStorage.setItem(`talentai_status_${filename}`, status);
+    
+    // Sync status to PostgreSQL database
+    fetch('/api/evaluation/update', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${userToken}`
+        },
+        body: JSON.stringify({
+            job_id: currentJobId,
+            filename: filename,
+            status: status
+        })
+    }).catch(err => console.error("Database update failed:", err));
     
     updateDrawerStatusUI(status);
     applyCandidatesFiltering();
@@ -978,10 +1030,28 @@ function updateDrawerStatusUI(status) {
     }
 }
 
+let notesDebounceTimer = null;
 drawerRecruiterNotes.addEventListener('input', (e) => {
     if (!currentDrawerCandidate) return;
     const filename = currentDrawerCandidate.filename;
     localStorage.setItem(`talentai_notes_${filename}`, e.target.value);
+    
+    // Sync notes to PostgreSQL database with a debounce
+    clearTimeout(notesDebounceTimer);
+    notesDebounceTimer = setTimeout(() => {
+        fetch('/api/evaluation/update', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userToken}`
+            },
+            body: JSON.stringify({
+                job_id: currentJobId,
+                filename: filename,
+                comments: e.target.value
+            })
+        }).catch(err => console.error("Database notes update failed:", err));
+    }, 500);
 });
 
 /* Dynamic Pros & Cons bullet points logic generator (Phase 7) */
@@ -1201,29 +1271,34 @@ window.printCandidateReport = function() {
     document.title = originalTitle;
 };
 
-/* Export full recruiter database backup package (Phase 7) */
+/* Export full recruiter database backup package (Phase 7 - PostgreSQL) */
 window.exportDatabaseBackup = function() {
-    const backupObj = {};
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key.startsWith('talentai_status_') || key.startsWith('talentai_notes_')) {
-            backupObj[key] = localStorage.getItem(key);
+    // Fetch full backup representation from PostgreSQL database
+    fetch('/api/backup/export', {
+        headers: {
+            'Authorization': `Bearer ${userToken}`
         }
-    }
-
-    const jsonStr = JSON.stringify(backupObj, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `talentai_database_backup_${new Date().toISOString().slice(0,10)}.json`;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showToast("JSON database backup package exported successfully!", "success");
+    })
+        .then(res => res.json())
+        .then(backupObj => {
+            const jsonStr = JSON.stringify(backupObj, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `talentai_database_backup_${new Date().toISOString().slice(0,10)}.json`;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast("JSON database backup package exported successfully!", "success");
+        })
+        .catch(err => {
+            showToast("Failed to fetch database backup from server.", "error");
+            console.error(err);
+        });
 };
 
 /* Pool Skills Frequency Chart rendering */
@@ -1439,6 +1514,33 @@ function openDrawer(candidate, rank) {
     // Load persisted status & notes from localStorage
     const savedStatus = localStorage.getItem(`talentai_status_${candidate.filename}`) || 'Under Review';
     updateDrawerStatusUI(savedStatus);
+    
+    // Check role restrictions for candidate evaluation
+    const isManager = (currentUser && currentUser.role === 'Hiring Manager');
+    btnStatusShortlisted.disabled = isManager;
+    btnStatusReview.disabled = isManager;
+    btnStatusRejected.disabled = isManager;
+    if (isManager) {
+        btnStatusShortlisted.style.opacity = '0.5';
+        btnStatusShortlisted.style.cursor = 'not-allowed';
+        btnStatusShortlisted.title = 'Hiring Managers are read + comment only';
+        btnStatusReview.style.opacity = '0.5';
+        btnStatusReview.style.cursor = 'not-allowed';
+        btnStatusReview.title = 'Hiring Managers are read + comment only';
+        btnStatusRejected.style.opacity = '0.5';
+        btnStatusRejected.style.cursor = 'not-allowed';
+        btnStatusRejected.title = 'Hiring Managers are read + comment only';
+    } else {
+        btnStatusShortlisted.style.opacity = '';
+        btnStatusShortlisted.style.cursor = 'pointer';
+        btnStatusShortlisted.title = '';
+        btnStatusReview.style.opacity = '';
+        btnStatusReview.style.cursor = 'pointer';
+        btnStatusReview.title = '';
+        btnStatusRejected.style.opacity = '';
+        btnStatusRejected.style.cursor = 'pointer';
+        btnStatusRejected.title = '';
+    }
     
     const savedNotes = localStorage.getItem(`talentai_notes_${candidate.filename}`) || '';
     drawerRecruiterNotes.value = savedNotes;
@@ -1665,3 +1767,208 @@ if (themeToggleBtn) {
         }
     };
 }
+
+/* --- Phase 2 Authentication Client-Side Orchestration --- */
+
+const authOverlay = document.getElementById('auth-overlay');
+const loginForm = document.getElementById('login-form');
+const registerForm = document.getElementById('register-form');
+const tabLogin = document.getElementById('tab-login');
+const tabRegister = document.getElementById('tab-register');
+const userProfileWidget = document.getElementById('user-profile-widget');
+const userAvatarInitials = document.getElementById('user-avatar-initials');
+const userNameDisplay = document.getElementById('user-name-display');
+const userRoleBadge = document.getElementById('user-role-badge');
+
+window.switchAuthTab = function(tab) {
+    if (tab === 'login') {
+        tabLogin.classList.add('active');
+        tabRegister.classList.remove('active');
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+    } else {
+        tabLogin.classList.remove('active');
+        tabRegister.classList.add('active');
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+    }
+};
+
+window.handleLoginSubmit = function(event) {
+    event.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    
+    const bodyData = new URLSearchParams();
+    bodyData.append('username', email);
+    bodyData.append('password', password);
+    
+    fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: bodyData
+    })
+    .then(async res => {
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || "Authentication failed.");
+        }
+        return data;
+    })
+    .then(data => {
+        userToken = data.access_token;
+        localStorage.setItem('talentai_token', userToken);
+        showToast("Welcome back to TalentAI!", "success");
+        checkUserSession();
+    })
+    .catch(err => {
+        showToast(err.message, "error");
+    });
+};
+
+window.handleRegisterSubmit = function(event) {
+    event.preventDefault();
+    const name = document.getElementById('register-name').value;
+    const email = document.getElementById('register-email').value;
+    const org = document.getElementById('register-org').value;
+    const role = document.getElementById('register-role').value;
+    const password = document.getElementById('register-password').value;
+    
+    fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            email: email,
+            full_name: name,
+            password: password,
+            role: role,
+            organization_name: org
+        })
+    })
+    .then(async res => {
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || "Registration failed.");
+        }
+        return data;
+    })
+    .then(data => {
+        userToken = data.access_token;
+        localStorage.setItem('talentai_token', userToken);
+        showToast("Account created successfully!", "success");
+        checkUserSession();
+    })
+    .catch(err => {
+        showToast(err.message, "error");
+    });
+};
+
+window.handleLogout = function() {
+    userToken = null;
+    currentUser = null;
+    localStorage.removeItem('talentai_token');
+    
+    // Reset view states
+    rankedCandidates = [];
+    currentJobId = null;
+    
+    // Clear display container
+    const candidatesContainer = document.getElementById('candidates-container');
+    if (candidatesContainer) {
+        candidatesContainer.innerHTML = '';
+    }
+    
+    const emptyState = document.getElementById('empty-state');
+    if (emptyState) {
+        emptyState.classList.add('active');
+    }
+    
+    userProfileWidget.style.display = 'none';
+    authOverlay.classList.add('active');
+    
+    // Reset login fields
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-password').value = '';
+    
+    showToast("Logged out successfully.", "success");
+};
+
+function checkUserSession() {
+    if (!userToken) {
+        authOverlay.classList.add('active');
+        userProfileWidget.style.display = 'none';
+        return;
+    }
+    
+    fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${userToken}` }
+    })
+    .then(async res => {
+        if (!res.ok) {
+            throw new Error("Session expired.");
+        }
+        return res.json();
+    })
+    .then(user => {
+        currentUser = user;
+        
+        // Show profile widget
+        userNameDisplay.textContent = user.full_name;
+        userRoleBadge.textContent = user.role;
+        
+        // Initials avatar
+        const initials = user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        userAvatarInitials.textContent = initials;
+        
+        userProfileWidget.style.display = 'flex';
+        authOverlay.classList.remove('active');
+        
+        applyRolePermissions();
+    })
+    .catch(err => {
+        console.error("Session load failed:", err);
+        handleLogout();
+    });
+}
+
+function applyRolePermissions() {
+    const isManager = (currentUser && currentUser.role === 'Hiring Manager');
+    const submitBtn = document.getElementById('submit-btn');
+    const dropzone = document.getElementById('dropzone');
+    const dbDropzone = document.getElementById('db-dropzone');
+    
+    if (isManager) {
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.5';
+            submitBtn.style.cursor = 'not-allowed';
+            submitBtn.title = 'Hiring Managers cannot rank candidates';
+        }
+        if (dropzone) {
+            dropzone.style.pointerEvents = 'none';
+            dropzone.style.opacity = '0.5';
+        }
+        if (dbDropzone) {
+            dbDropzone.style.pointerEvents = 'none';
+            dbDropzone.style.opacity = '0.5';
+        }
+    } else {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '';
+            submitBtn.style.cursor = 'pointer';
+            submitBtn.title = '';
+        }
+        if (dropzone) {
+            dropzone.style.pointerEvents = 'all';
+            dropzone.style.opacity = '1';
+        }
+        if (dbDropzone) {
+            dbDropzone.style.pointerEvents = 'all';
+            dbDropzone.style.opacity = '1';
+        }
+    }
+}
+
+// Check user status upon script load
+checkUserSession();

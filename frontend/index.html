@@ -22,9 +22,20 @@
                     <i class="fa-solid fa-wand-magic-sparkles magic-icon"></i>
                     <h1>Talent<span>AI</span></h1>
                 </div>
-                <button id="theme-toggle-btn" class="toggle-layout-btn" title="Toggle Light/Dark Theme" style="font-size: 1.25rem;">
-                    <i class="fa-solid fa-moon"></i>
-                </button>
+                <div class="header-actions" style="display: flex; align-items: center; gap: 15px;">
+                    <!-- User Profile Widget (Phase 2 Auth) -->
+                    <div class="user-profile-widget" id="user-profile-widget" style="display: none; align-items: center; gap: 10px; background: rgba(255,255,255,0.06); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                        <div class="user-avatar" id="user-avatar-initials" style="width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #ec4899, #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">RS</div>
+                        <div class="user-info-text" style="display: flex; flex-direction: column; text-align: left; line-height: 1.2;">
+                            <span class="user-name-display" id="user-name-display" style="font-size: 0.85rem; font-weight: 600; color: var(--text-color);">Raj Singh</span>
+                            <span class="user-role-badge" id="user-role-badge" style="font-size: 0.7rem; color: #cbd5e1; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Admin</span>
+                        </div>
+                        <button class="logout-icon-btn" onclick="handleLogout()" title="Log Out" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 5px; font-size: 1rem; margin-left: 5px; transition: opacity 0.2s;"><i class="fa-solid fa-right-from-bracket"></i></button>
+                    </div>
+                    <button id="theme-toggle-btn" class="toggle-layout-btn" title="Toggle Light/Dark Theme" style="font-size: 1.25rem;">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+                </div>
             </div>
             <p class="subtitle">AI-Powered Resume Shortlisting & Candidate Ranking Dashboard</p>
         </header>
@@ -548,6 +559,88 @@
                 <li id="stage-cosine" class="pending"><i class="fa-regular fa-circle"></i> Computing semantic cosine similarities...</li>
                 <li id="stage-skills" class="pending"><i class="fa-regular fa-circle"></i> Aligning skills & experience data...</li>
             </ul>
+        </div>
+    </div>
+
+    <!-- Authentication Modal Overlay (Unicorn Silver glassmorphism) -->
+    <div id="auth-overlay" class="auth-overlay active">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h2 class="auth-title">Talent<span>AI</span></h2>
+                <p class="auth-subtitle">AI-Powered Resume Shortlisting Portal</p>
+            </div>
+            
+            <div class="auth-tabs">
+                <button id="tab-login" class="auth-tab-btn active" onclick="switchAuthTab('login')">Sign In</button>
+                <button id="tab-register" class="auth-tab-btn" onclick="switchAuthTab('register')">Register</button>
+            </div>
+            
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form" onsubmit="handleLoginSubmit(event)">
+                <div class="form-group">
+                    <label for="login-email">Email Address</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-envelope input-icon"></i>
+                        <input type="email" id="login-email" required placeholder="name@company.com" autocomplete="username">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
+                    </div>
+                </div>
+                <button type="submit" class="btn submit-btn">Access Dashboard <i class="fa-solid fa-arrow-right"></i></button>
+            </form>
+            
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form hidden" onsubmit="handleRegisterSubmit(event)">
+                <div class="form-group">
+                    <label for="register-name">Full Name</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-user input-icon"></i>
+                        <input type="text" id="register-name" required placeholder="Raj Singh">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="register-email">Email Address</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-envelope input-icon"></i>
+                        <input type="email" id="register-email" required placeholder="name@company.com" autocomplete="username">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="register-org">Organization Name</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-building input-icon"></i>
+                        <input type="text" id="register-org" required placeholder="Acme Corp">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="register-role">Role</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-user-tag input-icon" style="z-index: 10;"></i>
+                        <select id="register-role" class="auth-select" style="cursor: pointer;">
+                            <option value="Recruiter">Recruiter</option>
+                            <option value="Admin">Administrator</option>
+                            <option value="Hiring Manager">Hiring Manager</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password" id="register-password" required placeholder="••••••••" autocomplete="new-password">
+                    </div>
+                </div>
+                <button type="submit" class="btn submit-btn">Create Account <i class="fa-solid fa-check"></i></button>
+            </form>
+            
+            <div class="auth-footer">
+                <p>Secured by TalentAI OAuth2 / JWT Engine</p>
+            </div>
         </div>
     </div>
 

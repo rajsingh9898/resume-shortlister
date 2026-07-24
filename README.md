@@ -48,6 +48,21 @@ Developed as a senior recruiter helper suite for **Raj Singh**.
 
 ## 🚀 Quick Start Guide
 
+### 1. Database Setup (PostgreSQL)
+Ensure you have Docker running on your system, then start the PostgreSQL service container:
+```bash
+docker-compose up -d
+```
+
+Run database migrations to initialize the tables:
+```bash
+cd backend
+alembic upgrade head
+```
+
+*Note: If PostgreSQL is not running, the application will print a warning and automatically fall back to a local SQLite database (`backend/talentai.db`) so you can run the app offline or without Docker!*
+
+### 2. Launch the Application
 Double-click the launcher script in the project directory to launch the server and open the browser automatically:
 ```powershell
 ./start.bat
@@ -59,6 +74,12 @@ cd backend
 python main.py
 ```
 Then navigate to `http://127.0.0.1:8000` in your web browser.
+
+### 3. Log In with Test Users
+Explore role-based access control using these seeded test accounts:
+* **Admin**: `admin@talentai.local` / Password: `admin123` (Full permissions, can rank candidates, modify status/notes, and delete candidates/jobs).
+* **Recruiter**: `recruiter@talentai.local` / Password: `recruiter123` (Standard access, can rank candidates and modify status/notes, but cannot delete candidate/job records).
+* **Hiring Manager**: `manager@talentai.local` / Password: `manager123` (Read + Comment only, cannot rank candidates, cannot change candidate status tags, but can write recruiter comments/notes).
 
 ---
 

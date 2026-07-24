@@ -3,3 +3,11 @@ uvicorn
 scikit-learn
 PyPDF2
 python-docx
+sqlalchemy
+psycopg2-binary
+alembic
+pyjwt
+passlib[bcrypt]
+python-multipart
+slowapi
+cryptography

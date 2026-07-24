@@ -2,8 +2,9 @@ import os
 import uvicorn
 import asyncio
 import datetime
+import io
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -12,6 +13,21 @@ from typing import List, Optional
 from concurrent.futures import ThreadPoolExecutor
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+# slowapi rate limiting dependencies
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+# PyPDF2 and python-docx for upload format verification
+import PyPDF2
+import docx
+
+# Symmetric encryption at rest utilities
+try:
+    from backend.encryption import encrypt_data, decrypt_data
+except ImportError:
+    from encryption import encrypt_data, decrypt_data
 
 # Import database, models and authentication
 try:
@@ -83,7 +99,10 @@ async def lifespan(app: FastAPI):
         db.close()
     yield
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="AI-Based Resume Shortlisting System", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Enable CORS for local development flexibility
 app.add_middleware(
@@ -106,6 +125,42 @@ os.makedirs(STORAGE_DIR, exist_ok=True)
 def parse_document_sync(filename: str, file_bytes: bytes) -> str:
     """Helper executed in a worker thread to extract document text."""
     return nlp_engine.extract_text(filename, file_bytes)
+
+def validate_upload_file(filename: str, content: bytes):
+    """Enforces whitelist extensions, max 5MB size, and rejects corrupted or malformed documents."""
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in [".pdf", ".docx", ".txt"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file format: {filename}. Whitelisted formats: .pdf, .docx, .txt"
+        )
+        
+    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large: {filename}. Maximum permitted size is 5MB."
+        )
+        
+    try:
+        if ext == ".pdf":
+            pdf_file = io.BytesIO(content)
+            reader = PyPDF2.PdfReader(pdf_file)
+            _ = len(reader.pages)
+        elif ext == ".docx":
+            docx_file = io.BytesIO(content)
+            doc = docx.Document(docx_file)
+            _ = len(doc.paragraphs)
+        elif ext == ".txt":
+            try:
+                content.decode("utf-8")
+            except UnicodeDecodeError:
+                content.decode("latin-1")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Corrupted or malformed file: {filename}. Error details: {str(e)}"
+        )
 
 # Pydantic schemas for request validation
 class UserRegister(BaseModel):
@@ -130,7 +185,8 @@ class EvaluationUpdate(BaseModel):
 # --- AUTH ENTRIES ---
 
 @app.post("/api/auth/register", response_model=TokenResponse)
-def register(data: UserRegister, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, data: UserRegister, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter_by(email=data.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email is already registered.")
@@ -163,7 +219,8 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
     }
 
 @app.post("/api/auth/login", response_model=TokenResponse)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter_by(email=form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect email or password.")
@@ -192,7 +249,9 @@ def get_me(current_user: User = Depends(get_current_user)):
 # --- BUSINESS LOGIC PORTALS ---
 
 @app.post("/api/shortlist")
+@limiter.limit("15/minute")
 async def shortlist(
+    request: Request,
     jd: str = Form(...), 
     resumes: List[UploadFile] = File(...),
     current_user: User = Depends(require_role(["Admin", "Recruiter"])),
@@ -208,7 +267,11 @@ async def shortlist(
         read_tasks = [res.read() for res in resumes]
         file_contents = await asyncio.gather(*read_tasks)
         
-        # 2. Concurrently extract text from files offloaded to thread executor (Parallel CPU operations)
+        # 2. Validate all files for size, extension, and corruption before parsing
+        for idx, res in enumerate(resumes):
+            validate_upload_file(res.filename, file_contents[idx])
+        
+        # 3. Concurrently extract text from files offloaded to thread executor (Parallel CPU operations)
         loop = asyncio.get_running_loop()
         parse_tasks = []
         for idx, res in enumerate(resumes):
@@ -230,6 +293,9 @@ async def shortlist(
                 "raw_text": parsed_texts[idx]
             })
             
+    except HTTPException:
+        # Re-raise file validation HTTP exceptions directly
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Concurrently reading/parsing documents failed: {str(e)}")
             
@@ -254,10 +320,11 @@ async def shortlist(
             raw_text = next(r["raw_text"] for r in resume_data if r["filename"] == filename)
             file_bytes = next(file_contents[idx] for idx, r in enumerate(resumes) if r.filename == filename)
             
-            # Save file to disk storage folder
+            # Save file to disk storage folder (encrypted at rest)
             saved_file_path = os.path.join(STORAGE_DIR, filename)
+            encrypted_bytes = encrypt_data(file_bytes)
             with open(saved_file_path, "wb") as f:
-                f.write(file_bytes)
+                f.write(encrypted_bytes)
                 
             # Find or create Candidate isolated by tenant organization
             candidate = db.query(Candidate).filter_by(name=filename, organization_id=current_user.organization_id).first()

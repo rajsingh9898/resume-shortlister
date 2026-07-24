@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime, JSON, Boolean
 from sqlalchemy.orm import relationship
 try:
     from backend.database import Base
@@ -56,6 +56,7 @@ class Candidate(Base):
     experience_years = Column(Float, default=0.0)
     degrees = Column(JSON, default=[])
     soft_traits = Column(JSON, default=[])
+    consent_given = Column(Boolean, default=True, nullable=False)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
