@@ -1,5 +1,7 @@
 import io
 import re
+import os
+import json
 import PyPDF2
 import docx
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -20,55 +22,88 @@ STOPWORDS = set([
     "from", "up", "about", "into", "over", "after"
 ])
 
-# Large lexicon of common technical and professional skills for NER/extraction
-SKILLS_DB = {
-    "Languages": [
-        "python", "javascript", "typescript", "java", "c\\+\\+", "c#", "ruby", "golang", "rust", 
-        "php", "html", "css", "sql", "r", "swift", "kotlin", "scala", "perl", "bash", "shell"
-    ],
-    "Frameworks & Libraries": [
-        "react", "angular", "vue", "next\\.js", "node\\.js", "express", "django", "flask", "fastapi", 
-        "spring boot", "laravel", "rails", "asp\\.net", "tensorflow", "pytorch", "keras", "pandas", 
-        "numpy", "scikit-learn", "scipy", "jquery", "bootstrap", "tailwind", "nextjs", "nodejs", 
-        "spring", "dotnet", "react native", "flutter", "vuejs"
-    ],
-    "Databases & Tools": [
-        "postgresql", "mysql", "mongodb", "redis", "sqlite", "oracle", "sql server", "dynamodb", 
-        "elasticsearch", "cassandra", "firebase", "neo4j", "mariadb", "postgres"
-    ],
-    "Cloud & DevOps": [
-        "aws", "azure", "gcp", "docker", "kubernetes", "git", "github", "gitlab", "jenkins", 
-        "terraform", "ansible", "ci/cd", "linux", "nginx", "apache", "kubernetes", "circleci", 
-        "amazon web services", "google cloud"
-    ],
-    "Methodologies & Domains": [
-        "agile", "scrum", "project management", "machine learning", "deep learning", "nlp", 
-        "computer vision", "data analysis", "data science", "devops", "qa testing", "ui/ux", 
-        "frontend", "backend", "full stack", "web development", "software engineering", "microservices",
-        "rest api", "graphql", "system design", "artificial intelligence", "ai"
-    ],
-    "Soft Skills": [
-        "communication", "leadership", "teamwork", "problem solving", "critical thinking", 
-        "time management", "collaboration", "creativity", "presentation", "negotiation"
-    ]
-}
+# Dynamic loaded paths
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+TAXONOMY_PATH = os.path.join(CURRENT_DIR, "skills_taxonomy.json")
 
-# Semantic synonyms map to handle abbreviations, spellings, and variations (Phase 8 Advanced AI)
-SKILL_SYNONYMS = {
-    "PostgreSQL": ["postgresql", "postgres", "sql database", "psql"],
-    "FastAPI": ["fastapi", "fast api", "asgi", "python asgi"],
-    "Docker": ["docker", "containers", "containerization", "dockerfiles", "dockerize"],
-    "Kubernetes": ["kubernetes", "k8s", "helm", "orchestration", "argocd"],
-    "React": ["react", "reactjs", "react.js", "react-router", "redux"],
-    "CI/CD": ["ci/cd", "pipeline", "pipelines", "jenkins", "github actions", "gitlab ci", "continuous integration"],
-    "Git": ["git", "github", "gitlab", "bitbucket", "version control"],
-    "MongoDB": ["mongodb", "mongo", "nosql", "document database"],
-    "Python": ["python", "django", "flask", "fastapi", "asyncio"],
-    "JavaScript": ["javascript", "js", "typescript", "ts", "es6"]
-}
+SKILLS_DB = {}
+SKILL_SYNONYMS = {}
+
+def load_skills_taxonomy():
+    global SKILLS_DB, SKILL_SYNONYMS
+    if os.path.exists(TAXONOMY_PATH):
+        try:
+            with open(TAXONOMY_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                SKILLS_DB = data.get("skills_db", {})
+                SKILL_SYNONYMS = data.get("skill_synonyms", {})
+                return
+        except Exception as e:
+            print(f"[WARNING] Failed to load skills taxonomy: {e}. Using fallback defaults.")
+            
+    # Hardcoded default fallback
+    SKILLS_DB = {
+        "Languages": [
+            "python", "javascript", "typescript", "java", "c\\+\\+", "c#", "ruby", "golang", "rust", 
+            "php", "html", "css", "sql", "r", "swift", "kotlin", "scala", "perl", "bash", "shell"
+        ],
+        "Frameworks & Libraries": [
+            "react", "angular", "vue", "next\\.js", "node\\.js", "express", "django", "flask", "fastapi", 
+            "spring boot", "laravel", "rails", "asp\\.net", "tensorflow", "pytorch", "keras", "pandas", 
+            "numpy", "scikit-learn", "scipy", "jquery", "bootstrap", "tailwind", "nextjs", "nodejs", 
+            "spring", "dotnet", "react native", "flutter", "vuejs"
+        ],
+        "Databases & Tools": [
+            "postgresql", "mysql", "mongodb", "redis", "sqlite", "oracle", "sql server", "dynamodb", 
+            "elasticsearch", "cassandra", "firebase", "neo4j", "mariadb", "postgres"
+        ],
+        "Cloud & DevOps": [
+            "aws", "azure", "gcp", "docker", "kubernetes", "git", "github", "gitlab", "jenkins", 
+            "terraform", "ansible", "ci/cd", "linux", "nginx", "apache", "circleci", 
+            "amazon web services", "google cloud"
+        ],
+        "Methodologies & Domains": [
+            "agile", "scrum", "project management", "machine learning", "deep learning", "nlp", 
+            "computer vision", "data analysis", "data science", "devops", "qa testing", "ui/ux", 
+            "frontend", "backend", "full stack", "web development", "software engineering", "microservices",
+            "rest api", "graphql", "system design", "artificial intelligence", "ai"
+        ],
+        "Soft Skills": [
+            "communication", "leadership", "teamwork", "problem solving", "critical thinking", 
+            "time management", "collaboration", "creativity", "presentation", "negotiation"
+        ]
+    }
+    SKILL_SYNONYMS = {
+        "PostgreSQL": ["postgresql", "postgres", "sql database", "psql"],
+        "FastAPI": ["fastapi", "fast api", "asgi", "python asgi"],
+        "Docker": ["docker", "containers", "containerization", "dockerfiles", "dockerize"],
+        "Kubernetes": ["kubernetes", "k8s", "helm", "orchestration", "argocd"],
+        "React": ["react", "reactjs", "react.js", "react-router", "redux"],
+        "CI/CD": ["ci/cd", "pipeline", "pipelines", "jenkins", "github actions", "gitlab ci", "continuous integration"],
+        "Git": ["git", "github", "gitlab", "bitbucket", "version control"],
+        "MongoDB": ["mongodb", "mongo", "nosql", "document database"],
+        "Python": ["python", "django", "flask", "fastapi", "asyncio"],
+        "JavaScript": ["javascript", "js", "typescript", "ts", "es6"]
+    }
+
+load_skills_taxonomy()
+
+# Lazy loading of sentence-transformers
+_transformer_model = None
+
+def get_transformer_model():
+    global _transformer_model
+    if _transformer_model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            os.environ["TOKENIZERS_PARALLELISM"] = "false"
+            _transformer_model = SentenceTransformer("all-MiniLM-L6-v2")
+        except Exception as e:
+            print(f"[WARNING] sentence-transformers load failed: {e}. Falling back to TF-IDF.")
+            _transformer_model = False
+    return _transformer_model
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
-    """Extracts text from PDF bytes."""
     text = ""
     try:
         pdf_file = io.BytesIO(file_bytes)
@@ -82,7 +117,6 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     return text
 
 def extract_text_from_docx(file_bytes: bytes) -> str:
-    """Extracts text from DOCX bytes."""
     try:
         doc_file = io.BytesIO(file_bytes)
         doc = docx.Document(doc_file)
@@ -98,14 +132,12 @@ def extract_text_from_docx(file_bytes: bytes) -> str:
         return f"Error parsing DOCX: {str(e)}"
 
 def extract_text_from_txt(file_bytes: bytes) -> str:
-    """Extracts text from raw TXT bytes."""
     try:
         return file_bytes.decode("utf-8", errors="ignore")
     except Exception as e:
         return f"Error parsing text file: {str(e)}"
 
 def extract_text(filename: str, file_bytes: bytes) -> str:
-    """Determines file type by name and extracts its text contents."""
     ext = filename.split('.')[-1].lower()
     if ext == 'pdf':
         return extract_text_from_pdf(file_bytes)
@@ -115,78 +147,125 @@ def extract_text(filename: str, file_bytes: bytes) -> str:
         return extract_text_from_txt(file_bytes)
 
 def preprocess_text(text: str) -> str:
-    """Cleans text: lowercases, tokenizes, and removes common stopwords."""
     text = text.lower()
     words = re.findall(r'\b[a-z0-9#\+\-\.]+\b', text)
     cleaned = [w for w in words if w not in STOPWORDS and len(w) > 1]
     return " ".join(cleaned)
 
-def parse_experience_years(text: str) -> float:
-    """
-    Parses years of experience from text using regular expressions.
-    Returns maximum years of experience found, limited to a realistic range (< 40).
-    """
+def parse_experience_years_with_confidence(text: str) -> tuple:
     text_lower = text.lower()
     
-    # Matching phrases like "5+ years", "3 years of experience", "4 yrs in industry", "10 years exp", "total of 6 years"
-    patterns = [
-        r'(\d+(?:\.\d+)?)\s*(?:\+|plus)?\s*(?:years?|yrs?)\b(?:\s*(?:of)?\s*(?:experience|exp|work|industry|professional|in))?',
-        r'(?:experience|exp|work)\s*(?:of)?\s*(?:at\s+least|over)?\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?)',
-        r'total\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?)'
+    high_vals = []
+    low_vals = []
+    
+    patterns_high = [
+        r'(\d+(?:\.\d+)?)\s*(?:\+|plus)?\s*(?:years?|yrs?)\b(?:\s*(?:of)?\s*(?:experience|exp|work|industry|professional|in))\b',
+        r'\b(?:experience|exp|work)\b\s*(?:of)?\s*(?:at\s+least|over)?\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?)\b',
+        r'\btotal\b\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?)\b'
+    ]
+    patterns_low = [
+        r'\b(\d+(?:\.\d+)?)\s*(?:years?|yrs?)\b'
     ]
     
-    max_years = 0.0
-    for pattern in patterns:
+    for pattern in patterns_high:
         matches = re.findall(pattern, text_lower)
         for m in matches:
             try:
                 val = float(m)
-                if val > max_years and val < 40:  # Avoid matching future years e.g., 2026
-                    max_years = val
+                if val < 40:
+                    high_vals.append(val)
             except ValueError:
                 pass
-    return max_years
+                
+    for pattern in patterns_low:
+        matches = re.findall(pattern, text_lower)
+        for m in matches:
+            try:
+                val = float(m)
+                if val < 40:
+                    low_vals.append(val)
+            except ValueError:
+                pass
+                
+    max_high = max(high_vals) if high_vals else 0.0
+    max_low = max(low_vals) if low_vals else 0.0
+    
+    max_years = max(max_high, max_low)
+    
+    if max_years == 0.0:
+        confidence = 0.95
+    elif max_years == max_high:
+        confidence = 0.9
+    else:
+        confidence = 0.5
+        
+    return max_years, confidence
 
-def parse_education_degrees(text: str) -> list:
-    """
-    Identifies academic degrees in text.
-    Returns list containing matched standard categories e.g., ['PhD', 'Master', 'Bachelor']
-    """
+def parse_experience_years(text: str) -> float:
+    years, _ = parse_experience_years_with_confidence(text)
+    return years
+
+def parse_education_degrees_with_confidence(text: str) -> tuple:
     text_lower = text.lower()
     degrees = []
     
-    degree_map = {
-        "PhD": ["ph.d", "phd", "doctor of philosophy", "doctorate"],
-        "Master": ["master", "m.s.", "ms", "m.tech", "mtech", "mba", "mca", "m.sc", "msc"],
-        "Bachelor": ["bachelor", "b.s.", "bs", "b.tech", "btech", "b.a.", "ba", "bca", "b.sc", "bsc"]
+    degree_map_high = {
+        "PhD": ["ph.d", "doctor of philosophy", "doctorate"],
+        "Master": ["master of science", "master of arts", "master of business", "m.s.", "m.tech", "mba", "mca", "m.sc"],
+        "Bachelor": ["bachelor of science", "bachelor of technology", "b.s.", "b.tech", "btech", "b.a.", "ba", "bca", "b.sc"]
     }
     
-    for deg_type, terms in degree_map.items():
+    degree_map_low = {
+        "PhD": ["phd"],
+        "Master": ["master", "ms", "msc", "mtech"],
+        "Bachelor": ["bachelor", "bs", "bsc"]
+    }
+    
+    confidence = 0.5
+    matched_high = False
+    
+    for deg_type, terms in degree_map_high.items():
         for term in terms:
-            # Anchor search with word boundaries
             pattern = r'\b' + re.escape(term) + r'\b'
             if term.endswith('.'):
                 pattern = r'\b' + re.escape(term)
-                
             if re.search(pattern, text_lower):
-                degrees.append(deg_type)
-                break  # Match only once per category
+                if deg_type not in degrees:
+                    degrees.append(deg_type)
+                    matched_high = True
+                break
                 
+    for deg_type, terms in degree_map_low.items():
+        if deg_type in degrees:
+            continue
+        for term in terms:
+            pattern = r'\b' + re.escape(term) + r'\b'
+            if re.search(pattern, text_lower):
+                if deg_type not in degrees:
+                    degrees.append(deg_type)
+                break
+                
+    if matched_high:
+        confidence = 0.9
+    elif degrees:
+        confidence = 0.6
+    else:
+        confidence = 0.95
+        
+    return degrees, confidence
+
+def parse_education_degrees(text: str) -> list:
+    degrees, _ = parse_education_degrees_with_confidence(text)
     return degrees
 
 def parse_soft_traits(text: str) -> list:
-    """
-    Parses soft skills and leadership traits from text using regular expressions (Phase 8 Advanced AI).
-    """
     text_lower = text.lower()
     traits = []
-    
     trait_patterns = {
         "Leadership & Mentorship": [r"\bmanaged\b", r"\blead\b", r"\bmentor\b", r"\bspearheaded\b", r"\bdirected\b", r"\bleadership\b"],
         "System Design & Architecture": [r"\bscalability\b", r"\barchitecture\b", r"\bmicroservices\b", r"\bsystem design\b", r"\brefactor\b"],
         "Agile Delivery & DevOps": [r"\bagile\b", r"\bscrum\b", r"\bsprint\b", r"\bjira\b", r"\bdevops\b", r"\bci/cd\b"]
     }
-    
     for trait, patterns in trait_patterns.items():
         for pat in patterns:
             if re.search(pat, text_lower):
@@ -195,7 +274,6 @@ def parse_soft_traits(text: str) -> list:
     return traits
 
 def extract_skills_from_text(text: str) -> dict:
-    """Identifies skills from the skills lexicon present in the raw text."""
     text_lower = text.lower()
     extracted = {}
     
@@ -269,21 +347,17 @@ def extract_skills_from_text(text: str) -> dict:
     return extracted
 
 def check_skill_match_raw(jd_skill: str, candidate_text: str, candidate_skills: set) -> bool:
-    """Checks if a skill or any of its synonyms are present in candidate skills or text (Phase 8 Advanced AI)."""
     jd_lower = jd_skill.lower()
     cand_lower = {c.lower() for c in candidate_skills}
     
-    # 1. Exact match in candidate extracted skills
     if jd_lower in cand_lower:
         return True
         
-    # 2. Check synonyms aliases in candidate skills
     aliases = SKILL_SYNONYMS.get(jd_skill, [])
     for alias in aliases:
         if alias.lower() in cand_lower:
             return True
             
-    # 3. Check synonyms aliases in candidate text directly (handles non-lexicon mappings)
     text_lower = candidate_text.lower()
     for alias in aliases:
         if '+' in alias or '#' in alias or '.' in alias:
@@ -296,24 +370,31 @@ def check_skill_match_raw(jd_skill: str, candidate_text: str, candidate_skills: 
             
     return False
 
-def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
-    """
-    Parses JD and candidate resumes.
-    Returns list of candidates ranked by overall score.
-    """
+def pearson_correlation(x: list, y: list) -> float:
+    n = len(x)
+    if n < 2:
+        return 0.0
+    mean_x = sum(x) / n
+    mean_y = sum(y) / n
+    num = sum((x[i] - mean_x) * (y[i] - mean_y) for i in range(n))
+    den_x = sum((x[i] - mean_x) ** 2 for i in range(n))
+    den_y = sum((y[i] - mean_y) ** 2 for i in range(n))
+    if den_x == 0 or den_y == 0:
+        return 0.0
+    return num / ((den_x * den_y) ** 0.5)
+
+def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0.5) -> dict:
     # 1. Parse Job Description Parameters
     jd_clean = preprocess_text(jd_raw)
     jd_skills_dict = extract_skills_from_text(jd_raw)
     jd_exp = parse_experience_years(jd_raw)
     jd_degrees = parse_education_degrees(jd_raw)
     
-    # Flatten JD skills
     jd_skills = []
     for cat_skills in jd_skills_dict.values():
         jd_skills.extend(cat_skills)
     jd_skills_set = set(jd_skills)
     
-    # Cleaned JD backup
     if not jd_clean.strip():
         jd_clean = jd_raw.lower()
         
@@ -322,16 +403,30 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
         cleaned_resumes.append(preprocess_text(res['raw_text']))
         
     # 2. Calculate TF-IDF & Cosine Similarity
-    similarities = [0.0] * len(resumes)
+    tfidf_similarities = [0.0] * len(resumes)
     if jd_clean.strip() and any(r.strip() for r in cleaned_resumes):
         try:
             documents = [jd_clean] + cleaned_resumes
             vectorizer = TfidfVectorizer()
             tfidf_matrix = vectorizer.fit_transform(documents)
             sim_scores = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:])
-            similarities = sim_scores[0].tolist()
+            tfidf_similarities = sim_scores[0].tolist()
         except Exception:
             pass
+            
+    # Calculate Sentence-Transformers embeddings cosine similarity
+    semantic_similarities = [0.0] * len(resumes)
+    model = get_transformer_model()
+    if model:
+        try:
+            import torch
+            from sentence_transformers.util import cos_sim
+            jd_emb = model.encode(jd_raw, convert_to_tensor=True)
+            res_embs = model.encode([r['raw_text'] for r in resumes], convert_to_tensor=True)
+            sims = cos_sim(jd_emb, res_embs)
+            semantic_similarities = sims[0].cpu().tolist()
+        except Exception as e:
+            print(f"[WARNING] Transformer similarity computations failed: {e}")
             
     # 3. Calculate candidate scores and compile analysis reports
     candidates_list = []
@@ -339,13 +434,11 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
         raw_txt = res['raw_text']
         c_skills_dict = extract_skills_from_text(raw_txt)
         
-        # Flatten candidate skills
         c_skills = []
         for cat_skills in c_skills_dict.values():
             c_skills.extend(cat_skills)
         c_skills_set = set(c_skills)
         
-        # Skill matching using Synonyms alias expanders
         matched_skills = []
         missing_skills = []
         for req_skill in jd_skills_set:
@@ -361,8 +454,7 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
         if jd_skills_set:
             skills_score = len(matched_skills) / len(jd_skills_set)
             
-        # Experience matching
-        candidate_exp = parse_experience_years(raw_txt)
+        candidate_exp, exp_conf = parse_experience_years_with_confidence(raw_txt)
         experience_score = 0.0
         if jd_exp > 0.0:
             if candidate_exp >= jd_exp:
@@ -370,23 +462,26 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
             else:
                 experience_score = candidate_exp / jd_exp
         else:
-            experience_score = 1.0 # 100% match if experience not specified in JD
+            experience_score = 1.0
             
-        # Degree matching
-        candidate_degrees = parse_education_degrees(raw_txt)
+        candidate_degrees, deg_conf = parse_education_degrees_with_confidence(raw_txt)
         degree_match = False
         if jd_degrees:
             degree_match = len(set(jd_degrees).intersection(set(candidate_degrees))) > 0
         else:
-            degree_match = True # Match if not specified
+            degree_match = True
             
-        # Soft Traits extraction
         soft_traits = parse_soft_traits(raw_txt)
-            
-        # Calculate scores
-        cosine_sim = max(0.0, min(1.0, similarities[idx]))
         
-        # Default weights: 40% Cosine Similarity, 35% Skills Matching, 25% Experience Matching
+        tfidf_sim = max(0.0, min(1.0, tfidf_similarities[idx]))
+        semantic_sim = max(0.0, min(1.0, semantic_similarities[idx]))
+        
+        # Blend similarities: use transformers if successfully loaded, otherwise fall back to TF-IDF
+        if model:
+            cosine_sim = (1.0 - semantic_weight) * tfidf_sim + semantic_weight * semantic_sim
+        else:
+            cosine_sim = tfidf_sim
+            
         final_score = (cosine_sim * 0.4) + (skills_score * 0.35) + (experience_score * 0.25)
         
         candidates_list.append({
@@ -399,18 +494,53 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list) -> list:
             "missing_skills": missing_skills,
             "all_extracted_skills": c_skills_dict,
             "candidate_exp": candidate_exp,
+            "experience_confidence": round(exp_conf, 2),
             "candidate_degrees": candidate_degrees,
+            "degrees_confidence": round(deg_conf, 2),
             "degree_match": degree_match,
             "soft_traits": soft_traits,
             "snippet": raw_txt[:400] + ("..." if len(raw_txt) > 400 else "")
         })
         
-    # Sort candidates by score descending
     candidates_list.sort(key=lambda x: x['score'], reverse=True)
     
-    # Return both the ranked list and the parsed JD requirements
+    # 4. Post-Scoring Bias & Fairness Checker
+    bias_warnings = []
+    if len(candidates_list) >= 2:
+        scores = [c['score'] for c in candidates_list]
+        lengths = [len(r['raw_text']) for r in resumes]
+        gaps = [1.0 if any(g in r['raw_text'].lower() for g in ["career break", "career gap", "employment gap", "sabbatical", "parental leave"]) else 0.0 for r in resumes]
+        
+        # Calculate formatting flags (special char ratio or very short length)
+        formatting_flags = []
+        for r in resumes:
+            txt = r['raw_text']
+            special_count = len(re.findall(r'[^a-zA-Z0-9\s]', txt))
+            total_count = len(txt) if len(txt) > 0 else 1
+            ratio = special_count / total_count
+            if ratio > 0.15 or len(txt) < 200:
+                formatting_flags.append(1.0)
+            else:
+                formatting_flags.append(0.0)
+                
+        # Length correlation check
+        corr_len = pearson_correlation(scores, lengths)
+        if abs(corr_len) > 0.5:
+            bias_warnings.append(f"⚠️ Bias Alert: Match scores correlate strongly with resume length (correlation: {corr_len:.2f}). Longer resumes may have an unfair advantage.")
+            
+        # Career breaks check
+        corr_gaps = pearson_correlation(scores, gaps)
+        if corr_gaps < -0.4:
+            bias_warnings.append(f"⚠️ Bias Alert: Candidate scores are negatively correlated with career breaks or employment gaps (correlation: {corr_gaps:.2f}). System may be penalizing gaps.")
+            
+        # Formatting check
+        corr_format = pearson_correlation(scores, formatting_flags)
+        if corr_format < -0.4:
+            bias_warnings.append(f"⚠️ Bias Alert: Match scores correlate negatively with non-standard formatting (correlation: {corr_format:.2f}). Formatting issues may be penalizing candidates.")
+            
     return {
         "candidates": candidates_list,
+        "bias_warnings": bias_warnings,
         "jd_requirements": {
             "skills": sorted(list(jd_skills_set)),
             "experience_years": jd_exp,

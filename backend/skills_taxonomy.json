@@ -1,0 +1,45 @@
+{
+  "skills_db": {
+    "Languages": [
+      "python", "javascript", "typescript", "java", "c\\+\\+", "c#", "ruby", "golang", "rust", 
+      "php", "html", "css", "sql", "r", "swift", "kotlin", "scala", "perl", "bash", "shell"
+    ],
+    "Frameworks & Libraries": [
+      "react", "angular", "vue", "next\\.js", "node\\.js", "express", "django", "flask", "fastapi", 
+      "spring boot", "laravel", "rails", "asp\\.net", "tensorflow", "pytorch", "keras", "pandas", 
+      "numpy", "scikit-learn", "scipy", "jquery", "bootstrap", "tailwind", "nextjs", "nodejs", 
+      "spring", "dotnet", "react native", "flutter", "vuejs"
+    ],
+    "Databases & Tools": [
+      "postgresql", "mysql", "mongodb", "redis", "sqlite", "oracle", "sql server", "dynamodb", 
+      "elasticsearch", "cassandra", "firebase", "neo4j", "mariadb", "postgres"
+    ],
+    "Cloud & DevOps": [
+      "aws", "azure", "gcp", "docker", "kubernetes", "git", "github", "gitlab", "jenkins", 
+      "terraform", "ansible", "ci/cd", "linux", "nginx", "apache", "circleci", 
+      "amazon web services", "google cloud"
+    ],
+    "Methodologies & Domains": [
+      "agile", "scrum", "project management", "machine learning", "deep learning", "nlp", 
+      "computer vision", "data analysis", "data science", "devops", "qa testing", "ui/ux", 
+      "frontend", "backend", "full stack", "web development", "software engineering", "microservices",
+      "rest api", "graphql", "system design", "artificial intelligence", "ai"
+    ],
+    "Soft Skills": [
+      "communication", "leadership", "teamwork", "problem solving", "critical thinking", 
+      "time management", "collaboration", "creativity", "presentation", "negotiation"
+    ]
+  },
+  "skill_synonyms": {
+    "PostgreSQL": ["postgresql", "postgres", "sql database", "psql"],
+    "FastAPI": ["fastapi", "fast api", "asgi", "python asgi"],
+    "Docker": ["docker", "containers", "containerization", "dockerfiles", "dockerize"],
+    "Kubernetes": ["kubernetes", "k8s", "helm", "orchestration", "argocd"],
+    "React": ["react", "reactjs", "react.js", "react-router", "redux"],
+    "CI/CD": ["ci/cd", "pipeline", "pipelines", "jenkins", "github actions", "gitlab ci", "continuous integration"],
+    "Git": ["git", "github", "gitlab", "bitbucket", "version control"],
+    "MongoDB": ["mongodb", "mongo", "nosql", "document database"],
+    "Python": ["python", "django", "flask", "fastapi", "asyncio"],
+    "JavaScript": ["javascript", "js", "typescript", "ts", "es6"]
+  }
+}

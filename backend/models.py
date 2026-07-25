@@ -57,6 +57,8 @@ class Candidate(Base):
     degrees = Column(JSON, default=[])
     soft_traits = Column(JSON, default=[])
     consent_given = Column(Boolean, default=True, nullable=False)
+    experience_confidence = Column(Float, default=1.0, nullable=False)
+    degrees_confidence = Column(Float, default=1.0, nullable=False)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 

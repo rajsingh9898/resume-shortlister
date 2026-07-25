@@ -254,6 +254,7 @@ async def shortlist(
     request: Request,
     jd: str = Form(...), 
     resumes: List[UploadFile] = File(...),
+    semantic_weight: float = Form(0.5),
     current_user: User = Depends(require_role(["Admin", "Recruiter"])),
     db: Session = Depends(get_db)
 ):
@@ -300,8 +301,8 @@ async def shortlist(
         raise HTTPException(status_code=500, detail=f"Concurrently reading/parsing documents failed: {str(e)}")
             
     try:
-        # Run NLP engine scoring
-        results = nlp_engine.compute_nlp_shortlist(jd, resume_data)
+        # Run NLP engine scoring (passing semantic blend weight)
+        results = nlp_engine.compute_nlp_shortlist(jd, resume_data, semantic_weight)
         
         # Save Job record under active tenant
         job = Job(
@@ -332,7 +333,9 @@ async def shortlist(
                 candidate = Candidate(
                     name=filename,
                     experience_years=cand["candidate_exp"],
+                    experience_confidence=cand["experience_confidence"],
                     degrees=cand["candidate_degrees"],
+                    degrees_confidence=cand["degrees_confidence"],
                     soft_traits=cand["soft_traits"],
                     organization_id=current_user.organization_id
                 )
@@ -341,11 +344,13 @@ async def shortlist(
                 db.refresh(candidate)
             else:
                 candidate.experience_years = cand["candidate_exp"]
+                candidate.experience_confidence = cand["experience_confidence"]
                 candidate.degrees = cand["candidate_degrees"]
+                candidate.degrees_confidence = cand["degrees_confidence"]
                 candidate.soft_traits = cand["soft_traits"]
                 db.commit()
                 
-            # Find or create Resume pointing to file path (Resume is candidate scoped, Candidate is org scoped)
+            # Find or create Resume pointing to file path
             resume = db.query(Resume).filter_by(filename=filename).first()
             if not resume:
                 resume = Resume(
@@ -395,7 +400,7 @@ async def shortlist(
             db.add(evaluation)
             db.commit()
             
-            # Augment candidate dictionary output with DB evaluations info
+            # Augment candidate dictionary output with DB evaluations info and confidence flags
             cand["status"] = status
             cand["notes"] = comments
             candidates_output.append(cand)
@@ -412,6 +417,7 @@ async def shortlist(
         return {
             "success": True, 
             "candidates": candidates_output,
+            "bias_warnings": results.get("bias_warnings", []),
             "jd_requirements": results["jd_requirements"],
             "job_id": job.id
         }

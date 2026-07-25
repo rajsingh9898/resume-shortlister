@@ -11,3 +11,5 @@ passlib[bcrypt]
 python-multipart
 slowapi
 cryptography
+sentence-transformers
+torch

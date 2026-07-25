@@ -94,6 +94,22 @@
                             </div>
                         </div>
 
+                        <!-- ML Semantic Blending (Phase 4) -->
+                        <div class="input-group">
+                            <label for="semantic-blend-weight" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="display: flex; align-items: center; gap: 5px;">
+                                    <i class="fa-solid fa-brain" style="color: #ec4899;"></i>
+                                    <span>Semantic Scorer Blend</span>
+                                </span>
+                                <span id="lbl-semantic-blend" style="font-size: 0.8rem; font-weight: 600; color: #8b5cf6;">50% Transformer</span>
+                            </label>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 0.75rem; color: #94a3b8;">TF-IDF</span>
+                                <input type="range" id="semantic-blend-weight" name="semantic_weight" min="0" max="100" value="50" step="5" class="weight-slider" style="flex: 1;" oninput="document.getElementById('lbl-semantic-blend').textContent = this.value + '% Transformer'">
+                                <span style="font-size: 0.75rem; color: #ec4899;">L6-Transformer</span>
+                            </div>
+                        </div>
+
                         <!-- Submit Button -->
                         <button type="submit" id="submit-btn" class="btn primary-btn">
                             <span class="btn-text">Rank Candidates</span>
@@ -202,6 +218,17 @@
 
                 <!-- Results State -->
                 <div id="results-state" class="dashboard-state">
+                    <!-- Bias Check & Fairness Warnings (Phase 4) -->
+                    <div id="bias-warnings-container" class="bias-warnings-container" style="display: none; margin-bottom: 24px; padding: 16px 20px; border-radius: 16px; background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.3); text-align: left;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; color: #ef4444; font-weight: 700; font-family: 'Outfit', sans-serif; font-size: 1.05rem;">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span>Fairness & Bias Check Warnings</span>
+                        </div>
+                        <ul id="bias-warnings-list" style="margin: 0; padding-left: 20px; color: #cbd5e1; font-size: 0.88rem; display: flex; flex-direction: column; gap: 6px;">
+                            <!-- Injected dynamically in JS -->
+                        </ul>
+                    </div>
+
                     <!-- Stats Grid -->
                     <div class="stats-grid">
                         <div class="stat-card">
@@ -459,14 +486,14 @@
                             <span class="meta-card-title"><i class="fa-solid fa-briefcase"></i> Experience Profile</span>
                             <div class="meta-card-details">
                                 <div>Required: <strong id="detail-req-exp">0 Years</strong></div>
-                                <div>Found: <strong id="detail-cand-exp">0 Years</strong></div>
+                                <div>Found: <strong id="detail-cand-exp">0 Years</strong> <span id="detail-exp-confidence-flag" class="badge warning-badge" style="display: none; background: #eab308; color: #000; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 5px;">⚠️ Low Confidence</span></div>
                                 <div class="meta-card-status" id="detail-exp-status-icon"></div>
                             </div>
                         </div>
                         <div class="profile-meta-card">
                             <span class="meta-card-title"><i class="fa-solid fa-graduation-cap"></i> Education Profile</span>
                             <div class="meta-card-details">
-                                <div>Degrees Found: <strong id="detail-cand-degrees">None</strong></div>
+                                <div>Degrees Found: <strong id="detail-cand-degrees">None</strong> <span id="detail-degree-confidence-flag" class="badge warning-badge" style="display: none; background: #eab308; color: #000; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 5px;">⚠️ Low Confidence</span></div>
                                 <div>Requirements Match: <strong id="detail-degree-match-status">Yes</strong></div>
                             </div>
                         </div>

@@ -488,6 +488,9 @@ shortlistForm.addEventListener('submit', async (e) => {
         return;
     }
 
+    const biasContainer = document.getElementById('bias-warnings-container');
+    if (biasContainer) biasContainer.style.display = 'none';
+
     const jd = jobDescriptionInput.value.trim();
     if (!jd) {
         showToast("Please enter a job description.", "error");
@@ -507,6 +510,10 @@ shortlistForm.addEventListener('submit', async (e) => {
     selectedFiles.forEach(file => {
         formData.append('resumes', file);
     });
+
+    const blendWeightSlider = document.getElementById('semantic-blend-weight');
+    const semanticWeight = blendWeightSlider ? parseFloat(blendWeightSlider.value) / 100.0 : 0.5;
+    formData.append('semantic_weight', semanticWeight);
 
     try {
         const response = await fetch('/api/shortlist', {
@@ -544,6 +551,24 @@ shortlistForm.addEventListener('submit', async (e) => {
                     localStorage.setItem(`talentai_notes_${cand.filename}`, cand.notes);
                 }
             });
+            
+            // Render Bias Warnings (Phase 4)
+            const biasContainer = document.getElementById('bias-warnings-container');
+            const biasList = document.getElementById('bias-warnings-list');
+            if (biasContainer && biasList) {
+                biasList.innerHTML = '';
+                const warnings = data.bias_warnings || [];
+                if (warnings.length > 0) {
+                    warnings.forEach(warning => {
+                        const li = document.createElement('li');
+                        li.textContent = warning;
+                        biasList.appendChild(li);
+                    });
+                    biasContainer.style.display = 'block';
+                } else {
+                    biasContainer.style.display = 'none';
+                }
+            }
             
             activeJdSkills = data.jd_requirements.skills;
             jdExperienceRequired = data.jd_requirements.experience_years;
@@ -1593,6 +1618,17 @@ function openDrawer(candidate, rank) {
     detailReqExp.textContent = jdExperienceRequired > 0 ? `${jdExperienceRequired} Years` : '0 Years (None)';
     detailCandExp.textContent = `${candidate.candidate_exp} Years`;
     
+    // Confidence warnings (Phase 4)
+    const expConfidenceFlag = document.getElementById('detail-exp-confidence-flag');
+    if (expConfidenceFlag) {
+        if (candidate.experience_confidence !== undefined && candidate.experience_confidence < 0.7) {
+            expConfidenceFlag.style.display = 'inline-block';
+            expConfidenceFlag.title = `Confidence: ${Math.round(candidate.experience_confidence * 100)}% (low confidence extraction)`;
+        } else {
+            expConfidenceFlag.style.display = 'none';
+        }
+    }
+    
     detailExpStatusIcon.className = 'meta-card-status';
     if (jdExperienceRequired === 0) {
         detailExpStatusIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
@@ -1612,6 +1648,17 @@ function openDrawer(candidate, rank) {
     detailCandDegrees.textContent = candidate.candidate_degrees.length > 0 ? candidate.candidate_degrees.join(', ') : 'None listed';
     detailDegreeMatchStatus.textContent = candidate.degree_match ? 'Matched' : 'Not Matched';
     detailDegreeMatchStatus.style.color = candidate.degree_match ? 'var(--success)' : 'var(--danger)';
+    
+    // Confidence warnings (Phase 4)
+    const degreeConfidenceFlag = document.getElementById('detail-degree-confidence-flag');
+    if (degreeConfidenceFlag) {
+        if (candidate.degrees_confidence !== undefined && candidate.degrees_confidence < 0.7) {
+            degreeConfidenceFlag.style.display = 'inline-block';
+            degreeConfidenceFlag.title = `Confidence: ${Math.round(candidate.degrees_confidence * 100)}% (low confidence extraction)`;
+        } else {
+            degreeConfidenceFlag.style.display = 'none';
+        }
+    }
 
     // Matched skills badges
     detailMatchedSkills.innerHTML = '';
