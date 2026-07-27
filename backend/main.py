@@ -13,6 +13,26 @@ from typing import List, Optional
 from concurrent.futures import ThreadPoolExecutor
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+import math
+import json
+import redis
+
+# Redis Caching Setup
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+try:
+    redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+    # Check connectivity
+    redis_client.ping()
+    print("[INFO] Connected to Redis for caching successfully.")
+except Exception as e:
+    print(f"[WARNING] Redis connection failed: {e}. Falling back to no cache.")
+    redis_client = None
+
+# Import Celery background worker tasks
+try:
+    from backend.tasks import celery_app, process_shortlist_task
+except ImportError:
+    from tasks import celery_app, process_shortlist_task
 
 # slowapi rate limiting dependencies
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -301,10 +321,7 @@ async def shortlist(
         raise HTTPException(status_code=500, detail=f"Concurrently reading/parsing documents failed: {str(e)}")
             
     try:
-        # Run NLP engine scoring (passing semantic blend weight)
-        results = nlp_engine.compute_nlp_shortlist(jd, resume_data, semantic_weight)
-        
-        # Save Job record under active tenant
+        # Save Job record under active tenant (pending background computations)
         job = Job(
             title=f"Shortlist Run - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", 
             description=jd, 
@@ -314,117 +331,312 @@ async def shortlist(
         db.commit()
         db.refresh(job)
         
-        # Process and save candidates & scores to DB under tenant constraints
-        candidates_output = []
-        for cand in results["candidates"]:
-            filename = cand["filename"]
-            raw_text = next(r["raw_text"] for r in resume_data if r["filename"] == filename)
-            file_bytes = next(file_contents[idx] for idx, r in enumerate(resumes) if r.filename == filename)
+        # Build resumes info lists and save encrypted files to storage
+        resumes_info = []
+        for idx, res in enumerate(resumes):
+            filename = res.filename
+            file_bytes = file_contents[idx]
+            saved_file_path = os.path.join(STORAGE_DIR, filename)
             
             # Save file to disk storage folder (encrypted at rest)
-            saved_file_path = os.path.join(STORAGE_DIR, filename)
             encrypted_bytes = encrypt_data(file_bytes)
             with open(saved_file_path, "wb") as f:
                 f.write(encrypted_bytes)
                 
-            # Find or create Candidate isolated by tenant organization
-            candidate = db.query(Candidate).filter_by(name=filename, organization_id=current_user.organization_id).first()
-            if not candidate:
-                candidate = Candidate(
-                    name=filename,
-                    experience_years=cand["candidate_exp"],
-                    experience_confidence=cand["experience_confidence"],
-                    degrees=cand["candidate_degrees"],
-                    degrees_confidence=cand["degrees_confidence"],
-                    soft_traits=cand["soft_traits"],
-                    organization_id=current_user.organization_id
-                )
-                db.add(candidate)
-                db.commit()
-                db.refresh(candidate)
-            else:
-                candidate.experience_years = cand["candidate_exp"]
-                candidate.experience_confidence = cand["experience_confidence"]
-                candidate.degrees = cand["candidate_degrees"]
-                candidate.degrees_confidence = cand["degrees_confidence"]
-                candidate.soft_traits = cand["soft_traits"]
-                db.commit()
-                
-            # Find or create Resume pointing to file path
-            resume = db.query(Resume).filter_by(filename=filename).first()
-            if not resume:
-                resume = Resume(
-                    candidate_id=candidate.id,
-                    filename=filename,
-                    file_path=saved_file_path,
-                    raw_text=raw_text,
-                    parsed_skills=cand["all_extracted_skills"]
-                )
-                db.add(resume)
-            else:
-                resume.file_path = saved_file_path
-                resume.raw_text = raw_text
-                resume.parsed_skills = cand["all_extracted_skills"]
-            db.commit()
+            resumes_info.append({
+                "filename": filename,
+                "file_path": saved_file_path
+            })
             
-            # Save Score record
-            score = Score(
-                job_id=job.id,
-                candidate_id=candidate.id,
-                match_score=cand["score"],
-                cosine_score=cand["cosine_score"],
-                skills_score=cand["skills_score"],
-                experience_score=cand["experience_score"],
-                matched_skills=cand["matched_skills"],
-                missing_skills=cand["missing_skills"]
-            )
-            db.add(score)
-            db.commit()
-            
-            # Find any previous evaluation to carry over evaluation state globally inside tenant Org
-            existing_eval = db.query(Evaluation).join(Candidate).filter(
-                Evaluation.candidate_id == candidate.id,
-                Candidate.organization_id == current_user.organization_id
-            ).order_by(Evaluation.id.desc()).first()
-            
-            status = existing_eval.status if existing_eval else "Under Review"
-            comments = existing_eval.comments if existing_eval else ""
-            
-            # Save Evaluation record for current job run
-            evaluation = Evaluation(
-                job_id=job.id,
-                candidate_id=candidate.id,
-                status=status,
-                comments=comments
-            )
-            db.add(evaluation)
-            db.commit()
-            
-            # Augment candidate dictionary output with DB evaluations info and confidence flags
-            cand["status"] = status
-            cand["notes"] = comments
-            candidates_output.append(cand)
-            
+        # Dispatch Celery background task
+        task = process_shortlist_task.delay(job.id, resumes_info, semantic_weight, current_user.id)
+        
         # Log to audit log
         audit_log = AuditLog(
             user_id=current_user.id,
-            action="rank_candidates",
-            details=f"Ranked {len(resumes)} candidates for Job ID {job.id}"
+            action="queue_shortlist",
+            details=f"Queued background shortlist task for Job ID {job.id} (Task ID: {task.id})"
         )
         db.add(audit_log)
         db.commit()
         
         return {
             "success": True, 
-            "candidates": candidates_output,
-            "bias_warnings": results.get("bias_warnings", []),
-            "jd_requirements": results["jd_requirements"],
+            "task_id": task.id,
             "job_id": job.id
         }
         
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Shortlisting integration failed: {str(e)}")
+
+@app.get("/api/tasks/{task_id}")
+@limiter.limit("60/minute")
+def get_task_status(request: Request, task_id: str, current_user: User = Depends(get_current_user)):
+    from celery.result import AsyncResult
+    res = AsyncResult(task_id)
+    
+    state = res.state
+    info = res.info or {}
+    
+    # Format response cleanly
+    response = {
+        "task_id": task_id,
+        "status": state, # PENDING, PROGRESS, SUCCESS, FAILURE
+        "progress": 0.0,
+        "files": {}
+    }
+    
+    if state == "PROGRESS":
+        response["progress"] = info.get("progress", 0.0)
+        response["files"] = info.get("files", {})
+    elif state == "SUCCESS":
+        response["progress"] = 1.0
+        response["result"] = info
+    elif state == "FAILURE":
+        response["error"] = str(info)
+        
+    return response
+
+@app.get("/api/jobs/{job_id}/candidates")
+@limiter.limit("60/minute")
+def get_job_candidates(
+    request: Request,
+    job_id: int,
+    page: int = 1,
+    limit: int = 10,
+    filter: Optional[str] = None,
+    threshold: int = 0,
+    search: Optional[str] = None,
+    skill: Optional[str] = None,
+    semantic_w: float = 40.0,
+    skills_w: float = 30.0,
+    experience_w: float = 30.0,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    import re
+    # Verify job belongs to user's org
+    job = db.query(Job).filter_by(id=job_id, organization_id=current_user.organization_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job description not found in your organization.")
+        
+    # Check cache first
+    cache_key = f"job_candidates:{job_id}:page:{page}:limit:{limit}:filter:{filter or 'none'}:threshold:{threshold}:search:{search or 'none'}:skill:{skill or 'none'}:sw:{semantic_w}:skw:{skills_w}:exw:{experience_w}"
+    if redis_client:
+        try:
+            cached_data = redis_client.get(cache_key)
+            if cached_data:
+                return json.loads(cached_data)
+        except Exception as e:
+            print(f"[WARNING] Redis cache read failed: {e}")
+            
+    # Load candidate records
+    candidates_records = db.query(Candidate, Score, Resume, Evaluation).select_from(Candidate)\
+        .join(Score, Score.candidate_id == Candidate.id)\
+        .join(Resume, Resume.candidate_id == Candidate.id)\
+        .join(Evaluation, Evaluation.candidate_id == Candidate.id)\
+        .filter(Score.job_id == job_id, Evaluation.job_id == job_id, Candidate.organization_id == current_user.organization_id)\
+        .all()
+        
+    # Parse requirements parameters for degree matching check
+    jd_degrees = nlp_engine.parse_education_degrees(job.description)
+    jd_exp = nlp_engine.parse_experience_years(job.description)
+    jd_skills_dict = nlp_engine.extract_skills_from_text(job.description)
+    
+    jd_skills = []
+    for cat_skills in jd_skills_dict.values():
+        jd_skills.extend(cat_skills)
+    jd_skills_set = set(jd_skills)
+    
+    # Parse candidates list
+    all_candidates = []
+    for cand, score, resume, evaluation in candidates_records:
+        candidate_degrees = cand.degrees or []
+        degree_match = len(set(jd_degrees).intersection(set(candidate_degrees))) > 0 if jd_degrees else True
+        
+        # Calculate dynamic skills score
+        candidate_skills_list = []
+        for cat_skills in (resume.parsed_skills or {}).values():
+            candidate_skills_list.extend(cat_skills)
+        candidate_skills_set = set(candidate_skills_list)
+        
+        matched_skills = sorted(list(jd_skills_set.intersection(candidate_skills_set)))
+        missing_skills = sorted(list(jd_skills_set.difference(candidate_skills_set)))
+        
+        if len(jd_skills_set) > 0:
+            skills_score = (len(matched_skills) / len(jd_skills_set)) * 100.0
+        else:
+            skills_score = 100.0
+            
+        # Calculate dynamic experience score
+        if jd_exp > 0.0:
+            if cand.experience_years >= jd_exp:
+                experience_score = 100.0
+            else:
+                experience_score = (cand.experience_years / jd_exp) * 100.0
+        else:
+            experience_score = 100.0
+            
+        # Calculate dynamic final score
+        final_score = (score.cosine_score * semantic_w / 100.0) + \
+                      (skills_score * skills_w / 100.0) + \
+                      (experience_score * experience_w / 100.0)
+        final_score = round(final_score, 1)
+        
+        cand_dict = {
+            "id": cand.id,
+            "filename": resume.filename,
+            "score": final_score,
+            "cosine_score": score.cosine_score,
+            "skills_score": skills_score,
+            "experience_score": experience_score,
+            "matched_skills": matched_skills,
+            "missing_skills": missing_skills,
+            "all_extracted_skills": resume.parsed_skills or {},
+            "candidate_exp": cand.experience_years,
+            "experience_confidence": cand.experience_confidence,
+            "candidate_degrees": candidate_degrees,
+            "degrees_confidence": cand.degrees_confidence,
+            "degree_match": degree_match,
+            "soft_traits": cand.soft_traits or [],
+            "status": evaluation.status,
+            "notes": evaluation.comments or "",
+            "snippet": resume.raw_text[:400] + ("..." if len(resume.raw_text) > 400 else "")
+        }
+        all_candidates.append(cand_dict)
+        
+    # Calculate stats across ALL matching records for this job run BEFORE pagination filters
+    total_resumes = len(all_candidates)
+    strong_matches = len([c for c in all_candidates if c["score"] >= 70.0])
+    avg_score = round(sum(c["score"] for c in all_candidates) / total_resumes, 1) if total_resumes > 0 else 0.0
+    
+    # Histogram counts on entire set
+    hist_low = len([c for c in all_candidates if c["score"] < 40.0])
+    hist_mid = len([c for c in all_candidates if c["score"] >= 40.0 and c["score"] < 70.0])
+    hist_high = len([c for c in all_candidates if c["score"] >= 70.0])
+    
+    # Calculate top pool skills globally
+    skills_freq = {}
+    for cand_dict in all_candidates:
+        cand_skills_set = set()
+        for cat_skills in cand_dict["all_extracted_skills"].values():
+            for s in cat_skills:
+                cand_skills_set.add(s)
+        for s in cand_skills_set:
+            skills_freq[s] = skills_freq.get(s, 0) + 1
+    sorted_skills = [{"name": name, "count": count} for name, count in skills_freq.items()]
+    sorted_skills.sort(key=lambda x: x["count"], reverse=True)
+    top_skills = sorted_skills[:5]
+    
+    # Apply filtering in Python
+    filtered_candidates = all_candidates
+    
+    if filter == "high":
+        filtered_candidates = [c for c in filtered_candidates if c["score"] >= 70.0]
+    elif filter == "mid":
+        filtered_candidates = [c for c in filtered_candidates if c["score"] >= 40.0 and c["score"] < 70.0]
+    elif filter == "low":
+        filtered_candidates = [c for c in filtered_candidates if c["score"] < 40.0]
+    elif filter == "exp":
+        if jd_exp > 0.0:
+            filtered_candidates = [c for c in filtered_candidates if c["candidate_exp"] >= jd_exp]
+    elif filter == "edu":
+        filtered_candidates = [c for c in filtered_candidates if c["degree_match"]]
+    elif filter == "shortlisted":
+        filtered_candidates = [c for c in filtered_candidates if c["status"] == "Shortlisted"]
+    elif filter == "rejected":
+        filtered_candidates = [c for c in filtered_candidates if c["status"] == "Rejected"]
+    elif filter == "review":
+        filtered_candidates = [c for c in filtered_candidates if c["status"] == "Under Review"]
+        
+    if threshold > 0:
+        filtered_candidates = [c for c in filtered_candidates if c["score"] >= threshold]
+        
+    if search:
+        search_lower = search.lower().strip()
+        filtered_candidates = [c for c in filtered_candidates if search_lower in c["filename"].lower()]
+        
+    if skill:
+        skill_lower = skill.lower().strip()
+        filtered_candidates = [
+            c for c in filtered_candidates 
+            if any(skill_lower == s.lower() for cat in c["all_extracted_skills"].values() for s in cat)
+        ]
+        
+    # Sort candidates by score descending
+    filtered_candidates.sort(key=lambda x: x["score"], reverse=True)
+    
+    # Calculate paginated subset
+    filtered_count = len(filtered_candidates)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_list = filtered_candidates[start_idx:end_idx]
+    
+    # Calculate bias warnings on entire set
+    bias_warnings = []
+    if len(all_candidates) >= 2:
+        scores = [c["score"] for c in all_candidates]
+        lengths = []
+        gaps = []
+        formatting_flags = []
+        for cand_dict in all_candidates:
+            res_rec = db.query(Resume).filter_by(candidate_id=cand_dict["id"]).first()
+            txt = res_rec.raw_text if res_rec else ""
+            lengths.append(len(txt))
+            gaps.append(1.0 if any(g in txt.lower() for g in ["career break", "career gap", "employment gap", "sabbatical", "parental leave"]) else 0.0)
+            
+            special_count = len(re.findall(r'[^a-zA-Z0-9\s]', txt))
+            total_count = len(txt) if len(txt) > 0 else 1
+            ratio = special_count / total_count
+            formatting_flags.append(1.0 if ratio > 0.15 or len(txt) < 200 else 0.0)
+            
+        corr_len = nlp_engine.pearson_correlation(scores, lengths)
+        if abs(corr_len) > 0.5:
+            bias_warnings.append(f"⚠️ Bias Alert: Match scores correlate strongly with resume length (correlation: {corr_len:.2f}). Longer resumes may have an unfair advantage.")
+            
+        corr_gaps = nlp_engine.pearson_correlation(scores, gaps)
+        if corr_gaps < -0.4:
+            bias_warnings.append(f"⚠️ Bias Alert: Candidate scores are negatively correlated with career breaks or employment gaps (correlation: {corr_gaps:.2f}). System may be penalizing gaps.")
+            
+        corr_format = nlp_engine.pearson_correlation(scores, formatting_flags)
+        if corr_format < -0.4:
+            bias_warnings.append(f"⚠️ Bias Alert: Match scores correlate negatively with non-standard formatting (correlation: {corr_format:.2f}). Formatting issues may be penalizing candidates.")
+            
+    response_data = {
+        "candidates": paginated_list,
+        "total_count": filtered_count,
+        "total_unfiltered": total_resumes,
+        "page": page,
+        "limit": limit,
+        "total_pages": math.ceil(filtered_count / limit) if limit > 0 else 1,
+        "stats": {
+            "total_resumes": total_resumes,
+            "strong_matches": strong_matches,
+            "average_score": avg_score,
+            "histogram": {
+                "low": hist_low,
+                "mid": hist_mid,
+                "high": hist_high
+            },
+            "top_skills": top_skills
+        },
+        "jd_requirements": {
+            "skills": sorted(list(jd_skills_set)),
+            "experience_years": jd_exp,
+            "degrees": jd_degrees
+        },
+        "bias_warnings": bias_warnings
+    }
+    
+    # Save cache
+    if redis_client:
+        try:
+            redis_client.setex(cache_key, 3600, json.dumps(response_data))
+        except Exception as e:
+            print(f"[WARNING] Redis cache write failed: {e}")
+            
+    return response_data
 
 @app.post("/api/evaluation/update")
 @limiter.limit("30/minute")
@@ -510,6 +722,15 @@ def update_evaluation(
         )
         db.add(log)
         db.commit()
+        
+        # Invalidate Redis cache for this job
+        if redis_client:
+            try:
+                keys = redis_client.keys(f"job_candidates:{job_id}:*")
+                if keys:
+                    redis_client.delete(*keys)
+            except Exception as e:
+                print(f"[WARNING] Redis cache clear failed: {e}")
         
         return {"success": True, "message": "Evaluation saved successfully in PostgreSQL."}
     except HTTPException:
@@ -615,6 +836,15 @@ def import_backup(
         db.add(log)
         db.commit()
         
+        # Invalidate Redis cache
+        if redis_client:
+            try:
+                keys = redis_client.keys("job_candidates:*")
+                if keys:
+                    redis_client.delete(*keys)
+            except Exception as e:
+                print(f"[WARNING] Redis cache clear failed: {e}")
+        
         return {"success": True, "restored_count": restored_count}
     except Exception as e:
         db.rollback()
@@ -668,6 +898,15 @@ def delete_candidate(
     db.add(audit)
     db.commit()
     
+    # Invalidate Redis cache
+    if redis_client:
+        try:
+            keys = redis_client.keys("job_candidates:*")
+            if keys:
+                redis_client.delete(*keys)
+        except Exception as e:
+            print(f"[WARNING] Redis cache clear failed: {e}")
+            
     return {"success": True, "message": "Candidate and all associated data fully purged for GDPR compliance."}
 
 # Route to serve homepage

@@ -13,3 +13,5 @@ slowapi
 cryptography
 sentence-transformers
 torch
+celery
+redis

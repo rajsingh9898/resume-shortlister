@@ -5,6 +5,9 @@ let activeJdSkills = [];
 let jdExperienceRequired = 0;
 let jdDegreesRequired = [];
 let currentJobId = null;
+let currentPage = 1;
+let currentLimit = 2;
+let totalPages = 1;
 let currentUser = null;
 let userToken = localStorage.getItem('talentai_token') || null;
 
@@ -403,6 +406,10 @@ function updateWeightsUI() {
 
 /* Client-Side Scoring & Ranking Engine */
 function recalculateRanking() {
+    if (currentJobId) {
+        fetchJobCandidates(currentJobId, 1);
+        return;
+    }
     const w = getWeights();
     const activeSkillsSet = new Set(activeJdSkills);
 
@@ -524,89 +531,238 @@ shortlistForm.addEventListener('submit', async (e) => {
             body: formData
         });
 
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            hideStageLoader();
+            const errorMsg = data.detail || "Failed to start shortlisting.";
+            showToast(errorMsg, "error");
+            return;
+        }
+
         setStageStatus('ingest', 'completed');
         setStageStatus('tfidf', 'active');
-        await delay(600);
+        await delay(300);
 
         setStageStatus('tfidf', 'completed');
         setStageStatus('cosine', 'active');
-        await delay(600);
+        await delay(300);
 
-        const data = await response.json();
+        // Hide stages loader and show task progress modal
+        hideStageLoader();
+        const taskModal = document.getElementById('task-progress-modal');
+        const progressBar = document.getElementById('task-progress-bar');
+        const filesList = document.getElementById('task-files-list');
+        
+        if (taskModal) taskModal.style.display = 'flex';
+        if (progressBar) progressBar.style.width = '0%';
+        if (filesList) filesList.innerHTML = '';
 
-        setStageStatus('cosine', 'completed');
-        setStageStatus('skills', 'active');
-        await delay(500);
+        const taskId = data.task_id;
+        currentJobId = data.job_id;
 
-        if (response.ok && data.success) {
-            rankedCandidates = data.candidates;
-            currentJobId = data.job_id;
-            
-            // Synchronize evaluations status and notes from database into localStorage
-            rankedCandidates.forEach(cand => {
-                if (cand.status) {
-                    localStorage.setItem(`talentai_status_${cand.filename}`, cand.status);
+        // Start polling Celery task status
+        const pollInterval = setInterval(async () => {
+            try {
+                const pollRes = await fetch(`/api/tasks/${taskId}`, {
+                    headers: { 'Authorization': `Bearer ${userToken}` }
+                });
+                if (!pollRes.ok) throw new Error("Failed to check task progress.");
+                const pollData = await pollRes.json();
+
+                if (pollData.status === 'PROGRESS') {
+                    // Update progress bar
+                    if (progressBar) progressBar.style.width = (pollData.progress * 100) + '%';
+                    
+                    // Update files list checklist in modal
+                    if (filesList && pollData.files) {
+                        filesList.innerHTML = '';
+                        Object.entries(pollData.files).forEach(([filename, status]) => {
+                            let badgeColor = '#94a3b8';
+                            let icon = '<i class="fa-regular fa-clock"></i>';
+                            if (status === 'processing') {
+                                badgeColor = '#3b82f6';
+                                icon = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                            } else if (status === 'done') {
+                                badgeColor = '#22c55e';
+                                icon = '<i class="fa-solid fa-check"></i>';
+                            }
+                            filesList.innerHTML += `
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; padding: 6px 12px; background: rgba(255, 255, 255, 0.02); border-radius: 6px;">
+                                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px;">${filename}</span>
+                                    <span style="color: ${badgeColor}; display: flex; align-items: center; gap: 6px;">${icon} ${status}</span>
+                                </div>
+                            `;
+                        });
+                    }
+                } else if (pollData.status === 'SUCCESS') {
+                    clearInterval(pollInterval);
+                    if (progressBar) progressBar.style.width = '100%';
+                    await delay(500);
+                    if (taskModal) taskModal.style.display = 'none';
+
+                    // Reset filters
+                    activeFilterCategory = 'all';
+                    activeChartSkillFilter = null;
+                    activeHistogramFilter = null;
+                    activeMatchThreshold = 0;
+                    scoreThresholdSlider.value = 0;
+                    lblThresholdVal.textContent = '0%';
+                    selectedCandidates = [];
+                    updateCompareBar();
+                    updateFilterBadgesUI();
+
+                    // Load paginated candidates for page 1
+                    currentPage = 1;
+                    await fetchJobCandidates(currentJobId, 1);
+                    
+                    showToast("Resumes parsed and ranked successfully!", "success");
+
+                    setTimeout(() => {
+                        collapseSidebar();
+                    }, 1000);
+
+                } else if (pollData.status === 'FAILURE' || pollData.status === 'REVOKED') {
+                    clearInterval(pollInterval);
+                    if (taskModal) taskModal.style.display = 'none';
+                    showToast(`Background process failed: ${pollData.error || 'Job revoked.'}`, "error");
                 }
-                if (cand.notes !== undefined) {
-                    localStorage.setItem(`talentai_notes_${cand.filename}`, cand.notes);
-                }
-            });
-            
-            // Render Bias Warnings (Phase 4)
-            const biasContainer = document.getElementById('bias-warnings-container');
-            const biasList = document.getElementById('bias-warnings-list');
-            if (biasContainer && biasList) {
-                biasList.innerHTML = '';
-                const warnings = data.bias_warnings || [];
-                if (warnings.length > 0) {
-                    warnings.forEach(warning => {
-                        const li = document.createElement('li');
-                        li.textContent = warning;
-                        biasList.appendChild(li);
-                    });
-                    biasContainer.style.display = 'block';
-                } else {
-                    biasContainer.style.display = 'none';
-                }
+            } catch (pollErr) {
+                console.error("Polling error:", pollErr);
             }
-            
-            activeJdSkills = data.jd_requirements.skills;
-            jdExperienceRequired = data.jd_requirements.experience_years;
-            jdDegreesRequired = data.jd_requirements.degrees;
+        }, 1500);
 
-            activeFilterCategory = 'all';
-            activeChartSkillFilter = null;
-            activeHistogramFilter = null;
-            activeMatchThreshold = 0;
-            scoreThresholdSlider.value = 0;
-            lblThresholdVal.textContent = '0%';
-            selectedCandidates = [];
-            updateCompareBar();
-            updateFilterBadgesUI();
-
-            renderRequirementsEditor();
-            recalculateRanking();
-            
-            setStageStatus('skills', 'completed');
-            await delay(400);
-            hideStageLoader();
-            
-            showToast("Resumes parsed and ranked successfully!", "success");
-            
-            setTimeout(() => {
-                collapseSidebar();
-            }, 1000);
-        } else {
-            hideStageLoader();
-            const errorMsg = data.detail || "Failed to process resumes. Try again.";
-            showToast(errorMsg, "error");
-        }
     } catch (error) {
         hideStageLoader();
         console.error(error);
         showToast("Server connection error. Ensure backend is running.", "error");
     }
 });
+
+/* Asynchronously Fetch Job Candidates from Paginated API */
+async function fetchJobCandidates(jobId, page = 1) {
+    if (!jobId) return;
+    currentPage = page;
+    
+    let filter = activeFilterCategory;
+    if (activeHistogramFilter) {
+        filter = activeHistogramFilter;
+    }
+    const threshold = activeMatchThreshold;
+    const search = searchCandidate.value.trim();
+    const w = getWeights();
+    
+    let url = `/api/jobs/${jobId}/candidates?page=${page}&limit=${currentLimit}`;
+    url += `&semantic_w=${w.semantic}&skills_w=${w.skills}&experience_w=${w.experience}`;
+    
+    if (filter && filter !== 'all') {
+        url += `&filter=${filter}`;
+    }
+    if (threshold > 0) {
+        url += `&threshold=${threshold}`;
+    }
+    if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+    }
+    if (activeChartSkillFilter) {
+        url += `&skill=${encodeURIComponent(activeChartSkillFilter)}`;
+    }
+    
+    try {
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${userToken}` }
+        });
+        if (!response.ok) throw new Error("Failed to fetch job candidates.");
+        const data = await response.json();
+        
+        rankedCandidates = data.candidates;
+        totalPages = data.total_pages;
+        
+        // Sync candidate status/comments into localStorage for card render status sync
+        rankedCandidates.forEach(cand => {
+            if (cand.status) {
+                localStorage.setItem(`talentai_status_${cand.filename}`, cand.status);
+            }
+            if (cand.notes !== undefined) {
+                localStorage.setItem(`talentai_notes_${cand.filename}`, cand.notes);
+            }
+        });
+        
+        // Render stats counters
+        statTotal.textContent = data.stats.total_resumes;
+        statMatches.textContent = data.stats.strong_matches;
+        statAvg.textContent = `${data.stats.average_score.toFixed(1)}%`;
+        
+        // Render requirements
+        activeJdSkills = data.jd_requirements.skills;
+        jdExperienceRequired = data.jd_requirements.experience_years;
+        jdDegreesRequired = data.jd_requirements.degrees;
+        renderRequirementsEditor();
+        
+        // Render candidate listing items
+        emptyState.classList.remove('active');
+        resultsState.classList.add('active');
+        renderCandidatesList(rankedCandidates);
+        
+        // Render charts globally
+        renderPoolSkillsChart(data.stats.top_skills, data.total_unfiltered);
+        renderScoreHistogram(data.stats.histogram);
+        
+        // Render bias warnings
+        const biasContainer = document.getElementById('bias-warnings-container');
+        const biasList = document.getElementById('bias-warnings-list');
+        if (biasContainer && biasList) {
+            biasList.innerHTML = '';
+            const warnings = data.bias_warnings || [];
+            if (warnings.length > 0) {
+                warnings.forEach(warning => {
+                    const li = document.createElement('li');
+                    li.textContent = warning;
+                    biasList.appendChild(li);
+                });
+                biasContainer.style.display = 'block';
+            } else {
+                biasContainer.style.display = 'none';
+            }
+        }
+        
+        // Update pagination UI footer buttons
+        updatePaginationUI();
+    } catch (err) {
+        showToast(err.message, "error");
+    }
+}
+
+window.changePage = function(delta) {
+    const targetPage = currentPage + delta;
+    if (targetPage >= 1 && targetPage <= totalPages) {
+        fetchJobCandidates(currentJobId, targetPage);
+    }
+};
+
+function updatePaginationUI() {
+    const controls = document.getElementById('pagination-controls');
+    const info = document.getElementById('pagination-info');
+    const prevBtn = document.getElementById('pagination-prev-btn');
+    const nextBtn = document.getElementById('pagination-next-btn');
+    
+    if (!controls) return;
+    
+    if (!currentJobId || totalPages <= 1) {
+        controls.style.display = 'none';
+        return;
+    }
+    
+    controls.style.display = 'flex';
+    info.textContent = `Page ${currentPage} of ${totalPages}`;
+    
+    prevBtn.disabled = (currentPage === 1);
+    prevBtn.style.opacity = (currentPage === 1) ? '0.5' : '1';
+    prevBtn.style.cursor = (currentPage === 1) ? 'not-allowed' : 'pointer';
+    
+    nextBtn.disabled = (currentPage === totalPages);
+    nextBtn.style.opacity = (currentPage === totalPages) ? '0.5' : '1';
+    nextBtn.style.cursor = (currentPage === totalPages) ? 'not-allowed' : 'pointer';
+}
 
 /* Dashboard Rendering */
 function renderDashboard(candidates) {
@@ -626,6 +782,10 @@ function renderDashboard(candidates) {
 
 /* Filter Application Engine */
 function applyCandidatesFiltering() {
+    if (currentJobId) {
+        fetchJobCandidates(currentJobId, 1);
+        return;
+    }
     let filteredList = [...rankedCandidates];
 
     // 1. Filter by Active Filter Badges Category
@@ -1036,7 +1196,11 @@ window.setCandidateStatus = function(status) {
     }).catch(err => console.error("Database update failed:", err));
     
     updateDrawerStatusUI(status);
-    applyCandidatesFiltering();
+    if (currentJobId) {
+        fetchJobCandidates(currentJobId, currentPage);
+    } else {
+        applyCandidatesFiltering();
+    }
     
     showToast(`Status updated: ${filename} is now marked as "${status}"`, "success");
 };
@@ -1154,8 +1318,8 @@ function renderProsAndConsList(candidate) {
 }
 
 /* Interactive Score Distribution Histogram Rendering */
-function renderScoreHistogram() {
-    if (rankedCandidates.length === 0) {
+function renderScoreHistogram(histogramData) {
+    if (!histogramData && rankedCandidates.length === 0) {
         scoreHistogramPanel.classList.remove('active');
         return;
     }
@@ -1168,11 +1332,17 @@ function renderScoreHistogram() {
     let midCount = 0;
     let highCount = 0;
 
-    rankedCandidates.forEach(c => {
-        if (c.score < 40.0) lowCount++;
-        else if (c.score < 70.0) midCount++;
-        else Math.max(0, highCount++);
-    });
+    if (histogramData) {
+        lowCount = histogramData.low || 0;
+        midCount = histogramData.mid || 0;
+        highCount = histogramData.high || 0;
+    } else {
+        rankedCandidates.forEach(c => {
+            if (c.score < 40.0) lowCount++;
+            else if (c.score < 70.0) midCount++;
+            else Math.max(0, highCount++);
+        });
+    }
 
     const maxCount = Math.max(lowCount, midCount, highCount, 1);
     
@@ -1327,8 +1497,8 @@ window.exportDatabaseBackup = function() {
 };
 
 /* Pool Skills Frequency Chart rendering */
-function renderPoolSkillsChart() {
-    if (rankedCandidates.length === 0) {
+function renderPoolSkillsChart(topSkillsData, totalCount) {
+    if (!topSkillsData && rankedCandidates.length === 0) {
         poolSkillsChartPanel.classList.remove('active');
         return;
     }
@@ -1336,20 +1506,27 @@ function renderPoolSkillsChart() {
     poolSkillsChartPanel.classList.add('active');
     poolSkillsChart.innerHTML = '';
 
-    const freq = {};
-    rankedCandidates.forEach(cand => {
-        const skillsSet = new Set();
-        Object.values(cand.all_extracted_skills).forEach(catSkills => {
-            catSkills.forEach(s => skillsSet.add(s));
-        });
-        skillsSet.forEach(s => {
-            freq[s] = (freq[s] || 0) + 1;
-        });
-    });
+    let sortedSkills = [];
+    let denom = rankedCandidates.length;
 
-    const sortedSkills = Object.keys(freq).map(skill => {
-        return { name: skill, count: freq[skill] };
-    }).sort((a, b) => b.count - a.count).slice(0, 5);
+    if (topSkillsData) {
+        sortedSkills = topSkillsData;
+        denom = totalCount || rankedCandidates.length;
+    } else {
+        const freq = {};
+        rankedCandidates.forEach(cand => {
+            const skillsSet = new Set();
+            Object.values(cand.all_extracted_skills).forEach(catSkills => {
+                catSkills.forEach(s => skillsSet.add(s));
+            });
+            skillsSet.forEach(s => {
+                freq[s] = (freq[s] || 0) + 1;
+            });
+        });
+        sortedSkills = Object.keys(freq).map(skill => {
+            return { name: skill, count: freq[skill] };
+        }).sort((a, b) => b.count - a.count).slice(0, 5);
+    }
 
     if (sortedSkills.length === 0) {
         poolSkillsChart.innerHTML = '<span class="text-dark" style="font-size: 0.8rem;">No skills identified in the candidate pool.</span>';
@@ -1357,7 +1534,7 @@ function renderPoolSkillsChart() {
     }
 
     sortedSkills.forEach(item => {
-        const percentage = (item.count / rankedCandidates.length) * 100;
+        const percentage = denom > 0 ? (item.count / denom) * 100 : 0;
         
         const barGroup = document.createElement('div');
         barGroup.className = 'chart-bar-group';

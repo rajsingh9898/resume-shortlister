@@ -317,6 +317,17 @@
                     <div id="candidates-container" class="candidates-container">
                         <!-- Candidate items will be loaded dynamically -->
                     </div>
+
+                    <!-- Pagination Controls (Phase 5) -->
+                    <div class="pagination-controls" id="pagination-controls" style="display: none; justify-content: space-between; align-items: center; padding: 16px 24px; background: rgba(255, 255, 255, 0.03); border-top: 1px solid rgba(255, 255, 255, 0.08); border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;">
+                        <button class="btn secondary-btn" id="pagination-prev-btn" onclick="changePage(-1)" style="padding: 8px 16px; font-size: 0.85rem;">
+                            <i class="fa-solid fa-angle-left"></i> Previous
+                        </button>
+                        <span id="pagination-info" style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted);">Page 1 of 1</span>
+                        <button class="btn secondary-btn" id="pagination-next-btn" onclick="changePage(1)" style="padding: 8px 16px; font-size: 0.85rem;">
+                            Next <i class="fa-solid fa-angle-right"></i>
+                        </button>
+                    </div>
                 </div>
             </section>
         </main>
@@ -673,6 +684,27 @@
 
     <!-- Notification Toast -->
     <div id="toast" class="toast"></div>
+
+    <!-- Asynchronous Task Progress Modal (Phase 5) -->
+    <div id="task-progress-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2000; align-items: center; justify-content: center; background: rgba(10, 10, 12, 0.85); backdrop-filter: blur(10px);">
+        <div class="modal-content" style="background: #18181b; border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 24px; padding: 32px; width: 100%; max-width: 500px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align: center; color: #fff; font-family: 'Outfit', sans-serif;">
+            <div style="font-size: 3rem; margin-bottom: 16px; color: #ec4899;">
+                <i class="fa-solid fa-microchip fa-spin"></i>
+            </div>
+            <h2 id="task-modal-title" style="margin-bottom: 8px; font-weight: 700; font-size: 1.5rem; background: linear-gradient(135deg, #fff 30%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Analyzing Resumes...</h2>
+            <p id="task-modal-desc" style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 24px;">Please wait while Celery background workers process the files.</p>
+            
+            <!-- Progress Bar -->
+            <div class="progress-bar-container" style="background: rgba(255, 255, 255, 0.05); height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 24px; position: relative;">
+                <div id="task-progress-bar" style="background: linear-gradient(90deg, #ec4899, #8b5cf6); height: 100%; width: 0%; transition: width 0.4s ease;"></div>
+            </div>
+            
+            <!-- Files Checklist Status -->
+            <div id="task-files-list" style="text-align: left; max-height: 200px; overflow-y: auto; padding: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 12px; display: flex; flex-direction: column; gap: 8px;">
+                <!-- Injected in JS -->
+            </div>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
