@@ -2,6 +2,11 @@ import io
 import re
 import os
 import json
+
+try:
+    from backend.logger import logger
+except ImportError:
+    from logger import logger
 import PyPDF2
 import docx
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -39,7 +44,7 @@ def load_skills_taxonomy():
                 SKILL_SYNONYMS = data.get("skill_synonyms", {})
                 return
         except Exception as e:
-            print(f"[WARNING] Failed to load skills taxonomy: {e}. Using fallback defaults.")
+            logger.warning(f"Failed to load skills taxonomy: {e}. Using fallback defaults.")
             
     # Hardcoded default fallback
     SKILLS_DB = {
@@ -99,7 +104,7 @@ def get_transformer_model():
             os.environ["TOKENIZERS_PARALLELISM"] = "false"
             _transformer_model = SentenceTransformer("all-MiniLM-L6-v2")
         except Exception as e:
-            print(f"[WARNING] sentence-transformers load failed: {e}. Falling back to TF-IDF.")
+            logger.warning(f"sentence-transformers load failed: {e}. Falling back to TF-IDF.")
             _transformer_model = False
     return _transformer_model
 
@@ -426,7 +431,7 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
             sims = cos_sim(jd_emb, res_embs)
             semantic_similarities = sims[0].cpu().tolist()
         except Exception as e:
-            print(f"[WARNING] Transformer similarity computations failed: {e}")
+            logger.warning(f"Transformer similarity computations failed: {e}")
             
     # 3. Calculate candidate scores and compile analysis reports
     candidates_list = []

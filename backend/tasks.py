@@ -7,10 +7,21 @@ from sqlalchemy.orm import Session
 # Setup path so imports work correctly inside celery worker process
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from database import SessionLocal
-from models import Job, Candidate, Resume, Score, Evaluation, AuditLog
-import nlp_engine
-from encryption import decrypt_data
+try:
+    from backend.database import SessionLocal
+    from backend.models import Job, Candidate, Resume, Score, Evaluation, AuditLog
+    from backend import nlp_engine
+    from backend.encryption import decrypt_data
+except ImportError:
+    from database import SessionLocal
+    from models import Job, Candidate, Resume, Score, Evaluation, AuditLog
+    import nlp_engine
+    from encryption import decrypt_data
+
+try:
+    from backend.logger import logger
+except ImportError:
+    from logger import logger
 
 # Initialize Celery app
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -20,9 +31,11 @@ try:
     import redis
     r = redis.Redis.from_url(REDIS_URL)
     r.ping()
-    print("[INFO] Celery broker connected to Redis successfully.")
+    logger.info("Celery broker connected to Redis successfully.")
 except Exception as e:
-    print(f"[WARNING] Redis broker connection failed: {e}. Enabling Celery Eager Mode (synchronous execution fallback).")
+    logger.warning(f"Redis broker connection failed: {e}. Enabling Celery Eager Mode with memory backend fallback.")
+    celery_app.conf.broker_url = "memory://"
+    celery_app.conf.result_backend = "cache+memory://"
     celery_app.conf.task_always_eager = True
     celery_app.conf.task_eager_propagates = True
 
@@ -34,7 +47,8 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
         # Load the Job context
         job = db.query(Job).filter_by(id=job_id).first()
         if not job:
-            self.update_state(state="FAILED", meta={"message": f"Job context {job_id} not found."})
+            if self.request.id:
+                self.update_state(state="FAILED", meta={"message": f"Job context {job_id} not found."})
             return {"error": "Job context not found"}
             
         jd = job.description
@@ -42,7 +56,8 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
         
         # 1. Update initial state listing all files as 'pending'
         file_statuses = {res["filename"]: "pending" for res in resumes_info}
-        self.update_state(state="PROGRESS", meta={"progress": 0.0, "files": file_statuses})
+        if self.request.id:
+            self.update_state(state="PROGRESS", meta={"progress": 0.0, "files": file_statuses})
         
         # 2. Concurrently extract text from files (simulated progress updates)
         resume_data = []
@@ -53,7 +68,8 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
             # Update state to 'processing'
             file_statuses[filename] = "processing"
             progress_pct = (idx / total_files) * 0.5 # Ingest & parsing takes first 50%
-            self.update_state(state="PROGRESS", meta={"progress": progress_pct, "files": file_statuses})
+            if self.request.id:
+                self.update_state(state="PROGRESS", meta={"progress": progress_pct, "files": file_statuses})
             
             # Read and decrypt file contents from disk
             if os.path.exists(file_path):
@@ -77,11 +93,13 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
             file_statuses[filename] = "done"
             
         # 3. Execute similarity computing and ranking
-        self.update_state(state="PROGRESS", meta={"progress": 0.6, "files": file_statuses})
+        if self.request.id:
+            self.update_state(state="PROGRESS", meta={"progress": 0.6, "files": file_statuses})
         results = nlp_engine.compute_nlp_shortlist(jd, resume_data, semantic_weight)
         
         # 4. Save results to DB
-        self.update_state(state="PROGRESS", meta={"progress": 0.8, "files": file_statuses})
+        if self.request.id:
+            self.update_state(state="PROGRESS", meta={"progress": 0.8, "files": file_statuses})
         
         for cand in results["candidates"]:
             filename = cand["filename"]
@@ -178,11 +196,12 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
             if keys:
                 redis_client.delete(*keys)
         except Exception as e:
-            print(f"Redis invalidation failed during task: {e}")
+            logger.warning(f"Redis invalidation failed during task: {e}")
             
         return {"success": True, "job_id": job.id}
     except Exception as e:
         db.rollback()
+        logger.exception(f"Exception inside process_shortlist_task: {str(e)}")
         return {"error": f"Task execution failed: {str(e)}"}
     finally:
         db.close()

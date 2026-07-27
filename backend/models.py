@@ -8,6 +8,7 @@ except ImportError:
 
 class Organization(Base):
     __tablename__ = "organizations"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, index=True, nullable=False)
@@ -20,6 +21,7 @@ class Organization(Base):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(100), unique=True, index=True, nullable=False)
@@ -35,6 +37,7 @@ class User(Base):
 
 class Job(Base):
     __tablename__ = "jobs"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
@@ -49,6 +52,7 @@ class Job(Base):
 
 class Candidate(Base):
     __tablename__ = "candidates"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
@@ -70,6 +74,7 @@ class Candidate(Base):
 
 class Resume(Base):
     __tablename__ = "resumes"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
     candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=False)
@@ -84,6 +89,7 @@ class Resume(Base):
 
 class Score(Base):
     __tablename__ = "scores"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
     job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
@@ -102,6 +108,7 @@ class Score(Base):
 
 class Evaluation(Base):
     __tablename__ = "evaluations"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
     job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
@@ -116,6 +123,7 @@ class Evaluation(Base):
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)

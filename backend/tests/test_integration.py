@@ -1,0 +1,114 @@
+import io
+import os
+import sys
+import pytest
+from fastapi import status
+
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+def test_auth_protected_routes(client):
+    # Calling candidates endpoint without token should return 401
+    res = client.get("/api/jobs/1/candidates")
+    assert res.status_code == status.HTTP_401_UNAUTHORIZED
+    
+    # Register/login with invalid credentials
+    res = client.post("/api/auth/login", data={"username": "notfound@test.com", "password": "any"})
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+
+def test_role_based_access_controls(client, db, test_organization, admin_headers, recruiter_headers, manager_headers):
+    # Setup a job first
+    from backend.models import Job
+    job = Job(title="QA Engineer", description="Testing engineer", organization_id=test_organization.id)
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    
+    # 1. Hiring Manager should NOT be able to delete job
+    res = client.delete(f"/api/jobs/{job.id}", headers=manager_headers)
+    assert res.status_code == status.HTTP_403_FORBIDDEN
+
+    # 2. Recruiter should NOT be able to delete job (only Admin has full deletion capabilities)
+    res = client.delete(f"/api/jobs/{job.id}", headers=recruiter_headers)
+    assert res.status_code == status.HTTP_403_FORBIDDEN
+
+    # 3. Admin should be able to delete job
+    res = client.delete(f"/api/jobs/{job.id}", headers=admin_headers)
+    assert res.status_code == 200
+
+def test_main_shortlisting_api_flow(client, db, test_organization, admin_headers):
+    # 1. Create a Job Description
+    from backend.models import Job
+    job = Job(title="FastAPI Expert", description="Experienced backend Python developer.", organization_id=test_organization.id)
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    
+    # 2. Upload multiple mock candidates
+    file1 = (io.BytesIO(b"Alex Smith. Python development experience of 5 years. PhD in Computer Science."), "alex.txt")
+    file2 = (io.BytesIO(b"Bob Vance. Accounting experience of 2 years. High school graduate."), "bob.txt")
+    
+    files = [
+        ("resumes", (file1[1], file1[0], "text/plain")),
+        ("resumes", (file2[1], file2[0], "text/plain"))
+    ]
+    
+    data = {
+        "jd": "Must have python experience and CS degree",
+        "semantic_weight": 0.5,
+        "job_id": job.id
+    }
+    
+    # Post shortlist request
+    res = client.post("/api/shortlist", headers=admin_headers, data=data, files=files)
+    if res.status_code != 200:
+        print("ERROR RESPONSE:", res.text)
+    assert res.status_code == 200
+    resp_data = res.json()
+    assert "task_id" in resp_data
+    assert "job_id" in resp_data
+    
+    # 3. Retrieve task progress
+    task_id = resp_data["task_id"]
+    res_task = client.get(f"/api/tasks/{task_id}", headers=admin_headers)
+    assert res_task.status_code == 200
+    print("TASK RESPONSE JSON:", res_task.json())
+    assert res_task.json()["status"] == "SUCCESS"
+    
+    # 4. Fetch Paginated candidate rankings list
+    db.commit()
+    res_list = client.get(f"/api/jobs/{resp_data['job_id']}/candidates?page=1&limit=10", headers=admin_headers)
+    assert res_list.status_code == 200
+    list_data = res_list.json()
+    assert "candidates" in list_data
+    assert list_data["total_count"] == 2
+    
+    # Verify rankings: candidate with python and PhD (Alex) should rank first
+    cands = list_data["candidates"]
+    assert cands[0]["filename"] == "alex.txt"
+    assert cands[1]["filename"] == "bob.txt"
+    
+    # 5. Update candidate evaluation status
+    alex_id = cands[0]["id"]
+    res_eval = client.post("/api/evaluation/update", headers=admin_headers, json={
+        "job_id": resp_data["job_id"],
+        "filename": "alex.txt",
+        "status": "Shortlisted",
+        "comments": "Superb profile!"
+    })
+    assert res_eval.status_code == 200
+    
+    # 6. Export database backup
+    res_export = client.get("/api/backup/export", headers=admin_headers)
+    assert res_export.status_code == 200
+    backup_data = res_export.json()
+    assert "talentai_status_alex.txt" in backup_data
+    
+    # 7. Purge candidate (GDPR Forgotten Check)
+    res_del = client.delete(f"/api/candidates/{alex_id}", headers=admin_headers)
+    assert res_del.status_code == 200
+    
+    # Verify candidate is removed from list
+    res_list_after = client.get(f"/api/jobs/{resp_data['job_id']}/candidates?page=1&limit=10", headers=admin_headers)
+    assert len(res_list_after.json()["candidates"]) == 1

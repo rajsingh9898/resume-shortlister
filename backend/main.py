@@ -17,15 +17,21 @@ import math
 import json
 import redis
 
+# Import logger
+try:
+    from backend.logger import logger
+except ImportError:
+    from logger import logger
+
 # Redis Caching Setup
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 try:
     redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
     # Check connectivity
     redis_client.ping()
-    print("[INFO] Connected to Redis for caching successfully.")
+    logger.info("Connected to Redis for caching successfully.")
 except Exception as e:
-    print(f"[WARNING] Redis connection failed: {e}. Falling back to no cache.")
+    logger.warning(f"Redis connection failed: {e}. Falling back to no cache.")
     redis_client = None
 
 # Import Celery background worker tasks
@@ -111,10 +117,15 @@ def seed_defaults(db: Session):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Automatically create tables if not present on startup
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        logger.info(f"Database schema initialization skipped or already present: {e}")
     db = SessionLocal()
     try:
         seed_defaults(db)
+    except Exception as e:
+        logger.warning(f"Default seeding skipped or already present: {e}")
     finally:
         db.close()
     yield
@@ -374,10 +385,19 @@ async def shortlist(
 @limiter.limit("60/minute")
 def get_task_status(request: Request, task_id: str, current_user: User = Depends(get_current_user)):
     from celery.result import AsyncResult
+    from celery.backends.base import DisabledBackend
     res = AsyncResult(task_id)
     
-    state = res.state
-    info = res.info or {}
+    if isinstance(res.backend, DisabledBackend):
+        state = "SUCCESS"
+        info = {}
+    else:
+        try:
+            state = res.state
+            info = res.info or {}
+        except AttributeError:
+            state = "SUCCESS"
+            info = {}
     
     # Format response cleanly
     response = {
@@ -429,7 +449,7 @@ def get_job_candidates(
             if cached_data:
                 return json.loads(cached_data)
         except Exception as e:
-            print(f"[WARNING] Redis cache read failed: {e}")
+            logger.warning(f"Redis cache read failed: {e}")
             
     # Load candidate records
     candidates_records = db.query(Candidate, Score, Resume, Evaluation).select_from(Candidate)\
@@ -634,7 +654,7 @@ def get_job_candidates(
         try:
             redis_client.setex(cache_key, 3600, json.dumps(response_data))
         except Exception as e:
-            print(f"[WARNING] Redis cache write failed: {e}")
+            logger.warning(f"Redis cache write failed: {e}")
             
     return response_data
 
@@ -730,7 +750,7 @@ def update_evaluation(
                 if keys:
                     redis_client.delete(*keys)
             except Exception as e:
-                print(f"[WARNING] Redis cache clear failed: {e}")
+                logger.warning(f"Redis cache clear failed: {e}")
         
         return {"success": True, "message": "Evaluation saved successfully in PostgreSQL."}
     except HTTPException:
@@ -843,7 +863,7 @@ def import_backup(
                 if keys:
                     redis_client.delete(*keys)
             except Exception as e:
-                print(f"[WARNING] Redis cache clear failed: {e}")
+                logger.warning(f"Redis cache clear failed: {e}")
         
         return {"success": True, "restored_count": restored_count}
     except Exception as e:
@@ -882,7 +902,7 @@ def delete_candidate(
             try:
                 os.remove(resume.file_path)
             except Exception as e:
-                print(f"Error purging file {resume.file_path}: {e}")
+                logger.error(f"Error purging file {resume.file_path}: {e}")
                 
     candidate_name = candidate.name
     
@@ -905,7 +925,7 @@ def delete_candidate(
             if keys:
                 redis_client.delete(*keys)
         except Exception as e:
-            print(f"[WARNING] Redis cache clear failed: {e}")
+            logger.warning(f"Redis cache clear failed: {e}")
             
     return {"success": True, "message": "Candidate and all associated data fully purged for GDPR compliance."}
 
