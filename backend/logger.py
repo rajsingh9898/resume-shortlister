@@ -28,8 +28,13 @@ if not logger.handlers:
     stream_handler.setFormatter(JsonFormatter())
     logger.addHandler(stream_handler)
 
+try:
+    from backend.config import settings
+except ImportError:
+    from config import settings
+
 # Configure Sentry SDK if DSN is set
-SENTRY_DSN = os.getenv("SENTRY_DSN")
+SENTRY_DSN = settings.SENTRY_DSN
 if SENTRY_DSN:
     try:
         import sentry_sdk

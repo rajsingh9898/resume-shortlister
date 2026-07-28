@@ -5,8 +5,13 @@ from cryptography.fernet import Fernet
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 KEY_FILE = os.path.join(CURRENT_DIR, "secret.key")
 
+try:
+    from backend.config import settings
+except ImportError:
+    from config import settings
+
 # Determine Fernet key
-ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
+ENCRYPTION_KEY = settings.ENCRYPTION_KEY
 
 if not ENCRYPTION_KEY:
     if os.path.exists(KEY_FILE):

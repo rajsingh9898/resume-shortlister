@@ -4,10 +4,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql://postgres:postgres@localhost:5432/talentai"
-)
+try:
+    from backend.config import settings
+except ImportError:
+    from config import settings
+
+DATABASE_URL = settings.DATABASE_URL
 
 # Setup database engine with robust SQLite fallback for offline developer ease
 try:

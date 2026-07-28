@@ -23,8 +23,13 @@ try:
 except ImportError:
     from logger import logger
 
+try:
+    from backend.config import settings
+except ImportError:
+    from config import settings
+
 # Initialize Celery app
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = settings.REDIS_URL
 celery_app = Celery("talentai_tasks", broker=REDIS_URL, backend=REDIS_URL)
 
 try:

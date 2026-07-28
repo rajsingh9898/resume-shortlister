@@ -23,8 +23,13 @@ try:
 except ImportError:
     from logger import logger
 
+try:
+    from backend.config import settings
+except ImportError:
+    from config import settings
+
 # Redis Caching Setup
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = settings.REDIS_URL
 try:
     redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
     # Check connectivity

@@ -18,3 +18,4 @@ redis
 pytest
 httpx
 sentry-sdk
+python-dotenv

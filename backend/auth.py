@@ -13,7 +13,12 @@ except ImportError:
     from database import get_db
     from models import User
 
-SECRET_KEY = os.getenv("SECRET_KEY", "iridescent_unicorn_silver_secret_token_key_123456789")
+try:
+    from backend.config import settings
+except ImportError:
+    from config import settings
+
+SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120
 

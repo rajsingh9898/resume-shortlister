@@ -1,0 +1,19 @@
+# Environment variables file (contains sensitive keys)
+.env
+
+# Python build and cache artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases
+*.db
+backend/secret.key
+
+# Operating System files
+.DS_Store
+Thumbs.db
