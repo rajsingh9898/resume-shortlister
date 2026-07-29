@@ -56,7 +56,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: talentai-celery-worker
-    command: celery -A tasks.celery_app worker --loglevel=info -P solo
+    command: celery -A tasks.celery_app worker --loglevel=info
     restart: always
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-development}

@@ -15,7 +15,14 @@ DATABASE_URL = settings.DATABASE_URL
 try:
     # Try connecting to PostgreSQL
     if "postgresql" in DATABASE_URL:
-        engine = create_engine(DATABASE_URL, connect_args={"connect_timeout": 3})
+        engine = create_engine(
+            DATABASE_URL,
+            pool_size=20,
+            max_overflow=10,
+            pool_recycle=1800,
+            pool_pre_ping=True,
+            connect_args={"connect_timeout": 5}
+        )
     else:
         engine = create_engine(DATABASE_URL)
     # Test the connection immediately

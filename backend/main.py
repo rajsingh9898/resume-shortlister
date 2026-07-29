@@ -50,8 +50,11 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-# PyPDF2 and python-docx for upload format verification
-import PyPDF2
+# pypdf and python-docx for upload format verification
+try:
+    import pypdf
+except ImportError:
+    import PyPDF2 as pypdf
 import docx
 
 # Symmetric encryption at rest utilities
@@ -181,7 +184,7 @@ def validate_upload_file(filename: str, content: bytes):
     try:
         if ext == ".pdf":
             pdf_file = io.BytesIO(content)
-            reader = PyPDF2.PdfReader(pdf_file)
+            reader = pypdf.PdfReader(pdf_file)
             _ = len(reader.pages)
         elif ext == ".docx":
             docx_file = io.BytesIO(content)

@@ -7,7 +7,10 @@ try:
     from backend.logger import logger
 except ImportError:
     from logger import logger
-import PyPDF2
+try:
+    import pypdf
+except ImportError:
+    import PyPDF2 as pypdf
 import docx
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -112,7 +115,7 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     text = ""
     try:
         pdf_file = io.BytesIO(file_bytes)
-        reader = PyPDF2.PdfReader(pdf_file)
+        reader = pypdf.PdfReader(pdf_file)
         for page in reader.pages:
             val = page.extract_text()
             if val:

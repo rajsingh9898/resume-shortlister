@@ -1,7 +1,7 @@
 fastapi
 uvicorn
 scikit-learn
-PyPDF2
+pypdf
 python-docx
 sqlalchemy
 psycopg2-binary
