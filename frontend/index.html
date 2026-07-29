@@ -624,9 +624,10 @@
                 </div>
                 <div class="form-group">
                     <label for="login-password">Password</label>
-                    <div class="input-wrapper">
+                    <div class="input-wrapper" style="position: relative;">
                         <i class="fa-solid fa-lock input-icon"></i>
-                        <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
+                        <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password" style="padding-right: 40px;">
+                        <i class="fa-solid fa-eye eye-icon" id="toggle-login-password" onclick="togglePasswordVisibility('login-password', 'toggle-login-password')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted); z-index: 10;"></i>
                     </div>
                 </div>
                 <button type="submit" class="btn submit-btn">Access Dashboard <i class="fa-solid fa-arrow-right"></i></button>
@@ -668,9 +669,10 @@
                 </div>
                 <div class="form-group">
                     <label for="register-password">Password</label>
-                    <div class="input-wrapper">
+                    <div class="input-wrapper" style="position: relative;">
                         <i class="fa-solid fa-lock input-icon"></i>
-                        <input type="password" id="register-password" required placeholder="••••••••" autocomplete="new-password">
+                        <input type="password" id="register-password" required placeholder="••••••••" autocomplete="new-password" style="padding-right: 40px;">
+                        <i class="fa-solid fa-eye eye-icon" id="toggle-register-password" onclick="togglePasswordVisibility('register-password', 'toggle-register-password')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted); z-index: 10;"></i>
                     </div>
                 </div>
                 <button type="submit" class="btn submit-btn">Create Account <i class="fa-solid fa-check"></i></button>

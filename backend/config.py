@@ -1,5 +1,13 @@
 import os
+import warnings
 from typing import Optional
+
+# Suppress TensorFlow logging, oneDNN notifications, and general deprecation warnings
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 def find_env_file(filename: str) -> Optional[str]:
     """Helper to locate .env file in backend/ or root directory."""
@@ -27,6 +35,7 @@ class Settings:
         "DATABASE_URL", 
         "postgresql://postgres:postgres@localhost:5432/talentai"
     )
+    DIRECT_URL: Optional[str] = os.getenv("DIRECT_URL")
     REDIS_URL: str = os.getenv(
         "REDIS_URL",
         "redis://localhost:6379/0"

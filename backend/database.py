@@ -15,8 +15,18 @@ DATABASE_URL = settings.DATABASE_URL
 try:
     # Try connecting to PostgreSQL
     if "postgresql" in DATABASE_URL:
+        # Strip pgbouncer parameter if present to avoid psycopg2 DSN validation error
+        cleaned_url = DATABASE_URL
+        if "pgbouncer=" in cleaned_url:
+            import urllib.parse
+            parsed = urllib.parse.urlparse(cleaned_url)
+            query_params = urllib.parse.parse_qs(parsed.query)
+            query_params.pop("pgbouncer", None)
+            new_query = urllib.parse.urlencode(query_params, doseq=True)
+            cleaned_url = urllib.parse.urlunparse(parsed._replace(query=new_query))
+        
         engine = create_engine(
-            DATABASE_URL,
+            cleaned_url,
             pool_size=20,
             max_overflow=10,
             pool_recycle=1800,

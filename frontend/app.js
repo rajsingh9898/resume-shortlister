@@ -6,7 +6,7 @@ let jdExperienceRequired = 0;
 let jdDegreesRequired = [];
 let currentJobId = null;
 let currentPage = 1;
-let currentLimit = 2;
+let currentLimit = 1000;
 let totalPages = 1;
 let currentUser = null;
 let userToken = localStorage.getItem('talentai_token') || null;
@@ -2117,6 +2117,40 @@ window.handleLogout = function() {
     showToast("Logged out successfully.", "success");
 };
 
+async function loadLatestJob() {
+    try {
+        const response = await fetch('/api/jobs/latest', {
+            headers: { 'Authorization': `Bearer ${userToken}` }
+        });
+        if (response.ok) {
+            const job = await response.json();
+            currentJobId = job.id;
+            if (jobDescriptionInput) {
+                jobDescriptionInput.value = job.description || "";
+            }
+            await fetchJobCandidates(currentJobId, 1);
+        }
+    } catch (err) {
+        console.warn("Failed to load latest job:", err);
+    }
+}
+
+window.togglePasswordVisibility = function(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (input && icon) {
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove("fa-eye");
+            icon.classList.add("fa-eye-slash");
+        } else {
+            input.type = "password";
+            icon.classList.remove("fa-eye-slash");
+            icon.classList.add("fa-eye");
+        }
+    }
+};
+
 function checkUserSession() {
     if (!userToken) {
         authOverlay.classList.add('active');
@@ -2148,6 +2182,11 @@ function checkUserSession() {
         authOverlay.classList.remove('active');
         
         applyRolePermissions();
+        
+        // Load latest analyzed job context if none loaded
+        if (!currentJobId) {
+            loadLatestJob();
+        }
     })
     .catch(err => {
         console.error("Session load failed:", err);

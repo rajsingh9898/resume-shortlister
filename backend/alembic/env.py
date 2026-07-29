@@ -25,8 +25,13 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    # Use the active engine's URL
-    url = str(engine.url)
+    try:
+        from config import settings
+    except ImportError:
+        from backend.config import settings
+
+    # Use DIRECT_URL for migrations if configured (important for Supabase transaction pools)
+    url = getattr(settings, "DIRECT_URL", None) or os.getenv("DIRECT_URL") or str(engine.url)
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -40,8 +45,17 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    # Use the connection engine imported directly from database.py (incorporating SQLite fallback)
-    connectable = engine
+    from sqlalchemy import create_engine
+    try:
+        from config import settings
+    except ImportError:
+        from backend.config import settings
+
+    migration_url = getattr(settings, "DIRECT_URL", None) or os.getenv("DIRECT_URL")
+    if migration_url:
+        connectable = create_engine(migration_url)
+    else:
+        connectable = engine
 
     with connectable.connect() as connection:
         context.configure(

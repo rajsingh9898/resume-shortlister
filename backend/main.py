@@ -138,7 +138,7 @@ async def lifespan(app: FastAPI):
         db.close()
     yield
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address, enabled=(settings.ENVIRONMENT != "development"))
 app = FastAPI(title="AI-Based Resume Shortlisting System", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -151,6 +151,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Suppress static file caching in development to ensure instant updates
+@app.middleware("http")
+async def add_no_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    if settings.ENVIRONMENT == "development":
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 # Allocate thread pool executor for CPU-bound document parsing tasks
 executor = ThreadPoolExecutor(max_workers=6)
@@ -261,8 +271,10 @@ def register(request: Request, data: UserRegister, db: Session = Depends(get_db)
 @limiter.limit("5/minute")
 def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter_by(email=form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect email or password.")
+    if not user:
+        raise HTTPException(status_code=400, detail="Email is not registered.")
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect password.")
         
     token = create_access_token({"sub": user.email})
     return {
@@ -283,6 +295,17 @@ def get_me(current_user: User = Depends(get_current_user)):
             "id": current_user.organization_id,
             "name": current_user.organization.name
         }
+    }
+
+@app.get("/api/jobs/latest")
+def get_latest_job(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    job = db.query(Job).filter_by(organization_id=current_user.organization_id).order_by(Job.id.desc()).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="No jobs found.")
+    return {
+        "id": job.id,
+        "title": job.title,
+        "description": job.description
     }
 
 # --- BUSINESS LOGIC PORTALS ---

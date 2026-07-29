@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Add consent_given column to candidates table with default True (1)
-    op.add_column('candidates', sa.Column('consent_given', sa.Boolean(), nullable=False, server_default=sa.text('1')))
+    op.add_column('candidates', sa.Column('consent_given', sa.Boolean(), nullable=False, server_default=sa.text('true')))
 
 
 def downgrade() -> None:
