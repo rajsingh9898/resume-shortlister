@@ -2107,8 +2107,13 @@ window.handleLogout = function() {
         emptyState.classList.add('active');
     }
     
+    const landingPage = document.getElementById('landing-page');
+    const appContainer = document.getElementById('app-container');
+    if (landingPage) landingPage.style.display = 'block';
+    if (appContainer) appContainer.style.display = 'none';
+    
     userProfileWidget.style.display = 'none';
-    authOverlay.classList.add('active');
+    authOverlay.classList.remove('active');
     
     // Reset login fields
     document.getElementById('login-email').value = '';
@@ -2151,9 +2156,22 @@ window.togglePasswordVisibility = function(inputId, iconId) {
     }
 };
 
+window.openAuthModal = function() {
+    authOverlay.classList.add('active');
+};
+
+window.closeAuthModal = function() {
+    authOverlay.classList.remove('active');
+};
+
 function checkUserSession() {
+    const landingPage = document.getElementById('landing-page');
+    const appContainer = document.getElementById('app-container');
+    
     if (!userToken) {
-        authOverlay.classList.add('active');
+        if (landingPage) landingPage.style.display = 'block';
+        if (appContainer) appContainer.style.display = 'none';
+        authOverlay.classList.remove('active');
         userProfileWidget.style.display = 'none';
         return;
     }
@@ -2169,6 +2187,10 @@ function checkUserSession() {
     })
     .then(user => {
         currentUser = user;
+        
+        // Hide landing page, show app dashboard
+        if (landingPage) landingPage.style.display = 'none';
+        if (appContainer) appContainer.style.display = 'block';
         
         // Show profile widget
         userNameDisplay.textContent = user.full_name;

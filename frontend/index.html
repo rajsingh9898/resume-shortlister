@@ -14,7 +14,145 @@
 </head>
 <body>
     <div class="glass-bg"></div>
-    <div class="app-container">
+    <!-- Beautiful landing page -->
+    <div id="landing-page" class="landing-page">
+        <!-- Landing Navbar -->
+        <nav class="landing-nav">
+            <div class="landing-logo">
+                <i class="fa-solid fa-wand-magic-sparkles magic-icon"></i>
+                <span>TalentAI</span>
+            </div>
+            <div class="landing-nav-links">
+                <a href="#features">Features</a>
+                <a href="#workflow">How it Works</a>
+            </div>
+            <div class="landing-nav-actions">
+                <button class="btn secondary-btn landing-login-btn" onclick="openAuthModal()">Sign In</button>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="landing-hero">
+            <div class="hero-content">
+                <div class="hero-badge"><i class="fa-solid fa-bolt"></i> Powered by Hybrid NLP Cosine Models</div>
+                <h1 class="hero-title">Next-Gen AI Resume Shortlisting & Candidate Ranking</h1>
+                <p class="hero-subtitle">TalentAI is a secure enterprise portal designed to automate resume screening using hybrid semantic alignment, structured taxonomy parsing, and bias-aware candidate profiling.</p>
+                <div class="hero-buttons">
+                    <button class="btn primary-btn get-started-btn" onclick="openAuthModal()">Get Started Free <i class="fa-solid fa-arrow-right"></i></button>
+                    <a href="#features" class="btn secondary-btn learn-more-btn">Explore Features</a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <!-- A beautiful mock visual matching the dashboard mockup style -->
+                <div class="visual-card">
+                    <div class="visual-card-header">
+                        <i class="fa-solid fa-circle-check" style="color: var(--success);"></i>
+                        <span class="visual-title">RajResume.pdf</span>
+                        <span class="visual-badge">98.2% Match Score</span>
+                    </div>
+                    <div class="visual-tags">
+                        <span class="tag">Python</span>
+                        <span class="tag">FastAPI</span>
+                        <span class="tag">Machine Learning</span>
+                        <span class="tag">PostgreSQL</span>
+                    </div>
+                    <div class="visual-progress">
+                        <div class="progress-bar-fill" style="width: 98%;"></div>
+                    </div>
+                </div>
+                <div class="visual-card visual-card-offset">
+                    <div class="visual-card-header">
+                        <i class="fa-solid fa-circle-check" style="color: var(--warning);"></i>
+                        <span class="visual-title">Sarah_React_Frontend.docx</span>
+                        <span class="visual-badge">74.5% Match Score</span>
+                    </div>
+                    <div class="visual-tags">
+                        <span class="tag">React.js</span>
+                        <span class="tag">JavaScript</span>
+                        <span class="tag">CSS Grid</span>
+                    </div>
+                    <div class="visual-progress">
+                        <div class="progress-bar-fill" style="width: 74%;"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Section -->
+        <section class="landing-stats">
+            <div class="stat-item">
+                <h3>10x</h3>
+                <p>Faster Candidate Screening</p>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <h3>98%</h3>
+                <p>Semantic Match Precision</p>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <h3>100%</h3>
+                <p>GDPR Compliance & Safety</p>
+            </div>
+        </section>
+
+        <!-- Features Grid Section -->
+        <section id="features" class="landing-features">
+            <h2 class="section-title">High-Performance Enterprise Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <i class="fa-solid fa-microchip feature-icon"></i>
+                    <h3>Hybrid NLP Match Model</h3>
+                    <p>Integrates semantic sentence embeddings with exact term-frequency overlays to balance contextual understanding and critical skill requirements.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fa-solid fa-shield-halved feature-icon"></i>
+                    <h3>Recruiter Bias Auditing</h3>
+                    <p>Features interactive gender, age, and name bias warnings to help organizations maintain clean, diversified, and highly equitable pipelines.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fa-solid fa-database feature-icon"></i>
+                    <h3>Multi-Database Backups</h3>
+                    <p>Export full database snapshots in one click. Safely import backups to synchronize candidate statuses and comments without data loss.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Workflow Section -->
+        <section id="workflow" class="landing-workflow">
+            <h2 class="section-title">Streamlined Hiring Pipeline</h2>
+            <div class="workflow-steps">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <h3>Define Job Parameters</h3>
+                    <p>Paste the job description. The NLP engine instantly extracts required skills, experience, and academic degrees.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <h3>Upload Resumes</h3>
+                    <p>Drag and drop candidate documents (PDF, DOCX, TXT) to parse resume texts in parallel threads.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <h3>Compare & Shortlist</h3>
+                    <p>Filter candidates on-the-fly, update recruiter evaluation notes, and backup your decisions securely.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="landing-cta">
+            <h2>Ready to Transform Your Hiring Workflow?</h2>
+            <p>Access the unified portal now to experience next-generation candidate matching and evaluation.</p>
+            <button class="btn primary-btn get-started-btn-glowing" onclick="openAuthModal()">Enter Portal Now <i class="fa-solid fa-arrow-right-to-bracket"></i></button>
+        </section>
+
+        <footer class="landing-footer">
+            <p>© 2026 TalentAI. Built for Modern Recruiting Operations.</p>
+        </footer>
+    </div>
+
+    <div id="app-container" class="app-container" style="display: none;">
         <!-- Header -->
         <header class="app-header">
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -602,7 +740,8 @@
 
     <!-- Authentication Modal Overlay (Unicorn Silver glassmorphism) -->
     <div id="auth-overlay" class="auth-overlay active">
-        <div class="auth-card">
+        <div class="auth-card" style="position: relative;">
+            <button class="auth-close-btn" onclick="closeAuthModal()" title="Close Portal Login" style="position: absolute; right: 20px; top: 20px; background: none; border: none; color: var(--text-dark); cursor: pointer; font-size: 1.25rem;"><i class="fa-solid fa-xmark"></i></button>
             <div class="auth-header">
                 <h2 class="auth-title">Talent<span>AI</span></h2>
                 <p class="auth-subtitle">AI-Powered Resume Shortlisting Portal</p>

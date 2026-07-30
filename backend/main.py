@@ -126,7 +126,9 @@ def seed_defaults(db: Session):
 async def lifespan(app: FastAPI):
     # Automatically create tables if not present on startup
     try:
-        Base.metadata.create_all(bind=engine)
+        # Only run create_all on startup if using SQLite fallback; PostgreSQL schema is managed via Alembic migrations.
+        if "sqlite" in str(engine.url):
+            Base.metadata.create_all(bind=engine)
     except Exception as e:
         logger.info(f"Database schema initialization skipped or already present: {e}")
     db = SessionLocal()

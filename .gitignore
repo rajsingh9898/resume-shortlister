@@ -17,4 +17,4 @@ backend/secret.key
 # Operating System files
 .DS_Store
 Thumbs.db
-*storage/
+/storage/
