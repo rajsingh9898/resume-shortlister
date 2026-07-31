@@ -1784,6 +1784,7 @@ textarea:focus {
     gap: 10px;
 }
 
+
 .questions-list li {
     background: rgba(128, 128, 128, 0.03);
     border-left: 3px solid var(--primary-color);

@@ -12,8 +12,8 @@ let currentUser = null;
 let userToken = localStorage.getItem('talentai_token') || null;
 
 // Filtering states
-let activeFilterCategory = 'all'; // 'all', 'high', 'mid', 'exp', 'edu', 'shortlisted', 'rejected'
-let activeChartSkillFilter = null; // Filter candidates by specific clicked chart skill bar
+let activeFilterCategory = 'all'; 
+let activeChartSkillFilter = null;
 let activeMatchThreshold = 0; // Filter candidates by minimum score slider
 let activeHistogramFilter = null; // Filter candidates by click on score distribution tier
 
