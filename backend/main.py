@@ -4,7 +4,7 @@ import asyncio
 import datetime
 import io
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status, Request
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -316,6 +316,7 @@ def get_latest_job(db: Session = Depends(get_db), current_user: User = Depends(g
 @limiter.limit("15/minute")
 async def shortlist(
     request: Request,
+    background_tasks: BackgroundTasks,
     jd: str = Form(...), 
     resumes: List[UploadFile] = File(...),
     semantic_weight: float = Form(0.5),
@@ -392,8 +393,23 @@ async def shortlist(
                 "file_path": saved_file_path
             })
             
-        # Dispatch Celery background task
-        task = process_shortlist_task.delay(job.id, resumes_info, semantic_weight, current_user.id)
+        # Dispatch Celery background task (prevent blocking during development Eager fallback)
+        import uuid
+        is_eager = getattr(celery_app.conf, "task_always_eager", False)
+        
+        if is_eager:
+            task_id = f"eager-task-{uuid.uuid4()}"
+            background_tasks.add_task(
+                process_shortlist_task.apply,
+                args=(job.id, resumes_info, semantic_weight, current_user.id),
+                task_id=task_id
+            )
+            # Create a mock task metadata container to supply the ID
+            class MockTask:
+                id = task_id
+            task = MockTask()
+        else:
+            task = process_shortlist_task.delay(job.id, resumes_info, semantic_weight, current_user.id)
         
         # Log to audit log
         audit_log = AuditLog(

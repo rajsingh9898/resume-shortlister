@@ -53,6 +53,7 @@ except Exception as e:
     celery_app.conf.result_backend = "cache+memory://"
     celery_app.conf.task_always_eager = True
     celery_app.conf.task_eager_propagates = True
+    celery_app.conf.task_store_eager_result = True
 
 @celery_app.task(bind=True)
 def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weight: float, user_id: int):
