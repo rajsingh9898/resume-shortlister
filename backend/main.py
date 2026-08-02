@@ -12,6 +12,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from typing import List, Optional
 from concurrent.futures import ThreadPoolExecutor
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 import math
 import json
@@ -139,6 +140,31 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
     yield
+
+import threading
+
+class LocalCandidatesCache:
+    def __init__(self):
+        self._cache = {}
+        self._lock = threading.Lock()
+        
+    def get(self, job_id: int):
+        with self._lock:
+            return self._cache.get(job_id)
+            
+    def set(self, job_id: int, data):
+        with self._lock:
+            self._cache[job_id] = data
+            
+    def invalidate(self, job_id: int):
+        with self._lock:
+            self._cache.pop(job_id, None)
+            
+    def clear(self):
+        with self._lock:
+            self._cache.clear()
+
+candidates_local_cache = LocalCandidatesCache()
 
 limiter = Limiter(key_func=get_remote_address, enabled=(settings.ENVIRONMENT != "development"))
 app = FastAPI(title="AI-Based Resume Shortlisting System", lifespan=lifespan)
@@ -420,6 +446,9 @@ async def shortlist(
         db.add(audit_log)
         db.commit()
         
+        # Invalidate local cache in case re-running or updating candidates
+        candidates_local_cache.invalidate(job.id)
+        
         return {
             "success": True, 
             "task_id": task.id,
@@ -490,88 +519,98 @@ def get_job_candidates(
     if not job:
         raise HTTPException(status_code=404, detail="Job description not found in your organization.")
         
-    # Check cache first
-    cache_key = f"job_candidates:{job_id}:page:{page}:limit:{limit}:filter:{filter or 'none'}:threshold:{threshold}:search:{search or 'none'}:skill:{skill or 'none'}:sw:{semantic_w}:skw:{skills_w}:exw:{experience_w}"
-    if redis_client:
-        try:
-            cached_data = redis_client.get(cache_key)
-            if cached_data:
-                return json.loads(cached_data)
-        except Exception as e:
-            logger.warning(f"Redis cache read failed: {e}")
+    # Check local cache first to serve dynamic weight blending slider changes instantly
+    cached_payload = candidates_local_cache.get(job_id)
+    
+    if cached_payload is None:
+        # Load candidate records, selecting specific columns and only a 400-char substring of Resume.raw_text
+        # to optimize query speed and database network bandwidth.
+        candidates_records = db.query(
+            Candidate, 
+            Score, 
+            Resume.filename,
+            Resume.parsed_skills,
+            func.substr(Resume.raw_text, 1, 400).label("raw_text_snippet"),
+            Evaluation
+        ).select_from(Candidate)\
+            .join(Score, Score.candidate_id == Candidate.id)\
+            .join(Resume, Resume.candidate_id == Candidate.id)\
+            .join(Evaluation, Evaluation.candidate_id == Candidate.id)\
+            .filter(Score.job_id == job_id, Evaluation.job_id == job_id, Candidate.organization_id == current_user.organization_id)\
+            .all()
             
-    # Load candidate records
-    candidates_records = db.query(Candidate, Score, Resume, Evaluation).select_from(Candidate)\
-        .join(Score, Score.candidate_id == Candidate.id)\
-        .join(Resume, Resume.candidate_id == Candidate.id)\
-        .join(Evaluation, Evaluation.candidate_id == Candidate.id)\
-        .filter(Score.job_id == job_id, Evaluation.job_id == job_id, Candidate.organization_id == current_user.organization_id)\
-        .all()
+        # Parse requirement parameters for degree matching check
+        jd_degrees = nlp_engine.parse_education_degrees(job.description)
+        jd_exp = nlp_engine.parse_experience_years(job.description)
+        jd_skills_dict = nlp_engine.extract_skills_from_text(job.description)
         
-    # Parse requirements parameters for degree matching check
-    jd_degrees = nlp_engine.parse_education_degrees(job.description)
-    jd_exp = nlp_engine.parse_experience_years(job.description)
-    jd_skills_dict = nlp_engine.extract_skills_from_text(job.description)
+        jd_skills = []
+        for cat_skills in jd_skills_dict.values():
+            jd_skills.extend(cat_skills)
+        jd_skills_set = set(jd_skills)
+        
+        cached_records = []
+        for cand, score, resume_filename, resume_parsed_skills, raw_text_snippet, evaluation in candidates_records:
+            candidate_degrees = cand.degrees or []
+            degree_match = len(set(jd_degrees).intersection(set(candidate_degrees))) > 0 if jd_degrees else True
+            
+            # Read pre-calculated and cached scores directly from Score model
+            skills_score = score.skills_score
+            experience_score = score.experience_score
+            matched_skills = score.matched_skills or []
+            missing_skills = score.missing_skills or []
+            
+            cached_records.append({
+                "cand_id": cand.id,
+                "filename": resume_filename,
+                "cosine_score": score.cosine_score,
+                "skills_score": skills_score,
+                "experience_score": experience_score,
+                "matched_skills": matched_skills,
+                "missing_skills": missing_skills,
+                "all_extracted_skills": resume_parsed_skills or {},
+                "candidate_exp": cand.experience_years,
+                "experience_confidence": cand.experience_confidence,
+                "candidate_degrees": candidate_degrees,
+                "degrees_confidence": cand.degrees_confidence,
+                "degree_match": degree_match,
+                "soft_traits": cand.soft_traits or [],
+                "status": evaluation.status,
+                "notes": evaluation.comments or "",
+                "snippet": (raw_text_snippet or "") + ("..." if raw_text_snippet and len(raw_text_snippet) >= 400 else "")
+            })
+        cached_payload = (jd_exp, jd_skills_set, jd_degrees, cached_records)
+        candidates_local_cache.set(job_id, cached_payload)
+        
+    jd_exp, jd_skills_set, jd_degrees, cached_list = cached_payload
     
-    jd_skills = []
-    for cat_skills in jd_skills_dict.values():
-        jd_skills.extend(cat_skills)
-    jd_skills_set = set(jd_skills)
-    
-    # Parse candidates list
+    # Calculate dynamic final scores based on current weight blend configurations
     all_candidates = []
-    for cand, score, resume, evaluation in candidates_records:
-        candidate_degrees = cand.degrees or []
-        degree_match = len(set(jd_degrees).intersection(set(candidate_degrees))) > 0 if jd_degrees else True
-        
-        # Calculate dynamic skills score
-        candidate_skills_list = []
-        for cat_skills in (resume.parsed_skills or {}).values():
-            candidate_skills_list.extend(cat_skills)
-        candidate_skills_set = set(candidate_skills_list)
-        
-        matched_skills = sorted(list(jd_skills_set.intersection(candidate_skills_set)))
-        missing_skills = sorted(list(jd_skills_set.difference(candidate_skills_set)))
-        
-        if len(jd_skills_set) > 0:
-            skills_score = (len(matched_skills) / len(jd_skills_set)) * 100.0
-        else:
-            skills_score = 100.0
-            
-        # Calculate dynamic experience score
-        if jd_exp > 0.0:
-            if cand.experience_years >= jd_exp:
-                experience_score = 100.0
-            else:
-                experience_score = (cand.experience_years / jd_exp) * 100.0
-        else:
-            experience_score = 100.0
-            
-        # Calculate dynamic final score
-        final_score = (score.cosine_score * semantic_w / 100.0) + \
-                      (skills_score * skills_w / 100.0) + \
-                      (experience_score * experience_w / 100.0)
+    for c in cached_list:
+        final_score = (c["cosine_score"] * semantic_w / 100.0) + \
+                      (c["skills_score"] * skills_w / 100.0) + \
+                      (c["experience_score"] * experience_w / 100.0)
         final_score = round(final_score, 1)
         
         cand_dict = {
-            "id": cand.id,
-            "filename": resume.filename,
+            "id": c["cand_id"],
+            "filename": c["filename"],
             "score": final_score,
-            "cosine_score": score.cosine_score,
-            "skills_score": skills_score,
-            "experience_score": experience_score,
-            "matched_skills": matched_skills,
-            "missing_skills": missing_skills,
-            "all_extracted_skills": resume.parsed_skills or {},
-            "candidate_exp": cand.experience_years,
-            "experience_confidence": cand.experience_confidence,
-            "candidate_degrees": candidate_degrees,
-            "degrees_confidence": cand.degrees_confidence,
-            "degree_match": degree_match,
-            "soft_traits": cand.soft_traits or [],
-            "status": evaluation.status,
-            "notes": evaluation.comments or "",
-            "snippet": resume.raw_text[:400] + ("..." if len(resume.raw_text) > 400 else "")
+            "cosine_score": c["cosine_score"],
+            "skills_score": c["skills_score"],
+            "experience_score": c["experience_score"],
+            "matched_skills": c["matched_skills"],
+            "missing_skills": c["missing_skills"],
+            "all_extracted_skills": c["all_extracted_skills"],
+            "candidate_exp": c["candidate_exp"],
+            "experience_confidence": c["experience_confidence"],
+            "candidate_degrees": c["candidate_degrees"],
+            "degrees_confidence": c["degrees_confidence"],
+            "degree_match": c["degree_match"],
+            "soft_traits": c["soft_traits"],
+            "status": c["status"],
+            "notes": c["notes"],
+            "snippet": c["snippet"]
         }
         all_candidates.append(cand_dict)
         
@@ -792,6 +831,9 @@ def update_evaluation(
         db.add(log)
         db.commit()
         
+        # Invalidate local memory cache for this job context
+        candidates_local_cache.invalidate(job_id)
+        
         # Invalidate Redis cache for this job
         if redis_client:
             try:
@@ -905,6 +947,9 @@ def import_backup(
         db.add(log)
         db.commit()
         
+        # Invalidate local memory cache completely
+        candidates_local_cache.clear()
+        
         # Invalidate Redis cache
         if redis_client:
             try:
@@ -932,6 +977,7 @@ def delete_job(
         raise HTTPException(status_code=404, detail="Job not found in your organization.")
     db.delete(job)
     db.commit()
+    candidates_local_cache.invalidate(job_id)
     return {"success": True, "message": "Job deleted successfully."}
 
 @app.delete("/api/candidates/{candidate_id}")
@@ -966,6 +1012,9 @@ def delete_candidate(
     )
     db.add(audit)
     db.commit()
+    
+    # Invalidate local memory cache completely
+    candidates_local_cache.clear()
     
     # Invalidate Redis cache
     if redis_client:

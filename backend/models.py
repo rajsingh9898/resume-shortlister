@@ -28,7 +28,7 @@ class User(Base):
     full_name = Column(String(100), nullable=False)
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(50), default="Recruiter", nullable=False)
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     organization = relationship("Organization", back_populates="users")
@@ -42,7 +42,7 @@ class Job(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     organization = relationship("Organization", back_populates="jobs")
@@ -63,7 +63,7 @@ class Candidate(Base):
     consent_given = Column(Boolean, default=True, nullable=False)
     experience_confidence = Column(Float, default=1.0, nullable=False)
     degrees_confidence = Column(Float, default=1.0, nullable=False)
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     organization = relationship("Organization", back_populates="candidates")
@@ -92,8 +92,8 @@ class Score(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
-    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
-    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=False)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False, index=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=False, index=True)
     match_score = Column(Float, nullable=False)
     cosine_score = Column(Float, nullable=False)
     skills_score = Column(Float, nullable=False)
@@ -111,8 +111,8 @@ class Evaluation(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
-    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
-    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=False)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False, index=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=False, index=True)
     status = Column(String(50), default="Under Review", nullable=False)
     comments = Column(Text, default="", nullable=True)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
