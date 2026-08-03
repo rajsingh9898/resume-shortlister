@@ -1,7 +1,17 @@
 import io
 import re
 import os
-import json
+
+_compiled_regex_cache = {}
+
+def get_compiled_regex(pattern: str):
+    global _compiled_regex_cache
+    regex = _compiled_regex_cache.get(pattern)
+    if regex is None:
+        regex = re.compile(pattern)
+        _compiled_regex_cache[pattern] = regex
+    return regex
+
 
 try:
     from backend.logger import logger
@@ -156,7 +166,7 @@ def extract_text(filename: str, file_bytes: bytes) -> str:
 
 def preprocess_text(text: str) -> str:
     text = text.lower()
-    words = re.findall(r'\b[a-z0-9#\+\-\.]+\b', text)
+    words = get_compiled_regex(r'\b[a-z0-9#\+\-\.]+\b').findall(text)
     cleaned = [w for w in words if w not in STOPWORDS and len(w) > 1]
     return " ".join(cleaned)
 
@@ -176,7 +186,7 @@ def parse_experience_years_with_confidence(text: str) -> tuple:
     ]
     
     for pattern in patterns_high:
-        matches = re.findall(pattern, text_lower)
+        matches = get_compiled_regex(pattern).findall(text_lower)
         for m in matches:
             try:
                 val = float(m)
@@ -186,7 +196,7 @@ def parse_experience_years_with_confidence(text: str) -> tuple:
                 pass
                 
     for pattern in patterns_low:
-        matches = re.findall(pattern, text_lower)
+        matches = get_compiled_regex(pattern).findall(text_lower)
         for m in matches:
             try:
                 val = float(m)
@@ -237,7 +247,7 @@ def parse_education_degrees_with_confidence(text: str) -> tuple:
             pattern = r'\b' + re.escape(term) + r'\b'
             if term.endswith('.'):
                 pattern = r'\b' + re.escape(term)
-            if re.search(pattern, text_lower):
+            if get_compiled_regex(pattern).search(text_lower):
                 if deg_type not in degrees:
                     degrees.append(deg_type)
                     matched_high = True
@@ -248,7 +258,7 @@ def parse_education_degrees_with_confidence(text: str) -> tuple:
             continue
         for term in terms:
             pattern = r'\b' + re.escape(term) + r'\b'
-            if re.search(pattern, text_lower):
+            if get_compiled_regex(pattern).search(text_lower):
                 if deg_type not in degrees:
                     degrees.append(deg_type)
                 break
@@ -261,11 +271,11 @@ def parse_education_degrees_with_confidence(text: str) -> tuple:
         confidence = 0.95
         
     return degrees, confidence
-
+ 
 def parse_education_degrees(text: str) -> list:
     degrees, _ = parse_education_degrees_with_confidence(text)
     return degrees
-
+ 
 def parse_soft_traits(text: str) -> list:
     text_lower = text.lower()
     traits = []
@@ -276,11 +286,11 @@ def parse_soft_traits(text: str) -> list:
     }
     for trait, patterns in trait_patterns.items():
         for pat in patterns:
-            if re.search(pat, text_lower):
+            if get_compiled_regex(pat).search(text_lower):
                 traits.append(trait)
                 break
     return traits
-
+ 
 def extract_skills_from_text(text: str) -> dict:
     text_lower = text.lower()
     extracted = {}
@@ -293,7 +303,7 @@ def extract_skills_from_text(text: str) -> dict:
             else:
                 pattern = r'\b' + skill + r'\b'
                 
-            if re.search(pattern, text_lower):
+            if get_compiled_regex(pattern).search(text_lower):
                 clean_name = skill.replace("\\", "")
                 
                 if clean_name == "nextjs":
@@ -373,7 +383,7 @@ def check_skill_match_raw(jd_skill: str, candidate_text: str, candidate_skills: 
         else:
             pattern = r'\b' + re.escape(alias.lower()) + r'\b'
             
-        if re.search(pattern, text_lower):
+        if get_compiled_regex(pattern).search(text_lower):
             return True
             
     return False
@@ -523,7 +533,7 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
         formatting_flags = []
         for r in resumes:
             txt = r['raw_text']
-            special_count = len(re.findall(r'[^a-zA-Z0-9\s]', txt))
+            special_count = len(get_compiled_regex(r'[^a-zA-Z0-9\s]').findall(txt))
             total_count = len(txt) if len(txt) > 0 else 1
             ratio = special_count / total_count
             if ratio > 0.15 or len(txt) < 200:

@@ -922,9 +922,13 @@ function renderCandidatesList(candidates) {
     });
 }
 
-/* Local Filter Input Listener */
+/* Local Filter Input Listener with 300ms Search Debounce */
+let searchDebounceTimeout = null;
 searchCandidate.addEventListener('input', () => {
-    applyCandidatesFiltering();
+    if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
+    searchDebounceTimeout = setTimeout(() => {
+        applyCandidatesFiltering();
+    }, 300);
 });
 
 /* Toggle Quick Filter Badges */
