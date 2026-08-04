@@ -746,6 +746,25 @@ def get_job_candidates(
             
     return response_data
 
+@app.get("/api/candidates/{candidate_id}/resume-text")
+@limiter.limit("30/minute")
+def get_candidate_resume_text(
+    request: Request,
+    candidate_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Verify candidate belongs to user's org
+    candidate = db.query(Candidate).filter_by(id=candidate_id, organization_id=current_user.organization_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found in your organization.")
+        
+    resume = db.query(Resume).filter_by(candidate_id=candidate.id).first()
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found for this candidate.")
+        
+    return {"raw_text": resume.raw_text}
+
 @app.post("/api/evaluation/update")
 @limiter.limit("30/minute")
 def update_evaluation(

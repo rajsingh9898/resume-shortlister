@@ -123,6 +123,11 @@ const detailConsList = document.getElementById('detail-cons-list');
 // Soft Skills & Traits (Phase 8)
 const detailSoftTraits = document.getElementById('detail-soft-traits');
 
+// On-demand Full Resume Text elements
+const btnToggleResumeText = document.getElementById('btn-toggle-resume-text');
+const fullResumeTextContainer = document.getElementById('full-resume-text-container');
+const detailFullResumeText = document.getElementById('detail-full-resume-text');
+
 // SVG Donut Rings DOM
 const donutSegmentLanguages = document.getElementById('donut-segment-languages');
 const donutSegmentFrameworks = document.getElementById('donut-segment-frameworks');
@@ -1705,6 +1710,11 @@ function openDrawer(candidate, rank) {
     cName.textContent = candidate.filename;
     cName.title = candidate.filename;
     
+    // Reset on-demand full resume text viewer
+    if (fullResumeTextContainer) fullResumeTextContainer.style.display = 'none';
+    if (btnToggleResumeText) btnToggleResumeText.innerHTML = '<i class="fa-solid fa-eye"></i> Show Full Resume Text';
+    if (detailFullResumeText) detailFullResumeText.textContent = '';
+    
     // Set match percentage circle
     detailScore.textContent = `${candidate.score}%`;
     const ringRadius = 42;
@@ -2261,3 +2271,55 @@ function applyRolePermissions() {
 
 // Check user status upon script load
 checkUserSession();
+
+// Local cache for candidate resume texts to prevent redundant API queries
+const candidateResumeTextCache = {};
+
+if (btnToggleResumeText) {
+    btnToggleResumeText.addEventListener('click', () => {
+        if (!currentDrawerCandidate) return;
+        
+        const isCollapsed = fullResumeTextContainer.style.display === 'none';
+        
+        if (isCollapsed) {
+            // Expand the container
+            fullResumeTextContainer.style.display = 'block';
+            btnToggleResumeText.innerHTML = '<i class="fa-solid fa-eye-slash"></i> Hide Resume Text';
+            
+            const candId = currentDrawerCandidate.id;
+            
+            // Check cache first
+            if (candidateResumeTextCache[candId]) {
+                detailFullResumeText.textContent = candidateResumeTextCache[candId];
+            } else {
+                detailFullResumeText.textContent = 'Loading full parsed resume text...';
+                
+                fetch(`/api/candidates/${candId}/resume-text`, {
+                    headers: {
+                        'Authorization': `Bearer ${userToken}`
+                    }
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error("Could not retrieve resume text.");
+                    return res.json();
+                })
+                .then(data => {
+                    const text = data.raw_text || "No text content found in this resume.";
+                    candidateResumeTextCache[candId] = text;
+                    // Make sure the candidate hasn't changed while downloading
+                    if (currentDrawerCandidate && currentDrawerCandidate.id === candId) {
+                        detailFullResumeText.textContent = text;
+                    }
+                })
+                .catch(err => {
+                    console.error("Resume text load failed:", err);
+                    detailFullResumeText.textContent = "Error: Failed to load full parsed resume text.";
+                });
+            }
+        } else {
+            // Collapse the container
+            fullResumeTextContainer.style.display = 'none';
+            btnToggleResumeText.innerHTML = '<i class="fa-solid fa-eye"></i> Show Full Resume Text';
+        }
+    });
+}
