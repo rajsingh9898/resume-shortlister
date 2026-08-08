@@ -9,12 +9,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from backend.database import SessionLocal
-    from backend.models import Job, Candidate, Resume, Score, Evaluation, AuditLog
+    from backend.models import Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle
     from backend import nlp_engine
     from backend.encryption import decrypt_data
 except ImportError:
     from database import SessionLocal
-    from models import Job, Candidate, Resume, Score, Evaluation, AuditLog
+    from models import Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle
     import nlp_engine
     from encryption import decrypt_data
 
@@ -44,7 +44,7 @@ celery_app.conf.update(
 
 try:
     import redis
-    r = redis.Redis.from_url(REDIS_URL)
+    r = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=0.5, socket_timeout=0.5)
     r.ping()
     logger.info("Celery broker connected to Redis successfully.")
 except Exception as e:
@@ -55,10 +55,19 @@ except Exception as e:
     celery_app.conf.task_eager_propagates = True
     celery_app.conf.task_store_eager_result = True
 
-@celery_app.task(bind=True)
+@celery_app.task(bind=True, max_retries=3)
 def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weight: float, user_id: int):
     """Asynchronously parses and ranks candidate resumes for a given Job ID."""
     db = SessionLocal()
+    
+    # 1. Update task lifecycle status to running
+    if self.request.id:
+        lifecycle = db.query(TaskLifecycle).filter_by(task_id=self.request.id).first()
+        if lifecycle:
+            lifecycle.status = "running"
+            lifecycle.retry_count = self.request.retries
+            db.commit()
+            
     try:
         # Load the Job context
         job = db.query(Job).filter_by(id=job_id).first()
@@ -206,7 +215,7 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
         # Clear any cached lookups for this job ID
         try:
             import redis
-            redis_client = redis.Redis.from_url(REDIS_URL)
+            redis_client = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=0.5, socket_timeout=0.5)
             # Find and delete cached pages
             keys = redis_client.keys(f"job_candidates:{job_id}:*")
             if keys:
@@ -214,10 +223,38 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
         except Exception as e:
             logger.warning(f"Redis invalidation failed during task: {e}")
             
+        # Update lifecycle status to success
+        if self.request.id:
+            lifecycle = db.query(TaskLifecycle).filter_by(task_id=self.request.id).first()
+            if lifecycle:
+                lifecycle.status = "success"
+                db.commit()
+                
         return {"success": True, "job_id": job.id}
-    except Exception as e:
+    except Exception as exc:
         db.rollback()
-        logger.exception(f"Exception inside process_shortlist_task: {str(e)}")
-        return {"error": f"Task execution failed: {str(e)}"}
+        # Calculate backoff delay: 10 * (2 ** retries)
+        backoff_delay = 10 * (2 ** self.request.retries)
+        
+        if self.request.retries < self.max_retries:
+            logger.warning(f"Task {self.request.id} failed, retrying in {backoff_delay}s. Error: {exc}")
+            if self.request.id:
+                lifecycle = db.query(TaskLifecycle).filter_by(task_id=self.request.id).first()
+                if lifecycle:
+                    lifecycle.status = "queued" # Set back to queued/pending for retry
+                    lifecycle.retry_count = self.request.retries + 1
+                    lifecycle.error_message = f"Retry {self.request.retries + 1}: {str(exc)}"
+                    db.commit()
+            raise self.retry(exc=exc, countdown=backoff_delay)
+        else:
+            # Dead-letter handling: Max retries exceeded
+            logger.error(f"Task {self.request.id} failed permanently after {self.request.retries} retries: {exc}")
+            if self.request.id:
+                lifecycle = db.query(TaskLifecycle).filter_by(task_id=self.request.id).first()
+                if lifecycle:
+                    lifecycle.status = "failed"
+                    lifecycle.error_message = f"Failed permanently after max retries. Error: {str(exc)}"
+                    db.commit()
+            raise exc
     finally:
         db.close()

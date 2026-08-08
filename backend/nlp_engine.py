@@ -1,6 +1,7 @@
 import io
 import re
 import os
+import json
 
 _compiled_regex_cache = {}
 

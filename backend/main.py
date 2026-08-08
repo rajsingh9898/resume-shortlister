@@ -32,7 +32,7 @@ except ImportError:
 # Redis Caching Setup
 REDIS_URL = settings.REDIS_URL
 try:
-    redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+    redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True, socket_connect_timeout=0.5, socket_timeout=0.5)
     # Check connectivity
     redis_client.ping()
     logger.info("Connected to Redis for caching successfully.")
@@ -67,12 +67,12 @@ except ImportError:
 # Import database, models and authentication
 try:
     from backend.database import get_db, Base, engine, SessionLocal
-    from backend.models import Organization, User, Job, Candidate, Resume, Score, Evaluation, AuditLog
+    from backend.models import Organization, User, Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle
     from backend import nlp_engine
     from backend.auth import get_password_hash, verify_password, create_access_token, get_current_user, require_role
 except ImportError:
     from database import get_db, Base, engine, SessionLocal
-    from models import Organization, User, Job, Candidate, Resume, Score, Evaluation, AuditLog
+    from models import Organization, User, Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle
     import nlp_engine
     from auth import get_password_hash, verify_password, create_access_token, get_current_user, require_role
 
@@ -127,9 +127,17 @@ def seed_defaults(db: Session):
 async def lifespan(app: FastAPI):
     # Automatically create tables if not present on startup
     try:
-        # Only run create_all on startup if using SQLite fallback; PostgreSQL schema is managed via Alembic migrations.
-        if "sqlite" in str(engine.url):
+        # Check if direct URL is available for pgBouncer-safe PostgreSQL DDL on port 5432
+        import os
+        direct_url = os.getenv("DIRECT_URL")
+        if direct_url:
+            from sqlalchemy import create_engine as ddl_create_engine
+            ddl_engine = ddl_create_engine(direct_url)
+            Base.metadata.create_all(bind=ddl_engine)
+            logger.info("Database schema initialized/checked on PostgreSQL using DIRECT_URL.")
+        elif "sqlite" in str(engine.url):
             Base.metadata.create_all(bind=engine)
+            logger.info("Database schema initialized/checked on local SQLite fallback.")
     except Exception as e:
         logger.info(f"Database schema initialization skipped or already present: {e}")
     db = SessionLocal()
@@ -362,34 +370,34 @@ async def shortlist(
         # 2. Validate all files for size, extension, and corruption before parsing
         for idx, res in enumerate(resumes):
             validate_upload_file(res.filename, file_contents[idx])
-        
-        # 3. Concurrently extract text from files offloaded to thread executor (Parallel CPU operations)
-        loop = asyncio.get_running_loop()
-        parse_tasks = []
-        for idx, res in enumerate(resumes):
-            task = loop.run_in_executor(
-                executor, 
-                parse_document_sync, 
-                res.filename, 
-                file_contents[idx]
-            )
-            parse_tasks.append(task)
             
-        parsed_texts = await asyncio.gather(*parse_tasks)
+        # 3. Compute SHA-256 Idempotency Key
+        import hashlib
+        hasher = hashlib.sha256()
+        hasher.update(jd.encode("utf-8"))
+        for content in file_contents:
+            hasher.update(content)
+        idempotency_key = hasher.hexdigest()
         
-        # Assemble resume data structure
-        resume_data = []
-        for idx, res in enumerate(resumes):
-            resume_data.append({
-                "filename": res.filename,
-                "raw_text": parsed_texts[idx]
-            })
-            
+        # Check if a task is already processing/finished for this idempotency key
+        existing_lifecycle = db.query(TaskLifecycle).filter_by(idempotency_key=idempotency_key).first()
+        if existing_lifecycle:
+            if existing_lifecycle.status in ["queued", "running", "success"]:
+                logger.info(f"Duplicate request detected. Reusing existing task: {existing_lifecycle.task_id}")
+                return {
+                    "success": True,
+                    "task_id": existing_lifecycle.task_id,
+                    "job_id": existing_lifecycle.job_id
+                }
+            elif existing_lifecycle.status == "failed":
+                db.delete(existing_lifecycle)
+                db.commit()
+                
     except HTTPException:
         # Re-raise file validation HTTP exceptions directly
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Concurrently reading/parsing documents failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Concurrently reading documents failed: {str(e)}")
             
     try:
         # Save Job record under active tenant (pending background computations)
@@ -419,23 +427,36 @@ async def shortlist(
                 "file_path": saved_file_path
             })
             
-        # Dispatch Celery background task (prevent blocking during development Eager fallback)
+        # Generate custom unique Task ID upfront to persist in database lifecycle tracker
         import uuid
-        is_eager = getattr(celery_app.conf, "task_always_eager", False)
+        task_id = str(uuid.uuid4())
         
+        # Persist task lifecycle record as 'queued'
+        lifecycle = TaskLifecycle(
+            task_id=task_id,
+            job_id=job.id,
+            status="queued",
+            idempotency_key=idempotency_key
+        )
+        db.add(lifecycle)
+        db.commit()
+            
+        # Dispatch Celery background task
+        is_eager = getattr(celery_app.conf, "task_always_eager", False)
         if is_eager:
-            task_id = f"eager-task-{uuid.uuid4()}"
             background_tasks.add_task(
                 process_shortlist_task.apply,
                 args=(job.id, resumes_info, semantic_weight, current_user.id),
                 task_id=task_id
             )
-            # Create a mock task metadata container to supply the ID
             class MockTask:
                 id = task_id
             task = MockTask()
         else:
-            task = process_shortlist_task.delay(job.id, resumes_info, semantic_weight, current_user.id)
+            task = process_shortlist_task.apply_async(
+                args=(job.id, resumes_info, semantic_weight, current_user.id),
+                task_id=task_id
+            )
         
         # Log to audit log
         audit_log = AuditLog(
@@ -461,38 +482,64 @@ async def shortlist(
 
 @app.get("/api/tasks/{task_id}")
 @limiter.limit("60/minute")
-def get_task_status(request: Request, task_id: str, current_user: User = Depends(get_current_user)):
+def get_task_status(
+    request: Request, 
+    task_id: str, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     from celery.result import AsyncResult
     from celery.backends.base import DisabledBackend
-    res = AsyncResult(task_id)
     
-    if isinstance(res.backend, DisabledBackend):
-        state = "SUCCESS"
-        info = {}
+    # Query lifecycle tracker table first
+    lifecycle = db.query(TaskLifecycle).filter_by(task_id=task_id).first()
+    
+    if lifecycle:
+        state_map = {
+            "queued": "PENDING",
+            "running": "PROGRESS",
+            "success": "SUCCESS",
+            "failed": "FAILURE"
+        }
+        state = state_map.get(lifecycle.status, "PENDING")
+        error_msg = lifecycle.error_message
     else:
-        try:
-            state = res.state
-            info = res.info or {}
-        except AttributeError:
+        # Fallback to Celery Result Backend query
+        res = AsyncResult(task_id)
+        if isinstance(res.backend, DisabledBackend):
             state = "SUCCESS"
-            info = {}
-    
-    # Format response cleanly
+        else:
+            try:
+                state = res.state
+            except AttributeError:
+                state = "SUCCESS"
+        error_msg = None
+        
     response = {
         "task_id": task_id,
-        "status": state, # PENDING, PROGRESS, SUCCESS, FAILURE
+        "status": state,
         "progress": 0.0,
-        "files": {}
+        "files": {},
+        "retry_count": lifecycle.retry_count if lifecycle else 0
     }
     
-    if state == "PROGRESS":
-        response["progress"] = info.get("progress", 0.0)
-        response["files"] = info.get("files", {})
+    if error_msg:
+        response["error"] = error_msg
+        
+    # If task is still pending or running, query Celery result store for live progress percentage updates
+    if state in ["PENDING", "PROGRESS"]:
+        res = AsyncResult(task_id)
+        try:
+            info = res.info or {}
+            response["progress"] = info.get("progress", 0.0)
+            response["files"] = info.get("files", {})
+            if res.state == "FAILURE":
+                response["status"] = "FAILURE"
+                response["error"] = str(info)
+        except Exception:
+            pass
     elif state == "SUCCESS":
         response["progress"] = 1.0
-        response["result"] = info
-    elif state == "FAILURE":
-        response["error"] = str(info)
         
     return response
 

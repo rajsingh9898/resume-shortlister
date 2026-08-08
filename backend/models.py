@@ -132,3 +132,19 @@ class AuditLog(Base):
     details = Column(Text, nullable=True)
 
     user = relationship("User", back_populates="audit_logs")
+
+
+class TaskLifecycle(Base):
+    __tablename__ = "task_lifecycles"
+    __table_args__ = {"extend_existing": True}
+
+    task_id = Column(String(255), primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String(50), default="queued", nullable=False, index=True)
+    idempotency_key = Column(String(255), unique=True, nullable=True, index=True)
+    retry_count = Column(Integer, default=0, nullable=False)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    job = relationship("Job")

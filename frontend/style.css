@@ -843,15 +843,13 @@ textarea:focus {
 }
 
 .secondary-btn {
-    width: 40px;
-    height: 36px;
-    padding: 0;
+    padding: 8px 16px;
     background: var(--textarea-bg);
     border: 1px solid var(--textarea-border);
     color: var(--text-primary);
     cursor: pointer;
     border-radius: 8px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     transition: all var(--transition-speed);
@@ -860,6 +858,13 @@ textarea:focus {
 .secondary-btn:hover {
     background: var(--panel-bg);
     border-color: var(--primary-color);
+}
+
+#add-skill-btn {
+    width: 40px;
+    height: 36px;
+    padding: 0;
+    flex-shrink: 0;
 }
 
 /* Match Score Histogram Bins */
