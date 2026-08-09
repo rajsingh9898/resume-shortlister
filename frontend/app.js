@@ -185,7 +185,7 @@ resumeInput.addEventListener('change', (e) => {
 });
 
 function handleFiles(files) {
-    const maxFiles = 15;
+    const maxFiles = 50;
     if (selectedFiles.length + files.length > maxFiles) {
         showToast(`You can upload a maximum of ${maxFiles} resumes at a time.`, 'error');
         return;
@@ -1841,6 +1841,47 @@ function openDrawer(candidate, rank) {
 
     detailExperienceScore.textContent = `${candidate.experience_score.toFixed(1)}%`;
     detailExperienceBar.style.width = `${candidate.experience_score}%`;
+
+    // Populate explainability and version
+    const detailModelVersion = document.getElementById('detail-model-version');
+    const explainHighList = document.getElementById('explain-high-list');
+    const explainLowList = document.getElementById('explain-low-list');
+    const explainHighBlock = document.getElementById('explain-high-block');
+    const explainLowBlock = document.getElementById('explain-low-block');
+    
+    if (detailModelVersion) {
+        detailModelVersion.textContent = candidate.model_version || 'v2.1.0';
+    }
+    
+    const explain = candidate.explainability || { reasons_high: [], reasons_low: [] };
+    
+    if (explainHighList) {
+        explainHighList.innerHTML = '';
+        if (explain.reasons_high && explain.reasons_high.length > 0) {
+            if (explainHighBlock) explainHighBlock.style.display = 'block';
+            explain.reasons_high.forEach(reason => {
+                const li = document.createElement('li');
+                li.textContent = reason;
+                explainHighList.appendChild(li);
+            });
+        } else {
+            if (explainHighBlock) explainHighBlock.style.display = 'none';
+        }
+    }
+    
+    if (explainLowList) {
+        explainLowList.innerHTML = '';
+        if (explain.reasons_low && explain.reasons_low.length > 0) {
+            if (explainLowBlock) explainLowBlock.style.display = 'block';
+            explain.reasons_low.forEach(reason => {
+                const li = document.createElement('li');
+                li.textContent = reason;
+                explainLowList.appendChild(li);
+            });
+        } else {
+            if (explainLowBlock) explainLowBlock.style.display = 'none';
+        }
+    }
 
     // Experience Card metrics
     detailReqExp.textContent = jdExperienceRequired > 0 ? `${jdExperienceRequired} Years` : '0 Years (None)';

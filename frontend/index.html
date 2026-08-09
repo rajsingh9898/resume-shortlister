@@ -212,7 +212,7 @@
                             <div id="dropzone" class="dropzone">
                                 <i class="fa-solid fa-cloud-arrow-up cloud-icon"></i>
                                 <p class="dropzone-text">Drag & drop files here or <span>browse files</span></p>
-                                <p class="dropzone-sub">Supports PDF, DOCX, TXT (Max 15 files)</p>
+                                <p class="dropzone-sub">Supports PDF, DOCX, TXT (Max 50 files)</p>
                                 <input type="file" id="resume-input" name="resumes" multiple accept=".pdf,.docx,.doc,.txt" style="display: none;">
                             </div>
                             <!-- Uploaded Files List -->
@@ -584,6 +584,21 @@
                     <h3><i class="fa-solid fa-wand-magic-sparkles"></i> AI Candidate Fit Verdict</h3>
                     <div class="ai-verdict-card">
                         <p id="detail-ai-verdict-text">Analyzing match metrics...</p>
+                        
+                        <!-- Explainability Reasons and version -->
+                        <div id="explainability-container" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px; font-size: 0.8rem;">
+                            <span class="text-secondary" style="font-size: 0.75rem; display: block; margin-bottom: 8px; color: rgba(255,255,255,0.5);">Scoring Engine: <strong id="detail-model-version" style="color: var(--primary-color);">v2.1.0</strong></span>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <div id="explain-high-block">
+                                    <strong style="color: #4ade80; display: block; margin-bottom: 4px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-check-double"></i> Match Indicators</strong>
+                                    <ul id="explain-high-list" style="margin: 0; padding-left: 18px; color: rgba(255,255,255,0.85); display: flex; flex-direction: column; gap: 4px;"></ul>
+                                </div>
+                                <div id="explain-low-block">
+                                    <strong style="color: #f87171; display: block; margin-bottom: 4px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-triangle-exclamation"></i> Optimization Flags</strong>
+                                    <ul id="explain-low-list" style="margin: 0; padding-left: 18px; color: rgba(255,255,255,0.85); display: flex; flex-direction: column; gap: 4px;"></ul>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

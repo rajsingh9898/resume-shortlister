@@ -129,6 +129,31 @@ def seed_defaults(db: Session):
         
     db.commit()
 
+def run_schema_migrations(engine_to_migrate):
+    from sqlalchemy import inspect, text
+    try:
+        inspector = inspect(engine_to_migrate)
+        columns = [c['name'] for c in inspector.get_columns('scores')]
+        
+        with engine_to_migrate.begin() as conn:
+            if 'model_version' not in columns:
+                try:
+                    conn.execute(text("ALTER TABLE scores ADD COLUMN model_version VARCHAR(50)"))
+                    logger.info("Migrated database: added 'model_version' column to 'scores' table.")
+                except Exception as e:
+                    logger.warning(f"Failed to add model_version column: {e}")
+                    
+            if 'explainability' not in columns:
+                try:
+                    dialect = engine_to_migrate.dialect.name
+                    col_type = "JSON" if dialect == "postgresql" else "TEXT"
+                    conn.execute(text(f"ALTER TABLE scores ADD COLUMN explainability {col_type}"))
+                    logger.info("Migrated database: added 'explainability' column to 'scores' table.")
+                except Exception as e:
+                    logger.warning(f"Failed to add explainability column: {e}")
+    except Exception as e:
+        logger.warning(f"Dynamic database migration failed: {e}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Automatically create tables if not present on startup
@@ -140,9 +165,11 @@ async def lifespan(app: FastAPI):
             from sqlalchemy import create_engine as ddl_create_engine
             ddl_engine = ddl_create_engine(direct_url)
             Base.metadata.create_all(bind=ddl_engine)
+            run_schema_migrations(ddl_engine)
             logger.info("Database schema initialized/checked on PostgreSQL using DIRECT_URL.")
         elif "sqlite" in str(engine.url):
             Base.metadata.create_all(bind=engine)
+            run_schema_migrations(engine)
             logger.info("Database schema initialized/checked on local SQLite fallback.")
     except Exception as e:
         logger.info(f"Database schema initialization skipped or already present: {e}")
@@ -642,6 +669,17 @@ def get_job_candidates(
             matched_skills = score.matched_skills or []
             missing_skills = score.missing_skills or []
             
+            def parse_json_field(val):
+                if not val:
+                    return {"reasons_high": [], "reasons_low": []}
+                if isinstance(val, dict):
+                    return val
+                try:
+                    import json
+                    return json.loads(val)
+                except Exception:
+                    return {"reasons_high": [], "reasons_low": []}
+
             cached_records.append({
                 "cand_id": cand.id,
                 "filename": resume_filename,
@@ -659,6 +697,8 @@ def get_job_candidates(
                 "soft_traits": cand.soft_traits or [],
                 "status": evaluation.status,
                 "notes": evaluation.comments or "",
+                "model_version": getattr(score, "model_version", "v1.0.0") or "v1.0.0",
+                "explainability": parse_json_field(getattr(score, "explainability", None)),
                 "snippet": (raw_text_snippet or "") + ("..." if raw_text_snippet and len(raw_text_snippet) >= 400 else "")
             })
         cached_payload = (jd_exp, jd_skills_set, jd_degrees, cached_records)
@@ -692,6 +732,8 @@ def get_job_candidates(
             "soft_traits": c["soft_traits"],
             "status": c["status"],
             "notes": c["notes"],
+            "model_version": c["model_version"],
+            "explainability": c["explainability"],
             "snippet": c["snippet"]
         }
         all_candidates.append(cand_dict)

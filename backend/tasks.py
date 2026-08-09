@@ -193,7 +193,9 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
                 skills_score=cand["skills_score"],
                 experience_score=cand["experience_score"],
                 matched_skills=cand["matched_skills"],
-                missing_skills=cand["missing_skills"]
+                missing_skills=cand["missing_skills"],
+                model_version=cand.get("model_version", "v2.1.0"),
+                explainability=cand.get("explainability", {"reasons_high": [], "reasons_low": []})
             )
             db.add(score)
             db.commit()

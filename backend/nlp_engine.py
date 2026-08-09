@@ -105,7 +105,21 @@ def load_skills_taxonomy():
         "JavaScript": ["javascript", "js", "typescript", "ts", "es6"]
     }
 
+LOWER_SYNONYMS_MAP = {}
+
+def build_synonyms_map():
+    global LOWER_SYNONYMS_MAP
+    LOWER_SYNONYMS_MAP = {}
+    for canonical_name, aliases in SKILL_SYNONYMS.items():
+        all_names = [canonical_name.lower()] + [a.lower() for a in aliases]
+        for name in all_names:
+            if name in LOWER_SYNONYMS_MAP:
+                LOWER_SYNONYMS_MAP[name].update(all_names)
+            else:
+                LOWER_SYNONYMS_MAP[name] = set(all_names)
+
 load_skills_taxonomy()
+build_synonyms_map()
 
 # Lazy loading of sentence-transformers
 _transformer_model = None
@@ -369,20 +383,21 @@ def check_skill_match_raw(jd_skill: str, candidate_text: str, candidate_skills: 
     jd_lower = jd_skill.lower()
     cand_lower = {c.lower() for c in candidate_skills}
     
-    if jd_lower in cand_lower:
-        return True
-        
-    aliases = SKILL_SYNONYMS.get(jd_skill, [])
-    for alias in aliases:
-        if alias.lower() in cand_lower:
+    # Get expanded synonyms list
+    expanded_aliases = LOWER_SYNONYMS_MAP.get(jd_lower, {jd_lower})
+    
+    # 1. Check if candidate has direct skill or any synonym in parsed candidate_skills
+    for alias in expanded_aliases:
+        if alias in cand_lower:
             return True
             
+    # 2. Check if candidate has direct skill or any synonym in raw text
     text_lower = candidate_text.lower()
-    for alias in aliases:
+    for alias in expanded_aliases:
         if '+' in alias or '#' in alias or '.' in alias:
-            pattern = r'(?:^|\s|[.,/():\-])' + re.escape(alias.lower()) + r'(?:$|\s|[.,/():\-])'
+            pattern = r'(?:^|\s|[.,/():\-])' + re.escape(alias) + r'(?:$|\s|[.,/():\-])'
         else:
-            pattern = r'\b' + re.escape(alias.lower()) + r'\b'
+            pattern = r'\b' + re.escape(alias) + r'\b'
             
         if get_compiled_regex(pattern).search(text_lower):
             return True
@@ -484,24 +499,81 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
             experience_score = 1.0
             
         candidate_degrees, deg_conf = parse_education_degrees_with_confidence(raw_txt)
-        degree_match = False
-        if jd_degrees:
-            degree_match = len(set(jd_degrees).intersection(set(candidate_degrees))) > 0
-        else:
+        
+        # Degree value hierarchy check for matches/exceeds logic
+        degree_hierarchy = {"PhD": 3, "Master": 2, "Bachelor": 1}
+        max_jd_deg_val = max([degree_hierarchy.get(d, 0) for d in jd_degrees]) if jd_degrees else 0
+        max_cand_deg_val = max([degree_hierarchy.get(d, 0) for d in candidate_degrees]) if candidate_degrees else 0
+        
+        if max_jd_deg_val == 0:
+            degree_match_score = 1.0
             degree_match = True
+        elif max_cand_deg_val >= max_jd_deg_val:
+            degree_match_score = 1.0
+            degree_match = True
+        elif max_cand_deg_val > 0:
+            degree_match_score = 0.5
+            degree_match = False
+        else:
+            degree_match_score = 0.0
+            degree_match = False
             
         soft_traits = parse_soft_traits(raw_txt)
+        soft_skills_score = len(soft_traits) / 3.0  # 3 categories max
         
         tfidf_sim = max(0.0, min(1.0, tfidf_similarities[idx]))
         semantic_sim = max(0.0, min(1.0, semantic_similarities[idx]))
         
-        # Blend similarities: use transformers if successfully loaded, otherwise fall back to TF-IDF
+        # Blend similarities: use sentence-transformers if successfully loaded
         if model:
             cosine_sim = (1.0 - semantic_weight) * tfidf_sim + semantic_weight * semantic_sim
         else:
             cosine_sim = tfidf_sim
             
-        final_score = (cosine_sim * 0.4) + (skills_score * 0.35) + (experience_score * 0.25)
+        # Hybrid Scoring Blending (40% Semantic, 30% Keyword, 30% Rules)
+        semantic_component = cosine_sim
+        keyword_component = (tfidf_sim * 0.4) + (skills_score * 0.6)
+        rule_component = (experience_score * 0.5) + (degree_match_score * 0.4) + (soft_skills_score * 0.1)
+        
+        final_score = (semantic_component * 0.4) + (keyword_component * 0.3) + (rule_component * 0.3)
+        
+        # Generate score explainability fields (positive/negative indicators)
+        reasons_high = []
+        reasons_low = []
+        
+        if semantic_component > 0.6:
+            reasons_high.append("Excellent semantic alignment with the job description context.")
+        elif semantic_component < 0.25:
+            reasons_low.append("Low contextual alignment with the overall job scope.")
+            
+        if matched_skills:
+            top_matched = ", ".join(matched_skills[:3])
+            reasons_high.append(f"Strong match for required skills: {top_matched}.")
+        if missing_skills:
+            top_missing = ", ".join(missing_skills[:3])
+            reasons_low.append(f"Missing required skills: {top_missing}.")
+            
+        if jd_exp > 0.0:
+            if candidate_exp >= jd_exp:
+                reasons_high.append(f"Exceeds/meets required experience: {candidate_exp:.1f} years matched (JD asked: {jd_exp:.1f} years).")
+            else:
+                reasons_low.append(f"Experience ({candidate_exp:.1f} years) is lower than required {jd_exp:.1f} years.")
+                
+        if jd_degrees:
+            if degree_match_score == 1.0:
+                reasons_high.append("Academic qualification matches or exceeds the required degree level.")
+            elif degree_match_score == 0.5:
+                reasons_low.append("Academic qualification level is lower than required degree level.")
+            else:
+                reasons_low.append("Missing required academic degree qualifications.")
+                
+        if len(soft_traits) >= 2:
+            reasons_high.append("Demonstrates key traits: leadership, system architecture, or agile experience.")
+            
+        explainability = {
+            "reasons_high": reasons_high,
+            "reasons_low": reasons_low
+        }
         
         candidates_list.append({
             "filename": res['filename'],
@@ -518,6 +590,8 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
             "degrees_confidence": round(deg_conf, 2),
             "degree_match": degree_match,
             "soft_traits": soft_traits,
+            "model_version": "v2.1.0",
+            "explainability": explainability,
             "snippet": raw_txt[:400] + ("..." if len(raw_txt) > 400 else "")
         })
         

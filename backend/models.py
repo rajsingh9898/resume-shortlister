@@ -100,6 +100,8 @@ class Score(Base):
     experience_score = Column(Float, nullable=False)
     matched_skills = Column(JSON, default=[])
     missing_skills = Column(JSON, default=[])
+    model_version = Column(String(50), nullable=True)
+    explainability = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     job = relationship("Job", back_populates="scores")

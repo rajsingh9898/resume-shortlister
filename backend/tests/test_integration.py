@@ -100,6 +100,13 @@ def test_main_shortlisting_api_flow(client, db, test_organization, admin_headers
     assert cands[0]["filename"] == "alex.txt"
     assert cands[1]["filename"] == "bob.txt"
     
+    # Assert model version and explainability
+    assert "model_version" in cands[0]
+    assert cands[0]["model_version"] == "v2.1.0"
+    assert "explainability" in cands[0]
+    assert "reasons_high" in cands[0]["explainability"]
+    assert "reasons_low" in cands[0]["explainability"]
+    
     # 5. Update candidate evaluation status
     alex_id = cands[0]["id"]
     res_eval = client.post("/api/evaluation/update", headers=admin_headers, json={

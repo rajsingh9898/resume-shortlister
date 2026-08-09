@@ -75,3 +75,17 @@ def test_nlp_engine_malformed_inputs():
     for cand in result["candidates"]:
         assert isinstance(cand["score"], float)
         assert cand["score"] >= 0.0
+
+def test_skill_ontology_expansion():
+    # JD asks for "PostgreSQL"
+    # Candidate mentions "postgres"
+    # It should match due to case-insensitive ontology expansion
+    assert nlp_engine.check_skill_match_raw("PostgreSQL", "I have 3 years of postgres experience", {"postgres"}) == True
+    
+    # JD asks for "FastAPI" (proper case)
+    # Candidate mentions "fast api" (case synonym)
+    assert nlp_engine.check_skill_match_raw("FastAPI", "Experienced in fast api backend routing", {"fast api"}) == True
+    
+    # JD asks for "postgresql" (lowercase)
+    # Candidate mentions "PostgreSQL" (proper case)
+    assert nlp_engine.check_skill_match_raw("postgresql", "Strong skills in PostgreSQL database administration", {"PostgreSQL"}) == True
