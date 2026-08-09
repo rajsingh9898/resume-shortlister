@@ -768,6 +768,10 @@
             
             <!-- Login Form -->
             <form id="login-form" class="auth-form" onsubmit="handleLoginSubmit(event)">
+                <div id="login-error-msg" class="auth-error-alert" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 15px; align-items: center; gap: 8px; width: 100%;">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span class="error-text">Incorrect email or password.</span>
+                </div>
                 <div class="form-group">
                     <label for="login-email">Email Address</label>
                     <div class="input-wrapper">
@@ -788,6 +792,10 @@
             
             <!-- Register Form -->
             <form id="register-form" class="auth-form hidden" onsubmit="handleRegisterSubmit(event)">
+                <div id="register-error-msg" class="auth-error-alert" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 15px; align-items: center; gap: 8px; width: 100%;">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span class="error-text">Registration failed.</span>
+                </div>
                 <div class="form-group">
                     <label for="register-name">Full Name</label>
                     <div class="input-wrapper">

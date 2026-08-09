@@ -361,6 +361,11 @@ body {
     transform: translateY(-1px);
 }
 
+.primary-btn:active {
+    transform: translateY(1px) scale(0.97);
+    box-shadow: 0 2px 10px rgba(139, 92, 246, 0.25);
+}
+
 .floating-layout-btn {
     align-self: flex-start;
     background: linear-gradient(135deg, #ffffff, #e2e8f0);
@@ -858,6 +863,10 @@ textarea:focus {
 .secondary-btn:hover {
     background: var(--panel-bg);
     border-color: var(--primary-color);
+}
+
+.secondary-btn:active {
+    transform: scale(0.96);
 }
 
 #add-skill-btn {
@@ -2829,6 +2838,14 @@ body.light-theme .input-wrapper input:focus, body.light-theme .input-wrapper sel
     font-weight: 600;
     border-radius: 30px;
     padding: 10px 24px;
+    transition: all var(--transition-speed);
+}
+.landing-login-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
+}
+.landing-login-btn:active {
+    transform: translateY(0) scale(0.96);
 }
 
 /* Hero Section */

@@ -38,7 +38,7 @@ class Settings:
     DIRECT_URL: Optional[str] = os.getenv("DIRECT_URL")
     REDIS_URL: str = os.getenv(
         "REDIS_URL",
-        "redis://localhost:6379/0"
+        "redis://127.0.0.1:6379/0"
     )
     SECRET_KEY: str = os.getenv(
         "SECRET_KEY",

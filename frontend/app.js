@@ -2036,6 +2036,11 @@ window.handleLoginSubmit = function(event) {
     event.preventDefault();
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
+    const errorMsgDiv = document.getElementById('login-error-msg');
+    
+    if (errorMsgDiv) {
+        errorMsgDiv.style.display = 'none';
+    }
     
     const bodyData = new URLSearchParams();
     bodyData.append('username', email);
@@ -2061,6 +2066,13 @@ window.handleLoginSubmit = function(event) {
     })
     .catch(err => {
         showToast(err.message, "error");
+        if (errorMsgDiv) {
+            errorMsgDiv.style.display = 'flex';
+            const errorTextSpan = errorMsgDiv.querySelector('.error-text');
+            if (errorTextSpan) {
+                errorTextSpan.textContent = err.message;
+            }
+        }
     });
 };
 
@@ -2071,6 +2083,11 @@ window.handleRegisterSubmit = function(event) {
     const org = document.getElementById('register-org').value;
     const role = document.getElementById('register-role').value;
     const password = document.getElementById('register-password').value;
+    const errorMsgDiv = document.getElementById('register-error-msg');
+    
+    if (errorMsgDiv) {
+        errorMsgDiv.style.display = 'none';
+    }
     
     fetch('/api/auth/register', {
         method: 'POST',
@@ -2098,6 +2115,13 @@ window.handleRegisterSubmit = function(event) {
     })
     .catch(err => {
         showToast(err.message, "error");
+        if (errorMsgDiv) {
+            errorMsgDiv.style.display = 'flex';
+            const errorTextSpan = errorMsgDiv.querySelector('.error-text');
+            if (errorTextSpan) {
+                errorTextSpan.textContent = err.message;
+            }
+        }
     });
 };
 
