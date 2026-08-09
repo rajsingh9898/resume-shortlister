@@ -46,5 +46,12 @@ class Settings:
     )
     ENCRYPTION_KEY: Optional[str] = os.getenv("ENCRYPTION_KEY")
     SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN")
+    
+    # S3 Object Storage Configuration
+    S3_ENDPOINT_URL: Optional[str] = os.getenv("S3_ENDPOINT_URL", "http://127.0.0.1:9000")
+    S3_ACCESS_KEY: Optional[str] = os.getenv("S3_ACCESS_KEY", "minioadmin")
+    S3_SECRET_KEY: Optional[str] = os.getenv("S3_SECRET_KEY", "minioadmin")
+    S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME", "talentai-resumes")
+    S3_REGION: str = os.getenv("S3_REGION", "us-east-1")
 
 settings = Settings()

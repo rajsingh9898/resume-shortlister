@@ -45,23 +45,34 @@ def test_main_shortlisting_api_flow(client, db, test_organization, admin_headers
     db.commit()
     db.refresh(job)
     
-    # 2. Upload multiple mock candidates
-    file1 = (io.BytesIO(b"Alex Smith. Python development experience of 5 years. PhD in Computer Science."), "alex.txt")
-    file2 = (io.BytesIO(b"Bob Vance. Accounting experience of 2 years. High school graduate."), "bob.txt")
+    # 2. Get pre-signed upload URLs and upload files using mock endpoints
+    res_presign1 = client.post("/api/storage/presign-upload", headers=admin_headers, json={"filename": "alex.txt", "content_type": "text/plain"})
+    assert res_presign1.status_code == 200
+    p1 = res_presign1.json()
+    alex_key = p1["object_key"]
     
-    files = [
-        ("resumes", (file1[1], file1[0], "text/plain")),
-        ("resumes", (file2[1], file2[0], "text/plain"))
-    ]
+    # PUT directly to upload URL (points to mock upload under offline fallback)
+    res_upload1 = client.put(p1["upload_url"], content=b"Alex Smith. Python development experience of 5 years. PhD in Computer Science.")
+    assert res_upload1.status_code == 200
     
-    data = {
+    res_presign2 = client.post("/api/storage/presign-upload", headers=admin_headers, json={"filename": "bob.txt", "content_type": "text/plain"})
+    assert res_presign2.status_code == 200
+    p2 = res_presign2.json()
+    bob_key = p2["object_key"]
+    
+    res_upload2 = client.put(p2["upload_url"], content=b"Bob Vance. Accounting experience of 2 years. High school graduate.")
+    assert res_upload2.status_code == 200
+    
+    # 3. Post shortlist request with JSON body
+    shortlist_data = {
         "jd": "Must have python experience and CS degree",
         "semantic_weight": 0.5,
-        "job_id": job.id
+        "resumes": [
+            {"filename": "alex.txt", "object_key": alex_key},
+            {"filename": "bob.txt", "object_key": bob_key}
+        ]
     }
-    
-    # Post shortlist request
-    res = client.post("/api/shortlist", headers=admin_headers, data=data, files=files)
+    res = client.post("/api/shortlist", headers=admin_headers, json=shortlist_data)
     if res.status_code != 200:
         print("ERROR RESPONSE:", res.text)
     assert res.status_code == 200
@@ -102,7 +113,14 @@ def test_main_shortlisting_api_flow(client, db, test_organization, admin_headers
     # 6. Export database backup
     res_export = client.get("/api/backup/export", headers=admin_headers)
     assert res_export.status_code == 200
-    backup_data = res_export.json()
+    export_resp = res_export.json()
+    assert "download_url" in export_resp
+    
+    # Download the backup file directly from storage
+    download_url = export_resp["download_url"]
+    res_download = client.get(download_url, headers=admin_headers)
+    assert res_download.status_code == 200
+    backup_data = res_download.json()
     assert "talentai_status_alex.txt" in backup_data
     
     # 7. Purge candidate (GDPR Forgotten Check)

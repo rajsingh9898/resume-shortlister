@@ -28,6 +28,12 @@ try:
 except ImportError:
     from config import settings
 
+# S3/MinIO Object Storage Wrapper
+try:
+    from backend.s3_client import storage_client
+except ImportError:
+    from s3_client import storage_client
+
 # Initialize Celery app
 REDIS_URL = settings.REDIS_URL
 celery_app = Celery("talentai_tasks", broker=REDIS_URL, backend=REDIS_URL)
@@ -96,17 +102,24 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
             if self.request.id:
                 self.update_state(state="PROGRESS", meta={"progress": progress_pct, "files": file_statuses})
             
-            # Read and decrypt file contents from disk
-            if os.path.exists(file_path):
+            # Read and decrypt file contents from S3 or fallback storage
+            try:
+                disk_bytes = storage_client.download_bytes(file_path)
                 try:
-                    with open(file_path, "rb") as f:
-                        disk_bytes = f.read()
                     file_bytes = decrypt_data(disk_bytes)
-                    raw_text = nlp_engine.extract_text(filename, file_bytes)
-                except Exception as e:
-                    raw_text = f"Error reading/parsing file: {str(e)}"
-            else:
-                raw_text = f"File not found on disk: {file_path}"
+                except Exception:
+                    # If it's not encrypted (like new uploads directly to S3), treat as raw bytes
+                    file_bytes = disk_bytes
+                raw_text = nlp_engine.extract_text(filename, file_bytes)
+            except Exception as e:
+                raw_text = f"Error reading/parsing file: {str(e)}"
+                
+            # Upload extracted text to S3/MinIO
+            try:
+                text_key = file_path + ".txt"
+                storage_client.upload_bytes(text_key, raw_text.encode("utf-8"), content_type="text/plain")
+            except Exception as e:
+                logger.error(f"Failed to upload extracted text for candidate {filename} to S3: {e}")
                 
             resume_data.append({
                 "filename": filename,
@@ -154,20 +167,20 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
                 candidate.soft_traits = cand["soft_traits"]
                 db.commit()
                 
-            # Create or update Resume reference
+            # Create or update Resume reference (keep raw_text empty in database to save space)
             resume = db.query(Resume).filter_by(filename=filename).first()
             if not resume:
                 resume = Resume(
                     candidate_id=candidate.id,
                     filename=filename,
                     file_path=file_path,
-                    raw_text=raw_text,
+                    raw_text="",
                     parsed_skills=cand["all_extracted_skills"]
                 )
                 db.add(resume)
             else:
                 resume.file_path = file_path
-                resume.raw_text = raw_text
+                resume.raw_text = ""
                 resume.parsed_skills = cand["all_extracted_skills"]
             db.commit()
             

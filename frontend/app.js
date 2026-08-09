@@ -517,23 +517,60 @@ shortlistForm.addEventListener('submit', async (e) => {
     showStageLoader();
     setStageStatus('ingest', 'active');
 
-    const formData = new FormData();
-    formData.append('jd', jd);
-    selectedFiles.forEach(file => {
-        formData.append('resumes', file);
-    });
-
     const blendWeightSlider = document.getElementById('semantic-blend-weight');
     const semanticWeight = blendWeightSlider ? parseFloat(blendWeightSlider.value) / 100.0 : 0.5;
-    formData.append('semantic_weight', semanticWeight);
 
     try {
+        // 1. Generate pre-signed upload URLs and upload files directly to S3
+        const resumesPayload = [];
+        for (const file of selectedFiles) {
+            const presignRes = await fetch('/api/storage/presign-upload', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userToken}`
+                },
+                body: JSON.stringify({
+                    filename: file.name,
+                    content_type: file.type || "application/octet-stream"
+                })
+            });
+            if (!presignRes.ok) {
+                const errData = await presignRes.json();
+                throw new Error(errData.detail || `Failed to generate pre-signed URL for ${file.name}`);
+            }
+            const presignData = await presignRes.json();
+            
+            // PUT file directly to pre-signed URL (MinIO/S3 or simulated endpoint)
+            const uploadRes = await fetch(presignData.upload_url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': file.type || "application/octet-stream"
+                },
+                body: file
+            });
+            if (!uploadRes.ok) {
+                throw new Error(`Failed to upload ${file.name} directly to storage bucket.`);
+            }
+            
+            resumesPayload.push({
+                filename: file.name,
+                object_key: presignData.object_key
+            });
+        }
+
+        // 2. Dispatch the shortlist task with S3 object keys JSON
         const response = await fetch('/api/shortlist', {
             method: 'POST',
             headers: {
+                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${userToken}`
             },
-            body: formData
+            body: JSON.stringify({
+                jd: jd,
+                semantic_weight: semanticWeight,
+                resumes: resumesPayload
+            })
         });
 
         const data = await response.json();
@@ -1484,13 +1521,13 @@ window.exportDatabaseBackup = function() {
         }
     })
         .then(res => res.json())
-        .then(backupObj => {
-            const jsonStr = JSON.stringify(backupObj, null, 2);
-            const blob = new Blob([jsonStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
+        .then(data => {
+            if (!data.success || !data.download_url) {
+                throw new Error("Invalid export response from server.");
+            }
             
             const link = document.createElement('a');
-            link.href = url;
+            link.href = data.download_url;
             link.download = `talentai_database_backup_${new Date().toISOString().slice(0,10)}.json`;
             link.style.display = 'none';
             document.body.appendChild(link);

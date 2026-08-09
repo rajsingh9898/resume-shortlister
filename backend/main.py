@@ -64,6 +64,12 @@ try:
 except ImportError:
     from encryption import encrypt_data, decrypt_data
 
+# S3/MinIO Object Storage Wrapper
+try:
+    from backend.s3_client import storage_client
+except ImportError:
+    from s3_client import storage_client
+
 # Import database, models and authentication
 try:
     from backend.database import get_db, Base, engine, SessionLocal
@@ -344,39 +350,82 @@ def get_latest_job(db: Session = Depends(get_db), current_user: User = Depends(g
         "description": job.description
     }
 
+# S3 Presigned URL & Mock Storage Endpoints
+from fastapi import Response
+
+class PresignRequest(BaseModel):
+    filename: str
+    content_type: str = "application/pdf"
+
+class ShortlistResumeItem(BaseModel):
+    filename: str
+    object_key: str
+
+class ShortlistJSONRequest(BaseModel):
+    jd: str
+    semantic_weight: float = 0.5
+    resumes: List[ShortlistResumeItem]
+
+@app.post("/api/storage/presign-upload")
+def get_presigned_upload_url(
+    payload: PresignRequest,
+    current_user: User = Depends(get_current_user)
+):
+    ext = os.path.splitext(payload.filename)[1].lower()
+    if ext not in [".pdf", ".docx", ".txt"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format: {payload.filename}. Whitelisted formats: .pdf, .docx, .txt"
+        )
+    
+    import uuid
+    object_key = f"resumes/{uuid.uuid4()}-{payload.filename}"
+    
+    upload_url = storage_client.generate_presigned_upload_url(object_key, payload.content_type)
+    return {
+        "upload_url": upload_url,
+        "object_key": object_key,
+        "filename": payload.filename
+    }
+
+@app.put("/api/storage/mock-upload")
+async def mock_upload_file(request: Request, key: str):
+    body_bytes = await request.body()
+    # Write the uploaded bytes directly to simulated storage
+    storage_client.upload_bytes(key, body_bytes)
+    return {"status": "success", "message": "Uploaded mock object successfully."}
+
+@app.get("/api/storage/mock-download")
+def mock_download_file(key: str):
+    try:
+        content = storage_client.download_bytes(key)
+        return Response(content=content, media_type="application/octet-stream")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found in simulated S3 storage.")
+
 # --- BUSINESS LOGIC PORTALS ---
 
 @app.post("/api/shortlist")
 @limiter.limit("15/minute")
 async def shortlist(
     request: Request,
+    payload: ShortlistJSONRequest,
     background_tasks: BackgroundTasks,
-    jd: str = Form(...), 
-    resumes: List[UploadFile] = File(...),
-    semantic_weight: float = Form(0.5),
     current_user: User = Depends(require_role(["Admin", "Recruiter"])),
     db: Session = Depends(get_db)
 ):
-    if not jd.strip():
+    if not payload.jd.strip():
         raise HTTPException(status_code=400, detail="Job description text cannot be empty.")
-    if not resumes:
+    if not payload.resumes:
         raise HTTPException(status_code=400, detail="Please upload at least one resume.")
         
     try:
-        # 1. Concurrently read file contents from FastAPI upload streams (Async I/O)
-        read_tasks = [res.read() for res in resumes]
-        file_contents = await asyncio.gather(*read_tasks)
-        
-        # 2. Validate all files for size, extension, and corruption before parsing
-        for idx, res in enumerate(resumes):
-            validate_upload_file(res.filename, file_contents[idx])
-            
-        # 3. Compute SHA-256 Idempotency Key
+        # 1. Compute SHA-256 Idempotency Key based on Job Description and S3 keys
         import hashlib
         hasher = hashlib.sha256()
-        hasher.update(jd.encode("utf-8"))
-        for content in file_contents:
-            hasher.update(content)
+        hasher.update(payload.jd.encode("utf-8"))
+        for res in payload.resumes:
+            hasher.update(res.object_key.encode("utf-8"))
         idempotency_key = hasher.hexdigest()
         
         # Check if a task is already processing/finished for this idempotency key
@@ -393,39 +442,25 @@ async def shortlist(
                 db.delete(existing_lifecycle)
                 db.commit()
                 
-    except HTTPException:
-        # Re-raise file validation HTTP exceptions directly
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Concurrently reading documents failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Idempotency validation failed: {str(e)}")
             
     try:
         # Save Job record under active tenant (pending background computations)
         job = Job(
             title=f"Shortlist Run - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", 
-            description=jd, 
+            description=payload.jd, 
             organization_id=current_user.organization_id
         )
         db.add(job)
         db.commit()
         db.refresh(job)
         
-        # Build resumes info lists and save encrypted files to storage
-        resumes_info = []
-        for idx, res in enumerate(resumes):
-            filename = res.filename
-            file_bytes = file_contents[idx]
-            saved_file_path = os.path.join(STORAGE_DIR, filename)
-            
-            # Save file to disk storage folder (encrypted at rest)
-            encrypted_bytes = encrypt_data(file_bytes)
-            with open(saved_file_path, "wb") as f:
-                f.write(encrypted_bytes)
-                
-            resumes_info.append({
-                "filename": filename,
-                "file_path": saved_file_path
-            })
+        # Build resumes info lists pointing to S3 keys
+        resumes_info = [
+            {"filename": res.filename, "file_path": res.object_key}
+            for res in payload.resumes
+        ]
             
         # Generate custom unique Task ID upfront to persist in database lifecycle tracker
         import uuid
@@ -446,7 +481,7 @@ async def shortlist(
         if is_eager:
             background_tasks.add_task(
                 process_shortlist_task.apply,
-                args=(job.id, resumes_info, semantic_weight, current_user.id),
+                args=(job.id, resumes_info, payload.semantic_weight, current_user.id),
                 task_id=task_id
             )
             class MockTask:
@@ -454,7 +489,7 @@ async def shortlist(
             task = MockTask()
         else:
             task = process_shortlist_task.apply_async(
-                args=(job.id, resumes_info, semantic_weight, current_user.id),
+                args=(job.id, resumes_info, payload.semantic_weight, current_user.id),
                 task_id=task_id
             )
         
@@ -810,7 +845,14 @@ def get_candidate_resume_text(
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found for this candidate.")
         
-    return {"raw_text": resume.raw_text}
+    try:
+        text_key = resume.file_path + ".txt"
+        raw_text_bytes = storage_client.download_bytes(text_key)
+        raw_text = raw_text_bytes.decode("utf-8")
+    except Exception:
+        raw_text = resume.raw_text or "No parsed text available."
+        
+    return {"raw_text": raw_text}
 
 @app.post("/api/evaluation/update")
 @limiter.limit("30/minute")
@@ -934,7 +976,25 @@ def export_backup(
             if resume:
                 backup_data[f"talentai_status_{resume.filename}"] = ev.status
                 backup_data[f"talentai_notes_{resume.filename}"] = ev.comments
-        return backup_data
+                
+        # Serialize database backup to JSON bytes
+        json_bytes = json.dumps(backup_data, indent=2).encode("utf-8")
+        
+        # Define export key on S3
+        import uuid
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        export_key = f"exports/org_{current_user.organization_id}/backup_{timestamp}_{uuid.uuid4().hex[:8]}.json"
+        
+        # Save to S3 object storage
+        storage_client.upload_bytes(export_key, json_bytes, content_type="application/json")
+        
+        # Generate pre-signed S3 download URL
+        download_url = storage_client.generate_presigned_download_url(export_key)
+        
+        return {
+            "success": True,
+            "download_url": download_url
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
