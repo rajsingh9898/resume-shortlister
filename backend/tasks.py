@@ -12,11 +12,15 @@ try:
     from backend.models import Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle
     from backend import nlp_engine
     from backend.encryption import decrypt_data
+    from backend.repositories import UserRepository, JobRepository, CandidateRepository, TaskLifecycleRepository
+    from backend.services import AuthService, JobService, CandidateService, TaskLifecycleService
 except ImportError:
     from database import SessionLocal
     from models import Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle
     import nlp_engine
     from encryption import decrypt_data
+    from repositories import UserRepository, JobRepository, CandidateRepository, TaskLifecycleRepository
+    from services import AuthService, JobService, CandidateService, TaskLifecycleService
 
 try:
     from backend.logger import logger
@@ -65,17 +69,18 @@ except Exception as e:
 def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weight: float, user_id: int):
     """Asynchronously parses and ranks candidate resumes for a given Job ID."""
     db = SessionLocal()
+    lifecycle_service = TaskLifecycleService(db)
     
     # 1. Update task lifecycle status to running
     if self.request.id:
-        lifecycle = db.query(TaskLifecycle).filter_by(task_id=self.request.id).first()
-        if lifecycle:
-            lifecycle.status = "running"
-            lifecycle.retry_count = self.request.retries
-            db.commit()
+        lifecycle_service.update_task_status(
+            task_id=self.request.id,
+            status="running",
+            retry_count=self.request.retries
+        )
             
     try:
-        # Load the Job context
+        # Load the Job context (read query)
         job = db.query(Job).filter_by(id=job_id).first()
         if not job:
             if self.request.id:
@@ -240,10 +245,10 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
             
         # Update lifecycle status to success
         if self.request.id:
-            lifecycle = db.query(TaskLifecycle).filter_by(task_id=self.request.id).first()
-            if lifecycle:
-                lifecycle.status = "success"
-                db.commit()
+            lifecycle_service.update_task_status(
+                task_id=self.request.id,
+                status="success"
+            )
                 
         return {"success": True, "job_id": job.id}
     except Exception as exc:
@@ -254,22 +259,22 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
         if self.request.retries < self.max_retries:
             logger.warning(f"Task {self.request.id} failed, retrying in {backoff_delay}s. Error: {exc}")
             if self.request.id:
-                lifecycle = db.query(TaskLifecycle).filter_by(task_id=self.request.id).first()
-                if lifecycle:
-                    lifecycle.status = "queued" # Set back to queued/pending for retry
-                    lifecycle.retry_count = self.request.retries + 1
-                    lifecycle.error_message = f"Retry {self.request.retries + 1}: {str(exc)}"
-                    db.commit()
+                lifecycle_service.update_task_status(
+                    task_id=self.request.id,
+                    status="queued",
+                    error_message=f"Retry {self.request.retries + 1}: {str(exc)}",
+                    retry_count=self.request.retries + 1
+                )
             raise self.retry(exc=exc, countdown=backoff_delay)
         else:
             # Dead-letter handling: Max retries exceeded
             logger.error(f"Task {self.request.id} failed permanently after {self.request.retries} retries: {exc}")
             if self.request.id:
-                lifecycle = db.query(TaskLifecycle).filter_by(task_id=self.request.id).first()
-                if lifecycle:
-                    lifecycle.status = "failed"
-                    lifecycle.error_message = f"Failed permanently after max retries. Error: {str(exc)}"
-                    db.commit()
+                lifecycle_service.update_task_status(
+                    task_id=self.request.id,
+                    status="failed",
+                    error_message=f"Failed permanently after max retries. Error: {str(exc)}"
+                )
             raise exc
     finally:
         db.close()

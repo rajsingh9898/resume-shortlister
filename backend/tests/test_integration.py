@@ -89,10 +89,15 @@ def test_main_shortlisting_api_flow(client, db, test_organization, admin_headers
     
     # 4. Fetch Paginated candidate rankings list
     db.commit()
-    res_list = client.get(f"/api/jobs/{resp_data['job_id']}/candidates?page=1&limit=10", headers=admin_headers)
+    res_list = client.get(f"/api/v1/jobs/{resp_data['job_id']}/candidates?page=1&limit=10", headers=admin_headers)
     assert res_list.status_code == 200
     list_data = res_list.json()
     assert "candidates" in list_data
+    assert "items" in list_data
+    assert "metadata" in list_data
+    assert list_data["metadata"]["total_count"] == 2
+    assert list_data["metadata"]["page"] == 1
+    assert list_data["metadata"]["limit"] == 10
     assert list_data["total_count"] == 2
     
     # Verify rankings: candidate with python and PhD (Alex) should rank first

@@ -76,11 +76,29 @@ try:
     from backend.models import Organization, User, Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle
     from backend import nlp_engine
     from backend.auth import get_password_hash, verify_password, create_access_token, get_current_user, require_role
+    from backend.repositories import UserRepository, JobRepository, CandidateRepository, TaskLifecycleRepository
+    from backend.services import AuthService, JobService, CandidateService, TaskLifecycleService
 except ImportError:
     from database import get_db, Base, engine, SessionLocal
     from models import Organization, User, Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle
     import nlp_engine
     from auth import get_password_hash, verify_password, create_access_token, get_current_user, require_role
+    from repositories import UserRepository, JobRepository, CandidateRepository, TaskLifecycleRepository
+    from services import AuthService, JobService, CandidateService, TaskLifecycleService
+
+def get_read_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def get_write_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # Seed default organization and user helper with bcrypt password hashes
 def seed_defaults(db: Session):
@@ -151,6 +169,14 @@ def run_schema_migrations(engine_to_migrate):
                     logger.info("Migrated database: added 'explainability' column to 'scores' table.")
                 except Exception as e:
                     logger.warning(f"Failed to add explainability column: {e}")
+                    
+            # Ensure indexes exist on high-query columns
+            try:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_evaluations_status ON evaluations (status)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_resumes_candidate_id ON resumes (candidate_id)"))
+                logger.info("Migrated database: ensured evaluations.status and resumes.candidate_id indexes exist.")
+            except Exception as e:
+                logger.warning(f"Failed to create dynamic indexes: {e}")
     except Exception as e:
         logger.warning(f"Dynamic database migration failed: {e}")
 
@@ -211,6 +237,24 @@ limiter = Limiter(key_func=get_remote_address, enabled=(settings.ENVIRONMENT != 
 app = FastAPI(title="AI-Based Resume Shortlisting System", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+from fastapi import APIRouter
+from pydantic import Field
+from typing import Generic, TypeVar, List
+
+T = TypeVar("T")
+
+class PageMetadata(BaseModel):
+    total_count: int = Field(..., description="Total items matching filter")
+    page: int = Field(..., description="Current page number")
+    limit: int = Field(..., description="Maximum items per page")
+    total_pages: int = Field(..., description="Total pages")
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: List[T]
+    metadata: PageMetadata
+
+api_router = APIRouter()
 
 # Enable CORS for local development flexibility
 app.add_middleware(
@@ -302,31 +346,26 @@ class EvaluationUpdate(BaseModel):
 
 # --- AUTH ENTRIES ---
 
-@app.post("/api/auth/register", response_model=TokenResponse)
+@api_router.post("/auth/register", response_model=TokenResponse)
 @limiter.limit("5/minute")
-def register(request: Request, data: UserRegister, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter_by(email=data.email).first()
+def register(
+    request: Request,
+    data: UserRegister,
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
+):
+    auth_service = AuthService(read_db, write_db)
+    existing_user = auth_service.get_user_by_email(data.email)
     if existing_user:
         raise HTTPException(status_code=400, detail="Email is already registered.")
         
     org_name = data.organization_name if data.organization_name else "Default Org"
-    org = db.query(Organization).filter_by(name=org_name).first()
-    if not org:
-        org = Organization(name=org_name)
-        db.add(org)
-        db.commit()
-        db.refresh(org)
-        
-    new_user = User(
+    new_user = auth_service.create_user_with_organization(
         email=data.email,
         full_name=data.full_name,
         hashed_password=get_password_hash(data.password),
-        role=data.role if data.role else "Recruiter",
-        organization_id=org.id
+        organization_name=org_name
     )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
     
     token = create_access_token({"sub": new_user.email})
     return {
@@ -336,10 +375,16 @@ def register(request: Request, data: UserRegister, db: Session = Depends(get_db)
         "full_name": new_user.full_name
     }
 
-@app.post("/api/auth/login", response_model=TokenResponse)
+@api_router.post("/auth/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
-def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter_by(email=form_data.username).first()
+def login(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
+):
+    auth_service = AuthService(read_db, write_db)
+    user = auth_service.get_user_by_email(form_data.username)
     if not user:
         raise HTTPException(status_code=400, detail="Email is not registered.")
     if not verify_password(form_data.password, user.hashed_password):
@@ -353,7 +398,7 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db
         "full_name": user.full_name
     }
 
-@app.get("/api/auth/me")
+@api_router.get("/auth/me")
 def get_me(current_user: User = Depends(get_current_user)):
     return {
         "id": current_user.id,
@@ -366,9 +411,14 @@ def get_me(current_user: User = Depends(get_current_user)):
         }
     }
 
-@app.get("/api/jobs/latest")
-def get_latest_job(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    job = db.query(Job).filter_by(organization_id=current_user.organization_id).order_by(Job.id.desc()).first()
+@api_router.get("/jobs/latest")
+def get_latest_job(
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db),
+    current_user: User = Depends(get_current_user)
+):
+    job_service = JobService(read_db, write_db)
+    job = job_service.get_latest_job(current_user.organization_id)
     if not job:
         raise HTTPException(status_code=404, detail="No jobs found.")
     return {
@@ -376,6 +426,30 @@ def get_latest_job(db: Session = Depends(get_db), current_user: User = Depends(g
         "title": job.title,
         "description": job.description
     }
+
+@api_router.get("/jobs")
+def get_jobs(
+    page: int = 1,
+    limit: int = 10,
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db),
+    current_user: User = Depends(get_current_user)
+):
+    job_service = JobService(read_db, write_db)
+    res = job_service.get_all_jobs_paginated(current_user.organization_id, page=page, limit=limit)
+    items_serialized = []
+    for job in res["items"]:
+        items_serialized.append({
+            "id": job.id,
+            "title": job.title,
+            "description": job.description,
+            "created_at": job.created_at.isoformat() if job.created_at else None
+        })
+    return {
+        "items": items_serialized,
+        "metadata": res["metadata"]
+    }
+
 
 # S3 Presigned URL & Mock Storage Endpoints
 from fastapi import Response
@@ -393,7 +467,7 @@ class ShortlistJSONRequest(BaseModel):
     semantic_weight: float = 0.5
     resumes: List[ShortlistResumeItem]
 
-@app.post("/api/storage/presign-upload")
+@api_router.post("/storage/presign-upload")
 def get_presigned_upload_url(
     payload: PresignRequest,
     current_user: User = Depends(get_current_user)
@@ -415,14 +489,14 @@ def get_presigned_upload_url(
         "filename": payload.filename
     }
 
-@app.put("/api/storage/mock-upload")
+@api_router.put("/storage/mock-upload")
 async def mock_upload_file(request: Request, key: str):
     body_bytes = await request.body()
     # Write the uploaded bytes directly to simulated storage
     storage_client.upload_bytes(key, body_bytes)
     return {"status": "success", "message": "Uploaded mock object successfully."}
 
-@app.get("/api/storage/mock-download")
+@api_router.get("/storage/mock-download")
 def mock_download_file(key: str):
     try:
         content = storage_client.download_bytes(key)
@@ -432,14 +506,15 @@ def mock_download_file(key: str):
 
 # --- BUSINESS LOGIC PORTALS ---
 
-@app.post("/api/shortlist")
+@api_router.post("/shortlist")
 @limiter.limit("15/minute")
 async def shortlist(
     request: Request,
     payload: ShortlistJSONRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(require_role(["Admin", "Recruiter"])),
-    db: Session = Depends(get_db)
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
 ):
     if not payload.jd.strip():
         raise HTTPException(status_code=400, detail="Job description text cannot be empty.")
@@ -456,7 +531,8 @@ async def shortlist(
         idempotency_key = hasher.hexdigest()
         
         # Check if a task is already processing/finished for this idempotency key
-        existing_lifecycle = db.query(TaskLifecycle).filter_by(idempotency_key=idempotency_key).first()
+        lifecycle_service = TaskLifecycleService(read_db, write_db)
+        existing_lifecycle = lifecycle_service.get_task_by_idempotency_key(idempotency_key)
         if existing_lifecycle:
             if existing_lifecycle.status in ["queued", "running", "success"]:
                 logger.info(f"Duplicate request detected. Reusing existing task: {existing_lifecycle.task_id}")
@@ -466,22 +542,20 @@ async def shortlist(
                     "job_id": existing_lifecycle.job_id
                 }
             elif existing_lifecycle.status == "failed":
-                db.delete(existing_lifecycle)
-                db.commit()
+                write_db.delete(existing_lifecycle)
+                write_db.commit()
                 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Idempotency validation failed: {str(e)}")
             
     try:
         # Save Job record under active tenant (pending background computations)
-        job = Job(
+        job_service = JobService(read_db, write_db)
+        job = job_service.create_job(
             title=f"Shortlist Run - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", 
             description=payload.jd, 
             organization_id=current_user.organization_id
         )
-        db.add(job)
-        db.commit()
-        db.refresh(job)
         
         # Build resumes info lists pointing to S3 keys
         resumes_info = [
@@ -494,14 +568,11 @@ async def shortlist(
         task_id = str(uuid.uuid4())
         
         # Persist task lifecycle record as 'queued'
-        lifecycle = TaskLifecycle(
+        lifecycle = lifecycle_service.create_task(
             task_id=task_id,
             job_id=job.id,
-            status="queued",
             idempotency_key=idempotency_key
         )
-        db.add(lifecycle)
-        db.commit()
             
         # Dispatch Celery background task
         is_eager = getattr(celery_app.conf, "task_always_eager", False)
@@ -526,8 +597,8 @@ async def shortlist(
             action="queue_shortlist",
             details=f"Queued background shortlist task for Job ID {job.id} (Task ID: {task.id})"
         )
-        db.add(audit_log)
-        db.commit()
+        write_db.add(audit_log)
+        write_db.commit()
         
         # Invalidate local cache in case re-running or updating candidates
         candidates_local_cache.invalidate(job.id)
@@ -539,22 +610,24 @@ async def shortlist(
         }
         
     except Exception as e:
-        db.rollback()
+        write_db.rollback()
         raise HTTPException(status_code=500, detail=f"Shortlisting integration failed: {str(e)}")
 
-@app.get("/api/tasks/{task_id}")
+@api_router.get("/tasks/{task_id}")
 @limiter.limit("60/minute")
 def get_task_status(
     request: Request, 
     task_id: str, 
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
 ):
     from celery.result import AsyncResult
     from celery.backends.base import DisabledBackend
     
     # Query lifecycle tracker table first
-    lifecycle = db.query(TaskLifecycle).filter_by(task_id=task_id).first()
+    lifecycle_service = TaskLifecycleService(read_db, write_db)
+    lifecycle = lifecycle_service.get_task_by_id(task_id)
     
     if lifecycle:
         state_map = {
@@ -577,6 +650,7 @@ def get_task_status(
                 state = "SUCCESS"
         error_msg = None
         
+     # Ensure we read retry_count safely
     response = {
         "task_id": task_id,
         "status": state,
@@ -605,7 +679,7 @@ def get_task_status(
         
     return response
 
-@app.get("/api/jobs/{job_id}/candidates")
+@api_router.get("/jobs/{job_id}/candidates")
 @limiter.limit("60/minute")
 def get_job_candidates(
     request: Request,
@@ -620,33 +694,24 @@ def get_job_candidates(
     skills_w: float = 30.0,
     experience_w: float = 30.0,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
 ):
     import re
     # Verify job belongs to user's org
-    job = db.query(Job).filter_by(id=job_id, organization_id=current_user.organization_id).first()
+    job_service = JobService(read_db, write_db)
+    job = job_service.get_job_by_id(job_id, current_user.organization_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job description not found in your organization.")
         
     # Check local cache first to serve dynamic weight blending slider changes instantly
     cached_payload = candidates_local_cache.get(job_id)
     
+    candidate_service = CandidateService(read_db, write_db)
+    
     if cached_payload is None:
-        # Load candidate records, selecting specific columns and only a 400-char substring of Resume.raw_text
-        # to optimize query speed and database network bandwidth.
-        candidates_records = db.query(
-            Candidate, 
-            Score, 
-            Resume.filename,
-            Resume.parsed_skills,
-            func.substr(Resume.raw_text, 1, 400).label("raw_text_snippet"),
-            Evaluation
-        ).select_from(Candidate)\
-            .join(Score, Score.candidate_id == Candidate.id)\
-            .join(Resume, Resume.candidate_id == Candidate.id)\
-            .join(Evaluation, Evaluation.candidate_id == Candidate.id)\
-            .filter(Score.job_id == job_id, Evaluation.job_id == job_id, Candidate.organization_id == current_user.organization_id)\
-            .all()
+        # Load candidate records via candidate service layer (routing to read_db)
+        candidates_records = candidate_service.get_job_candidates_records(job_id, current_user.organization_id)
             
         # Parse requirement parameters for degree matching check
         jd_degrees = nlp_engine.parse_education_degrees(job.description)
@@ -813,7 +878,7 @@ def get_job_candidates(
         gaps = []
         formatting_flags = []
         for cand_dict in all_candidates:
-            res_rec = db.query(Resume).filter_by(candidate_id=cand_dict["id"]).first()
+            res_rec = candidate_service.get_resume_by_candidate_id(cand_dict["id"], current_user.organization_id)
             txt = res_rec.raw_text if res_rec else ""
             lengths.append(len(txt))
             gaps.append(1.0 if any(g in txt.lower() for g in ["career break", "career gap", "employment gap", "sabbatical", "parental leave"]) else 0.0)
@@ -836,12 +901,19 @@ def get_job_candidates(
             bias_warnings.append(f"⚠️ Bias Alert: Match scores correlate negatively with non-standard formatting (correlation: {corr_format:.2f}). Formatting issues may be penalizing candidates.")
             
     response_data = {
-        "candidates": paginated_list,
+        "candidates": paginated_list, # legacy candidates envelope
+        "items": paginated_list,      # standardized items envelope
         "total_count": filtered_count,
         "total_unfiltered": total_resumes,
         "page": page,
         "limit": limit,
         "total_pages": math.ceil(filtered_count / limit) if limit > 0 else 1,
+        "metadata": {                 # standardized metadata envelope
+            "total_count": filtered_count,
+            "page": page,
+            "limit": limit,
+            "total_pages": math.ceil(filtered_count / limit) if limit > 0 else 1
+        },
         "stats": {
             "total_resumes": total_resumes,
             "strong_matches": strong_matches,
@@ -870,20 +942,22 @@ def get_job_candidates(
             
     return response_data
 
-@app.get("/api/candidates/{candidate_id}/resume-text")
+@api_router.get("/candidates/{candidate_id}/resume-text")
 @limiter.limit("30/minute")
 def get_candidate_resume_text(
     request: Request,
     candidate_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
 ):
     # Verify candidate belongs to user's org
-    candidate = db.query(Candidate).filter_by(id=candidate_id, organization_id=current_user.organization_id).first()
+    candidate_service = CandidateService(read_db, write_db)
+    candidate = candidate_service.get_candidate_by_id(candidate_id, current_user.organization_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found in your organization.")
         
-    resume = db.query(Resume).filter_by(candidate_id=candidate.id).first()
+    resume = candidate_service.get_resume_by_candidate_id(candidate.id, current_user.organization_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found for this candidate.")
         
@@ -896,13 +970,14 @@ def get_candidate_resume_text(
         
     return {"raw_text": raw_text}
 
-@app.post("/api/evaluation/update")
+@api_router.post("/evaluation/update")
 @limiter.limit("30/minute")
 def update_evaluation(
     request: Request,
     data: EvaluationUpdate, 
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
 ):
     # Hiring Manager is comment-only and cannot change candidate status
     if current_user.role == "Hiring Manager" and data.status is not None:
@@ -912,38 +987,40 @@ def update_evaluation(
         )
 
     try:
-        # Find the Resume / Candidate matching the logged in tenant organization
-        resume = db.query(Resume).join(Candidate).filter(
+        # Find the Resume / Candidate matching the logged in tenant organization (read query)
+        resume = read_db.query(Resume).join(Candidate).filter(
             Resume.filename == data.filename,
             Candidate.organization_id == current_user.organization_id
         ).first()
         
         if not resume:
+            # Write operations route to write_db
             candidate = Candidate(name=data.filename, organization_id=current_user.organization_id)
-            db.add(candidate)
-            db.commit()
-            db.refresh(candidate)
+            write_db.add(candidate)
+            write_db.commit()
+            write_db.refresh(candidate)
             resume = Resume(candidate_id=candidate.id, filename=data.filename, file_path="", raw_text="")
-            db.add(resume)
-            db.commit()
+            write_db.add(resume)
+            write_db.commit()
         else:
             candidate = resume.candidate
             
         # Resolve Job ID
         job_id = data.job_id
         if not job_id:
-            latest_job = db.query(Job).filter_by(organization_id=current_user.organization_id).order_by(Job.id.desc()).first()
+            job_service = JobService(read_db, write_db)
+            latest_job = job_service.get_latest_job(current_user.organization_id)
             job_id = latest_job.id if latest_job else None
             
         if not job_id:
             job = Job(title="Default Job Context", description="System generated context", organization_id=current_user.organization_id)
-            db.add(job)
-            db.commit()
-            db.refresh(job)
+            write_db.add(job)
+            write_db.commit()
+            write_db.refresh(job)
             job_id = job.id
             
-        # Find or create Evaluation record
-        eval_record = db.query(Evaluation).filter_by(job_id=job_id, candidate_id=candidate.id).first()
+        # Find or create Evaluation record (read query)
+        eval_record = read_db.query(Evaluation).filter_by(job_id=job_id, candidate_id=candidate.id).first()
         old_status = eval_record.status if eval_record else None
         status_changed = False
         
@@ -954,7 +1031,7 @@ def update_evaluation(
                 status=data.status if data.status is not None else "Under Review",
                 comments=data.comments if data.comments is not None else ""
             )
-            db.add(eval_record)
+            write_db.add(eval_record)
             status_changed = True
         else:
             if data.status is not None and eval_record.status != data.status:
@@ -963,7 +1040,7 @@ def update_evaluation(
                 status_changed = True
             if data.comments is not None:
                 eval_record.comments = data.comments
-        db.commit()
+        write_db.commit()
         
         # Log audit details with what changed
         if status_changed:
@@ -978,8 +1055,8 @@ def update_evaluation(
             action=log_action,
             details=log_details
         )
-        db.add(log)
-        db.commit()
+        write_db.add(log)
+        write_db.commit()
         
         # Invalidate local memory cache for this job context
         candidates_local_cache.invalidate(job_id)
@@ -997,24 +1074,25 @@ def update_evaluation(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        write_db.rollback()
         raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
 
-@app.get("/api/backup/export")
+@api_router.get("/backup/export")
 def export_backup(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
 ):
     try:
-        # Export evaluations scoped strictly to candidate tenant organization
-        evaluations = db.query(Evaluation).join(Candidate).filter(
+        # Export evaluations scoped strictly to candidate tenant organization (read query)
+        evaluations = read_db.query(Evaluation).join(Candidate).filter(
             Candidate.organization_id == current_user.organization_id
         ).all()
         
         backup_data = {}
         for ev in evaluations:
-            # Find candidate's resume
-            resume = db.query(Resume).filter_by(candidate_id=ev.candidate_id).first()
+            # Find candidate's resume (read query)
+            resume = read_db.query(Resume).filter_by(candidate_id=ev.candidate_id).first()
             if resume:
                 backup_data[f"talentai_status_{resume.filename}"] = ev.status
                 backup_data[f"talentai_notes_{resume.filename}"] = ev.comments
@@ -1040,21 +1118,23 @@ def export_backup(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
-@app.post("/api/backup/import")
+@api_router.post("/backup/import")
 def import_backup(
     data: dict, 
     current_user: User = Depends(require_role(["Admin", "Recruiter"])),
-    db: Session = Depends(get_db)
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
 ):
     try:
-        latest_job = db.query(Job).filter_by(organization_id=current_user.organization_id).order_by(Job.id.desc()).first()
+        job_service = JobService(read_db, write_db)
+        latest_job = job_service.get_latest_job(current_user.organization_id)
         job_id = latest_job.id if latest_job else None
         
         if not job_id:
             job = Job(title="Imported Job Context", description="Requirements context", organization_id=current_user.organization_id)
-            db.add(job)
-            db.commit()
-            db.refresh(job)
+            write_db.add(job)
+            write_db.commit()
+            write_db.refresh(job)
             job_id = job.id
             
         restored_count = 0
@@ -1075,35 +1155,36 @@ def import_backup(
                 is_notes = True
                 
             if filename:
-                # Find or create candidate/resume shell if not exists under active tenant org
-                resume = db.query(Resume).join(Candidate).filter(
+                # Find or create candidate/resume shell if not exists under active tenant org (read query)
+                resume = read_db.query(Resume).join(Candidate).filter(
                     Resume.filename == filename,
                     Candidate.organization_id == current_user.organization_id
                 ).first()
                 
                 if not resume:
+                    # Write operations routed to write_db
                     candidate = Candidate(name=filename, organization_id=current_user.organization_id)
-                    db.add(candidate)
-                    db.commit()
-                    db.refresh(candidate)
+                    write_db.add(candidate)
+                    write_db.commit()
+                    write_db.refresh(candidate)
                     resume = Resume(candidate_id=candidate.id, filename=filename, file_path="", raw_text="")
-                    db.add(resume)
-                    db.commit()
+                    write_db.add(resume)
+                    write_db.commit()
                 else:
                     candidate = resume.candidate
                     
-                # Find or create evaluation
-                eval_record = db.query(Evaluation).filter_by(job_id=job_id, candidate_id=candidate.id).first()
+                # Find or create evaluation (read query)
+                eval_record = read_db.query(Evaluation).filter_by(job_id=job_id, candidate_id=candidate.id).first()
                 if not eval_record:
                     eval_record = Evaluation(job_id=job_id, candidate_id=candidate.id, status="Under Review", comments="")
-                    db.add(eval_record)
+                    write_db.add(eval_record)
                     
                 if is_status:
                     eval_record.status = value
                 elif is_notes:
                     eval_record.comments = value
                     
-                db.commit()
+                write_db.commit()
                 restored_count += 1
                 
         # Write audit logs
@@ -1112,8 +1193,8 @@ def import_backup(
             action="import_backup",
             details=f"Imported backup containing {restored_count} entries to DB."
         )
-        db.add(log)
-        db.commit()
+        write_db.add(log)
+        write_db.commit()
         
         # Invalidate local memory cache completely
         candidates_local_cache.clear()
@@ -1129,37 +1210,40 @@ def import_backup(
         
         return {"success": True, "restored_count": restored_count}
     except Exception as e:
-        db.rollback()
+        write_db.rollback()
         raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
 
 # --- DELETION ENDPOINTS ---
 
-@app.delete("/api/jobs/{job_id}")
+@api_router.delete("/jobs/{job_id}")
 def delete_job(
     job_id: int, 
     current_user: User = Depends(require_role(["Admin"])), 
-    db: Session = Depends(get_db)
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
 ):
-    job = db.query(Job).filter_by(id=job_id, organization_id=current_user.organization_id).first()
-    if not job:
+    job_service = JobService(read_db, write_db)
+    success = job_service.delete_job(job_id, current_user.organization_id)
+    if not success:
         raise HTTPException(status_code=404, detail="Job not found in your organization.")
-    db.delete(job)
-    db.commit()
+        
     candidates_local_cache.invalidate(job_id)
     return {"success": True, "message": "Job deleted successfully."}
 
-@app.delete("/api/candidates/{candidate_id}")
+@api_router.delete("/candidates/{candidate_id}")
 def delete_candidate(
     candidate_id: int, 
     current_user: User = Depends(require_role(["Admin"])), 
-    db: Session = Depends(get_db)
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
 ):
-    candidate = db.query(Candidate).filter_by(id=candidate_id, organization_id=current_user.organization_id).first()
+    candidate_service = CandidateService(read_db, write_db)
+    candidate = candidate_service.get_candidate_by_id(candidate_id, current_user.organization_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found in your organization.")
         
-    # Retrieve all associated resumes to delete files physically
-    resumes = db.query(Resume).filter_by(candidate_id=candidate.id).all()
+    # Retrieve all associated resumes to delete files physically (read query)
+    resumes = read_db.query(Resume).filter_by(candidate_id=candidate.id).all()
     for resume in resumes:
         if resume.file_path and os.path.exists(resume.file_path):
             try:
@@ -1169,8 +1253,8 @@ def delete_candidate(
                 
     candidate_name = candidate.name
     
-    # Delete database candidate entity (cascades automatically to resumes/scores/evaluations)
-    db.delete(candidate)
+    # Delete database candidate entity via candidate service (write operations)
+    candidate_service.delete_candidate(candidate_id, current_user.organization_id)
     
     # Log GDPR_PURGE audit trail
     audit = AuditLog(
@@ -1178,8 +1262,9 @@ def delete_candidate(
         action="GDPR_PURGE",
         details=f"Fully purged candidate '{candidate_name}' and all associated scores/files for GDPR Right to be Forgotten compliance."
     )
-    db.add(audit)
-    db.commit()
+    write_db.add(audit)
+    write_db.commit()
+
     
     # Invalidate local memory cache completely
     candidates_local_cache.clear()
@@ -1202,6 +1287,10 @@ def get_home():
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return {"message": "Frontend files not found. Ensure the frontend/ folder exists."}
+
+# Include APIRouter versioning prefixes
+app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router, prefix="/api")
 
 # Mount static files for assets, stylesheet and scripts (after specific API and root routes)
 if os.path.exists(FRONTEND_DIR):

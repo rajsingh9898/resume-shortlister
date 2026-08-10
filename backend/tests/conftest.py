@@ -49,12 +49,15 @@ def db(db_engine):
 
 @pytest.fixture(scope="function")
 def client(db):
+    from backend.main import get_read_db, get_write_db
     def override_get_db():
         try:
             yield db
         finally:
             pass
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_read_db] = override_get_db
+    app.dependency_overrides[get_write_db] = override_get_db
     yield TestClient(app)
     app.dependency_overrides.clear()
 
