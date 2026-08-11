@@ -3,6 +3,7 @@ import sys
 import datetime
 from celery import Celery
 from sqlalchemy.orm import Session
+from typing import Optional
 
 # Setup path so imports work correctly inside celery worker process
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -65,8 +66,49 @@ except Exception as e:
     celery_app.conf.task_eager_propagates = True
     celery_app.conf.task_store_eager_result = True
 
+from celery.signals import task_prerun, task_postrun, task_failure
+import time
+
+try:
+    from backend.logger import task_id_var
+    from backend.metrics import metrics_manager
+except ImportError:
+    from logger import task_id_var
+    from metrics import metrics_manager
+
+@task_prerun.connect
+def task_prerun_handler(sender=None, task_id=None, task=None, args=None, kwargs=None, **extra_kwargs):
+    # Set logging context
+    task_id_var.set(task_id)
+    # Store start time on the task instance
+    if task:
+        task._start_time = time.time()
+        
+        # Calculate queue latency
+        if kwargs and "queued_at" in kwargs:
+            try:
+                latency = time.time() - kwargs["queued_at"]
+                metrics_manager.record_queue_latency(sender.name, latency)
+            except Exception as e:
+                logger.warning(f"Failed to record queue latency: {e}")
+
+@task_postrun.connect
+def task_postrun_handler(sender=None, task_id=None, task=None, retval=None, state=None, **kwargs):
+    # Reset logging context
+    task_id_var.set(None)
+    
+    # Record duration metric
+    if task and hasattr(task, "_start_time"):
+        duration = time.time() - task._start_time
+        metrics_manager.record_task_duration(sender.name, duration)
+
+@task_failure.connect
+def task_failure_handler(sender=None, task_id=None, exception=None, **kwargs):
+    # Record task failure metric
+    metrics_manager.record_failure(f"task_{sender.name}_failure")
+
 @celery_app.task(bind=True, max_retries=3)
-def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weight: float, user_id: int):
+def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weight: float, user_id: int, queued_at: Optional[float] = None):
     """Asynchronously parses and ranks candidate resumes for a given Job ID."""
     db = SessionLocal()
     lifecycle_service = TaskLifecycleService(db)

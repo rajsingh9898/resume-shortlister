@@ -265,15 +265,50 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Suppress static file caching in development to ensure instant updates
+# Allocate thread pool executor for CPU-bound document parsing tasks
+import time
+import uuid
+
+try:
+    from backend.logger import request_id_var
+    from backend.metrics import metrics_manager
+except ImportError:
+    from logger import request_id_var
+    from metrics import metrics_manager
+
 @app.middleware("http")
-async def add_no_cache_headers(request: Request, call_next):
-    response = await call_next(request)
-    if settings.ENVIRONMENT == "development":
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-    return response
+async def operations_middleware(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    token = request_id_var.set(request_id)
+    
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        
+        # Suppress static file caching in development to ensure instant updates
+        if settings.ENVIRONMENT == "development":
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+            
+        duration = time.time() - start_time
+        path = request.url.path
+        if not path.startswith(("/static", "/metrics", "/health", "/api/metrics", "/api/health")):
+            metrics_manager.record_api_latency(path, duration)
+            if response.status_code >= 400:
+                metrics_manager.record_failure(f"api_http_{response.status_code}")
+                
+        return response
+    except Exception as e:
+        duration = time.time() - start_time
+        path = request.url.path
+        if not path.startswith(("/static", "/metrics", "/health", "/api/metrics", "/api/health")):
+            metrics_manager.record_api_latency(path, duration)
+            metrics_manager.record_failure("api_exception")
+        raise e
+    finally:
+        request_id_var.reset(token)
 
 # Allocate thread pool executor for CPU-bound document parsing tasks
 executor = ThreadPoolExecutor(max_workers=6)
@@ -576,10 +611,14 @@ async def shortlist(
             
         # Dispatch Celery background task
         is_eager = getattr(celery_app.conf, "task_always_eager", False)
+        import time
+        task_kwargs = {"queued_at": time.time()}
+        
         if is_eager:
             background_tasks.add_task(
                 process_shortlist_task.apply,
                 args=(job.id, resumes_info, payload.semantic_weight, current_user.id),
+                kwargs=task_kwargs,
                 task_id=task_id
             )
             class MockTask:
@@ -588,6 +627,7 @@ async def shortlist(
         else:
             task = process_shortlist_task.apply_async(
                 args=(job.id, resumes_info, payload.semantic_weight, current_user.id),
+                kwargs=task_kwargs,
                 task_id=task_id
             )
         
@@ -1279,6 +1319,65 @@ def delete_candidate(
             logger.warning(f"Redis cache clear failed: {e}")
             
     return {"success": True, "message": "Candidate and all associated data fully purged for GDPR compliance."}
+
+# --- OBSERVABILITY & HEALTH ENDPOINTS ---
+from fastapi import Response
+
+@app.get("/metrics")
+@api_router.get("/metrics")
+def get_metrics_endpoint():
+    return metrics_manager.get_summary()
+
+@app.get("/health")
+@api_router.get("/health")
+def get_health_status():
+    from sqlalchemy import text
+    
+    db_ok = False
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception as e:
+        logger.error(f"Health check Database failure: {e}")
+    finally:
+        db.close()
+        
+    redis_ok = False
+    if redis_client:
+        try:
+            redis_client.ping()
+            redis_ok = True
+        except Exception as e:
+            logger.error(f"Health check Redis failure: {e}")
+            
+    worker_ok = True
+    if not celery_app.conf.task_always_eager:
+        try:
+            inspect = celery_app.control.inspect(timeout=0.5)
+            pings = inspect.ping()
+            worker_ok = pings is not None and len(pings) > 0
+        except Exception as e:
+            logger.error(f"Health check Worker failure: {e}")
+            worker_ok = False
+            
+    status_code = status.HTTP_200_OK if (db_ok and redis_ok and worker_ok) else status.HTTP_503_SERVICE_UNAVAILABLE
+    
+    content = {
+        "status": "healthy" if status_code == 200 else "degraded",
+        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "components": {
+            "database": "healthy" if db_ok else "unhealthy",
+            "redis": "healthy" if redis_ok else "unhealthy",
+            "celery_worker": "healthy" if worker_ok else "unhealthy"
+        }
+    }
+    
+    return Response(
+        content=json.dumps(content),
+        media_type="application/json",
+        status_code=status_code
+    )
 
 # Route to serve homepage
 @app.get("/")

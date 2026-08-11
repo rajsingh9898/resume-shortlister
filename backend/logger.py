@@ -4,6 +4,12 @@ import json
 import datetime
 from logging import StreamHandler
 
+import contextvars
+
+# Context variables for request and task correlation logging
+request_id_var = contextvars.ContextVar("request_id", default=None)
+task_id_var = contextvars.ContextVar("task_id", default=None)
+
 class JsonFormatter(logging.Formatter):
     def format(self, record):
         log_record = {
@@ -14,6 +20,16 @@ class JsonFormatter(logging.Formatter):
             "filename": record.filename,
             "lineno": record.lineno,
         }
+        
+        # Inject correlation context variables
+        req_id = request_id_var.get()
+        if req_id:
+            log_record["request_id"] = req_id
+            
+        t_id = task_id_var.get()
+        if t_id:
+            log_record["task_id"] = t_id
+            
         if record.exc_info:
             log_record["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_record)
