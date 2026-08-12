@@ -2,7 +2,7 @@
 
 **TalentAI** is a premium, lightweight, and highly interactive recruiting intelligence tool designed to automate candidate shortlisting. It parses candidate resumes (PDF, DOCX, TXT) and matches them against Job Descriptions using an advanced NLP pipeline.
 
-Developed as a senior recruiter helper suite for **Raj Singh**.
+Developed by **Raj Singh**.
 
 ---
 
@@ -76,10 +76,25 @@ python main.py
 Then navigate to `http://127.0.0.1:8000` in your web browser.
 
 ### 3. Log In with Test Users
-Explore role-based access control using these seeded test accounts:
-* **Admin**: `admin@talentai.local` / Password: `admin123` (Full permissions, can rank candidates, modify status/notes, and delete candidates/jobs).
-* **Recruiter**: `recruiter@talentai.local` / Password: `recruiter123` (Standard access, can rank candidates and modify status/notes, but cannot delete candidate/job records).
-* **Hiring Manager**: `manager@talentai.local` / Password: `manager123` (Read + Comment only, cannot rank candidates, cannot change candidate status tags, but can write recruiter comments/notes).
+For local testing and evaluation, explore role-based access control using the local seed accounts (Admin, Recruiter, and Hiring Manager). 
+
+> [!WARNING]
+> Seed credentials (e.g. `admin@talentai.local`) and default local SQLite storage fallback are provided strictly for offline development and local quick-starts. Always override these variables in staging and production deployment profiles!
+
+---
+
+## 🔒 Security & Production Configuration
+To prepare the application for production, configure environment variables securely. Do not commit `.env` files to source control.
+
+| Environment Variable | Description | Recommendation |
+| --- | --- | --- |
+| `ENVIRONMENT` | Run profile (`development`, `production`) | Set to `production` |
+| `SECRET_KEY` | JWT signature key | Generate a random 64-character hex string |
+| `DATABASE_URL` | PostgreSQL connection URL | Set connection string scoped to your secure database instance |
+| `REDIS_URL` | Redis caching URL | Set connection string scoped to your secure Redis cluster |
+| `ENCRYPTION_KEY` | Rest encryption key | Hex-encoded key for database payload encryption |
+| `S3_ACCESS_KEY` | Object storage access ID | Configure your secure cloud IAM keys |
+| `S3_SECRET_KEY` | Object storage secret key | Configure your secure cloud IAM keys |
 
 ---
 
@@ -107,4 +122,4 @@ resume-shortlister/
 ---
 
 ## 👥 Authorship
-Developed and maintained by **Raj Singh** (Senior Recruiter / AI Specialist).
+Developed and maintained by **Raj Singh**  (AI Engineer) 

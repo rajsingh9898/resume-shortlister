@@ -73,16 +73,16 @@ except ImportError:
 # Import database, models and authentication
 try:
     from backend.database import get_db, Base, engine, SessionLocal
-    from backend.models import Organization, User, Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle
+    from backend.models import Organization, User, Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle, TokenBlacklist
     from backend import nlp_engine
-    from backend.auth import get_password_hash, verify_password, create_access_token, get_current_user, require_role
+    from backend.auth import get_password_hash, verify_password, create_access_token, create_refresh_token, verify_token_not_revoked, get_current_user, require_role, oauth2_scheme
     from backend.repositories import UserRepository, JobRepository, CandidateRepository, TaskLifecycleRepository
     from backend.services import AuthService, JobService, CandidateService, TaskLifecycleService
 except ImportError:
     from database import get_db, Base, engine, SessionLocal
-    from models import Organization, User, Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle
+    from models import Organization, User, Job, Candidate, Resume, Score, Evaluation, AuditLog, TaskLifecycle, TokenBlacklist
     import nlp_engine
-    from auth import get_password_hash, verify_password, create_access_token, get_current_user, require_role
+    from auth import get_password_hash, verify_password, create_access_token, create_refresh_token, verify_token_not_revoked, get_current_user, require_role, oauth2_scheme
     from repositories import UserRepository, JobRepository, CandidateRepository, TaskLifecycleRepository
     from services import AuthService, JobService, CandidateService, TaskLifecycleService
 
@@ -369,9 +369,13 @@ class UserRegister(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
     role: str
     full_name: str
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 class EvaluationUpdate(BaseModel):
     job_id: Optional[int] = None
@@ -402,9 +406,20 @@ def register(
         organization_name=org_name
     )
     
-    token = create_access_token({"sub": new_user.email})
+    # Log audit log
+    audit = AuditLog(
+        user_id=new_user.id,
+        action="USER_REGISTER",
+        details=f"User '{new_user.email}' registered successfully."
+    )
+    write_db.add(audit)
+    write_db.commit()
+    
+    access_token = create_access_token({"sub": new_user.email})
+    refresh_token = create_refresh_token({"sub": new_user.email})
     return {
-        "access_token": token,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
         "role": new_user.role,
         "full_name": new_user.full_name
@@ -423,15 +438,114 @@ def login(
     if not user:
         raise HTTPException(status_code=400, detail="Email is not registered.")
     if not verify_password(form_data.password, user.hashed_password):
+        # Log login failure
+        audit = AuditLog(
+            user_id=user.id,
+            action="USER_LOGIN_FAILED",
+            details=f"Failed login attempt for user '{user.email}' (incorrect password)."
+        )
+        write_db.add(audit)
+        write_db.commit()
         raise HTTPException(status_code=400, detail="Incorrect password.")
         
-    token = create_access_token({"sub": user.email})
+    # Log login success
+    audit = AuditLog(
+        user_id=user.id,
+        action="USER_LOGIN",
+        details=f"User '{user.email}' logged in successfully."
+    )
+    write_db.add(audit)
+    write_db.commit()
+    
+    access_token = create_access_token({"sub": user.email})
+    refresh_token = create_refresh_token({"sub": user.email})
     return {
-        "access_token": token,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
         "role": user.role,
         "full_name": user.full_name
     }
+
+@api_router.post("/auth/refresh", response_model=TokenResponse)
+def refresh(
+    data: RefreshTokenRequest,
+    read_db: Session = Depends(get_read_db),
+    write_db: Session = Depends(get_write_db)
+):
+    try:
+        payload = verify_token_not_revoked(data.refresh_token, read_db)
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=400, detail="Invalid token type.")
+            
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=400, detail="Invalid token subject.")
+            
+        user = read_db.query(User).filter_by(email=email).first()
+        if not user:
+            raise HTTPException(status_code=400, detail="User not found.")
+            
+        # Revoke old refresh token (token rotation)
+        import jwt
+        from backend.auth import SECRET_KEY, ALGORITHM
+        try:
+            exp_timestamp = payload.get("exp")
+            expires_at = datetime.datetime.utcfromtimestamp(exp_timestamp)
+        except Exception:
+            expires_at = datetime.datetime.utcnow() + datetime.timedelta(days=7)
+            
+        revoked_old = TokenBlacklist(token=data.refresh_token, expires_at=expires_at)
+        write_db.add(revoked_old)
+        write_db.commit()
+        
+        access_token = create_access_token({"sub": user.email})
+        refresh_token = create_refresh_token({"sub": user.email})
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "role": user.role,
+            "full_name": user.full_name
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=401, detail="Refresh token is expired or invalid.")
+
+@api_router.post("/auth/logout")
+def logout(
+    token: str = Depends(oauth2_scheme),
+    current_user: User = Depends(get_current_user),
+    write_db: Session = Depends(get_write_db)
+):
+    if not token:
+        raise HTTPException(status_code=400, detail="Authorization token is required.")
+        
+    import jwt
+    from backend.auth import SECRET_KEY, ALGORITHM
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        exp_timestamp = payload.get("exp")
+        expires_at = datetime.datetime.utcfromtimestamp(exp_timestamp)
+    except Exception:
+        expires_at = datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+        
+    existing = write_db.query(TokenBlacklist).filter_by(token=token).first()
+    if not existing:
+        blacklisted = TokenBlacklist(token=token, expires_at=expires_at)
+        write_db.add(blacklisted)
+        
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="USER_LOGOUT",
+        details=f"User '{current_user.email}' logged out and revoked access token."
+    )
+    write_db.add(audit)
+    write_db.commit()
+    
+    return {"success": True, "message": "Logged out successfully and token revoked."}
 
 @api_router.get("/auth/me")
 def get_me(current_user: User = Depends(get_current_user)):
@@ -1151,6 +1265,15 @@ def export_backup(
         # Generate pre-signed S3 download URL
         download_url = storage_client.generate_presigned_download_url(export_key)
         
+        # Log to audit log
+        audit_log = AuditLog(
+            user_id=current_user.id,
+            action="BACKUP_EXPORTED",
+            details=f"Database backup exported to key: {export_key}"
+        )
+        write_db.add(audit_log)
+        write_db.commit()
+        
         return {
             "success": True,
             "download_url": download_url
@@ -1268,6 +1391,16 @@ def delete_job(
         raise HTTPException(status_code=404, detail="Job not found in your organization.")
         
     candidates_local_cache.invalidate(job_id)
+    
+    # Log to audit log
+    audit_log = AuditLog(
+        user_id=current_user.id,
+        action="JOB_DELETED",
+        details=f"Job description with ID {job_id} deleted by Admin."
+    )
+    write_db.add(audit_log)
+    write_db.commit()
+    
     return {"success": True, "message": "Job deleted successfully."}
 
 @api_router.delete("/candidates/{candidate_id}")

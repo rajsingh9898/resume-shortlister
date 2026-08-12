@@ -33,24 +33,24 @@ class Settings:
     
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL", 
-        "postgresql://postgres:postgres@localhost:5432/talentai"
+        "sqlite:///./talentai.db"
     )
     DIRECT_URL: Optional[str] = os.getenv("DIRECT_URL")
-    REDIS_URL: str = os.getenv(
-        "REDIS_URL",
-        "redis://127.0.0.1:6379/0"
-    )
-    SECRET_KEY: str = os.getenv(
-        "SECRET_KEY",
-        "iridescent_unicorn_silver_secret_token_key_123456789"
-    )
+    REDIS_URL: Optional[str] = os.getenv("REDIS_URL")
+    
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
+    if not SECRET_KEY:
+        if ENVIRONMENT == "production":
+            raise ValueError("SECRET_KEY environment variable must be set in production!")
+        SECRET_KEY = "insecure_dev_fallback_secret_key"
+        
     ENCRYPTION_KEY: Optional[str] = os.getenv("ENCRYPTION_KEY")
     SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN")
     
     # S3 Object Storage Configuration
-    S3_ENDPOINT_URL: Optional[str] = os.getenv("S3_ENDPOINT_URL", "http://127.0.0.1:9000")
-    S3_ACCESS_KEY: Optional[str] = os.getenv("S3_ACCESS_KEY", "minioadmin")
-    S3_SECRET_KEY: Optional[str] = os.getenv("S3_SECRET_KEY", "minioadmin")
+    S3_ENDPOINT_URL: Optional[str] = os.getenv("S3_ENDPOINT_URL")
+    S3_ACCESS_KEY: Optional[str] = os.getenv("S3_ACCESS_KEY")
+    S3_SECRET_KEY: Optional[str] = os.getenv("S3_SECRET_KEY")
     S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME", "talentai-resumes")
     S3_REGION: str = os.getenv("S3_REGION", "us-east-1")
 

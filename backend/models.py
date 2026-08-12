@@ -150,3 +150,12 @@ class TaskLifecycle(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     job = relationship("Job")
+
+
+class TokenBlacklist(Base):
+    __tablename__ = "token_blacklist"
+    __table_args__ = {"extend_existing": True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String(512), unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)

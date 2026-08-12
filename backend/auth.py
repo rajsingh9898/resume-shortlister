@@ -8,10 +8,10 @@ from sqlalchemy.orm import Session
 
 try:
     from backend.database import get_db
-    from backend.models import User
+    from backend.models import User, TokenBlacklist
 except ImportError:
     from database import get_db
-    from models import User
+    from models import User, TokenBlacklist
 
 try:
     from backend.config import settings
@@ -47,24 +47,52 @@ def create_access_token(data: dict, expires_delta: datetime.timedelta = None) ->
         expire = datetime.datetime.utcnow() + expires_delta
     else:
         expire = datetime.datetime.utcnow() + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+def create_refresh_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.datetime.utcnow() + datetime.timedelta(days=7)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def verify_token_not_revoked(token: str, db: Session) -> dict:
+    # Query database token blacklist
+    blacklisted = db.query(TokenBlacklist).filter_by(token=token).first()
+    if blacklisted:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked or logged out."
+        )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token is invalid or expired."
+        )
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Access token is missing or invalid.",
+        detail="Access token is missing, invalid, or revoked.",
         headers={"WWW-Authenticate": "Bearer"},
     )
     if not token:
         raise credentials_exception
+        
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = verify_token_not_revoked(token, db)
+        if payload.get("type") != "access":
+            raise credentials_exception
+            
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-    except jwt.PyJWTError:
+    except Exception:
         raise credentials_exception
         
     user = db.query(User).filter_by(email=email).first()
