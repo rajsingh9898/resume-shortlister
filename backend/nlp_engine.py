@@ -417,7 +417,7 @@ def pearson_correlation(x: list, y: list) -> float:
         return 0.0
     return num / ((den_x * den_y) ** 0.5)
 
-def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0.5) -> dict:
+def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0.5, team_profile: dict = None) -> dict:
     # 1. Parse Job Description Parameters
     jd_clean = preprocess_text(jd_raw)
     jd_skills_dict = extract_skills_from_text(jd_raw)
@@ -537,6 +537,167 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
         
         final_score = (semantic_component * 0.4) + (keyword_component * 0.3) + (rule_component * 0.3)
         
+        # 1. Domain Fit calculation
+        domains = {
+            "Finance": ["finance", "banking", "fintech", "ledger", "trade", "trading", "investment", "bank", "accountant", "accounting", "audit"],
+            "Healthcare": ["healthcare", "medical", "clinical", "doctor", "patient", "health", "biotech", "pharma", "hospital", "nursing"],
+            "E-commerce": ["e-commerce", "ecommerce", "retail", "shop", "sales", "checkout", "cart", "stripe", "payment", "order"],
+            "Tech": ["software", "developer", "engineering", "web", "saas", "cloud", "infrastructure"]
+        }
+        jd_domains = []
+        for dom_name, keywords in domains.items():
+            if any(kw in jd_raw.lower() for kw in keywords):
+                jd_domains.append(dom_name)
+        domain_fit_score = 1.0
+        if jd_domains:
+            matched_domains = 0
+            for dom_name in jd_domains:
+                keywords = domains[dom_name]
+                if any(kw in raw_txt.lower() for kw in keywords):
+                    matched_domains += 1
+            domain_fit_score = matched_domains / len(jd_domains) if jd_domains else 1.0
+            domain_fit_score = max(0.6, domain_fit_score)
+            
+        # 2. Seniority Fit calculation
+        seniority_fit_score = 1.0
+        if jd_exp > 0.0:
+            exp_diff = candidate_exp - jd_exp
+            if exp_diff >= 0:
+                seniority_fit_score = 1.0
+            elif exp_diff >= -2.0:
+                seniority_fit_score = 0.8
+            else:
+                seniority_fit_score = max(0.3, round(candidate_exp / jd_exp, 2))
+        else:
+            seniority_fit_score = 1.0
+        is_jd_senior = any(x in jd_raw.lower() for x in ["senior", "lead", "architect", "principal", "manager"])
+        is_cand_senior = any(x in raw_txt.lower() for x in ["senior", "lead", "architect", "principal", "manager"])
+        if is_jd_senior and is_cand_senior:
+            seniority_fit_score = min(1.0, seniority_fit_score + 0.1)
+            
+        # 3. Culture/Soft-Signal Fit
+        culture_fit_score = 0.5
+        if len(soft_traits) >= 2:
+            culture_fit_score = 1.0
+        elif len(soft_traits) == 1:
+            culture_fit_score = 0.75
+        else:
+            soft_skills_terms = ["communication", "teamwork", "adaptability", "problem solving", "collaboration", "motivated"]
+            matched_terms = [t for t in soft_skills_terms if t in raw_txt.lower()]
+            culture_fit_score = min(0.9, 0.4 + 0.1 * len(matched_terms))
+
+        # 4. Job-to-Team Fit calculation
+        team_fit_score = 1.0
+        team_fit_details = {
+            "mindset_alignment": "Startup (Match)",
+            "focus_alignment": "Backend-heavy (Match)",
+            "expectation_alignment": "Ownership (Match)"
+        }
+        if team_profile:
+            # Mindset
+            mindset = team_profile.get("mindset", "Enterprise")
+            mindset_score = 0.5
+            if mindset == "Startup":
+                startup_keywords = ["startup", "prototype", "mvp", "rapid", "agile", "ownership", "wear multiple hats", "fast-paced", "built from scratch"]
+                matched_count = sum(1 for kw in startup_keywords if kw in raw_txt.lower())
+                startup_tech = ["react", "node", "python", "fastapi", "django", "typescript", "nextjs", "vue"]
+                tech_count = sum(1 for t in startup_tech if t in raw_txt.lower())
+                if matched_count > 0 or tech_count >= 2:
+                    mindset_score = 1.0
+                    team_fit_details["mindset_alignment"] = "Startup (Match)"
+                else:
+                    mindset_score = 0.6
+                    team_fit_details["mindset_alignment"] = "Startup (Low Correlation)"
+            else:
+                ent_keywords = ["enterprise", "architecture", "robust", "scalable", "compliance", "process", "legacy", "migration", "testing", "unit test", "java", "c#", "dotnet", "oracle", "kubernetes"]
+                matched_count = sum(1 for kw in ent_keywords if kw in raw_txt.lower())
+                if matched_count >= 2:
+                    mindset_score = 1.0
+                    team_fit_details["mindset_alignment"] = "Enterprise (Match)"
+                else:
+                    mindset_score = 0.7
+                    team_fit_details["mindset_alignment"] = "Enterprise (Partial Match)"
+            
+            # Focus
+            focus = team_profile.get("focus", "Backend-heavy")
+            focus_score = 0.5
+            backend_terms = ["python", "java", "c#", "postgres", "sql", "django", "fastapi", "database", "api", "backend", "node", "docker", "redis", "celery"]
+            frontend_terms = ["react", "javascript", "html", "css", "frontend", "ui", "ux", "user interface", "design", "tailwind", "sass"]
+            be_count = sum(1 for t in backend_terms if t in raw_txt.lower())
+            fe_count = sum(1 for t in frontend_terms if t in raw_txt.lower())
+            if focus == "Backend-heavy":
+                if be_count > fe_count:
+                    focus_score = 1.0
+                    team_fit_details["focus_alignment"] = "Backend-heavy (Match)"
+                elif be_count > 0:
+                    focus_score = 0.8
+                    team_fit_details["focus_alignment"] = "Backend-heavy (Partial Match)"
+                else:
+                    focus_score = 0.4
+                    team_fit_details["focus_alignment"] = "Backend-heavy (Low Alignment)"
+            elif focus == "Product-heavy":
+                if fe_count > be_count:
+                    focus_score = 1.0
+                    team_fit_details["focus_alignment"] = "Product-heavy (Match)"
+                elif fe_count > 0:
+                    focus_score = 0.8
+                    team_fit_details["focus_alignment"] = "Product-heavy (Partial Match)"
+                else:
+                    focus_score = 0.4
+                    team_fit_details["focus_alignment"] = "Product-heavy (Low Alignment)"
+            else:
+                if be_count > 0 and fe_count > 0:
+                    focus_score = 1.0
+                    team_fit_details["focus_alignment"] = "Fullstack (Match)"
+                elif be_count > 0 or fe_count > 0:
+                    focus_score = 0.7
+                    team_fit_details["focus_alignment"] = "Fullstack (Partial Match)"
+                else:
+                    focus_score = 0.4
+                    team_fit_details["focus_alignment"] = "Fullstack (Low Alignment)"
+                    
+            # Expectation
+            expectation = team_profile.get("expectation", "Ownership")
+            expectation_score = 0.5
+            if expectation == "Ownership":
+                own_keywords = ["lead", "mentor", "manager", "owner", "spearheaded", "designed", "architected", "leadership", "delivery", "initiative"]
+                matched_count = sum(1 for kw in own_keywords if kw in raw_txt.lower())
+                if matched_count > 0:
+                    expectation_score = 1.0
+                    team_fit_details["expectation_alignment"] = "Ownership (Match)"
+                else:
+                    expectation_score = 0.5
+                    team_fit_details["expectation_alignment"] = "Ownership (Partial)"
+            else:
+                sup_keywords = ["support", "maintenance", "ticket", "resolve", "debug", "document", "jira", "customer support", "fixing", "bugs"]
+                matched_count = sum(1 for kw in sup_keywords if kw in raw_txt.lower())
+                if matched_count > 0:
+                    expectation_score = 1.0
+                    team_fit_details["expectation_alignment"] = "Support (Match)"
+                else:
+                    expectation_score = 0.6
+                    team_fit_details["expectation_alignment"] = "Support (Partial)"
+                    
+            team_fit_score = round((mindset_score + focus_score + expectation_score) / 3.0, 2)
+            
+            # Blend team fit score (20% weight) into the final ranking score
+            final_score = (final_score * 0.8) + (team_fit_score * 0.2)
+            
+        # Generate Explainable AI "Why this candidate?" statement
+        matched_str = ", ".join(matched_skills[:2]) if matched_skills else "none"
+        why_candidate = ""
+        if final_score > 0.75:
+            why_candidate = f"Highly Recommended: This candidate exhibits excellent skills alignment matching {matched_str}. They have a strong experience match of {candidate_exp:.1f} years. "
+        elif final_score > 0.45:
+            why_candidate = f"Good Match: This candidate fits the core requirements with {candidate_exp:.1f} years of experience. They cover skills like {matched_str}. "
+        else:
+            why_candidate = f"Underqualified: The candidate has low skill coverage, missing key technologies. Experience is {candidate_exp:.1f} years. "
+            
+        if team_profile:
+            why_candidate += f"Additionally, they show high compatibility with the team's {team_profile.get('focus', 'Backend-heavy')} focus, demonstrating a {team_profile.get('mindset', 'Enterprise')} mindset."
+        else:
+            why_candidate += "No team profile alignment details were configured."
+        
         # Generate score explainability fields (positive/negative indicators)
         reasons_high = []
         reasons_low = []
@@ -572,7 +733,17 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
             
         explainability = {
             "reasons_high": reasons_high,
-            "reasons_low": reasons_low
+            "reasons_low": reasons_low,
+            "breakdown": {
+                "skills": round(skills_score * 100, 1),
+                "experience": round(experience_score * 100, 1),
+                "domain_fit": round(domain_fit_score * 100, 1),
+                "seniority_fit": round(seniority_fit_score * 100, 1),
+                "soft_signals": round(culture_fit_score * 100, 1),
+                "team_fit": round(team_fit_score * 100, 1)
+            },
+            "team_fit_details": team_fit_details,
+            "why_candidate": why_candidate
         }
         
         candidates_list.append({

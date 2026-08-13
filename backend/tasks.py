@@ -180,7 +180,8 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
         # 3. Execute similarity computing and ranking
         if self.request.id:
             self.update_state(state="PROGRESS", meta={"progress": 0.6, "files": file_statuses})
-        results = nlp_engine.compute_nlp_shortlist(jd, resume_data, semantic_weight)
+        team_profile = getattr(job, "team_profile", None)
+        results = nlp_engine.compute_nlp_shortlist(jd, resume_data, semantic_weight, team_profile=team_profile)
         
         # 4. Save results to DB
         if self.request.id:

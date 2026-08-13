@@ -63,11 +63,12 @@ class JobService(BaseService):
             }
         }
 
-    def create_job(self, title: str, description: str, organization_id: int) -> Job:
+    def create_job(self, title: str, description: str, organization_id: int, team_profile: dict = None) -> Job:
         job = Job(
             title=title,
             description=description,
-            organization_id=organization_id
+            organization_id=organization_id,
+            team_profile=team_profile
         )
         return self.job_repo.create(job)
 

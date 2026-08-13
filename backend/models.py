@@ -43,6 +43,7 @@ class Job(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    team_profile = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     organization = relationship("Organization", back_populates="jobs")

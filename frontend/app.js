@@ -559,6 +559,15 @@ shortlistForm.addEventListener('submit', async (e) => {
             });
         }
 
+        const mindsetEl = document.getElementById('team-mindset');
+        const focusEl = document.getElementById('team-focus');
+        const expectationEl = document.getElementById('team-expectation');
+        const teamProfile = {
+            mindset: mindsetEl ? mindsetEl.value : 'Enterprise',
+            focus: focusEl ? focusEl.value : 'Backend-heavy',
+            expectation: expectationEl ? expectationEl.value : 'Ownership'
+        };
+
         // 2. Dispatch the shortlist task with S3 object keys JSON
         const response = await fetch('/api/shortlist', {
             method: 'POST',
@@ -569,7 +578,8 @@ shortlistForm.addEventListener('submit', async (e) => {
             body: JSON.stringify({
                 jd: jd,
                 semantic_weight: semanticWeight,
-                resumes: resumesPayload
+                resumes: resumesPayload,
+                team_profile: teamProfile
             })
         });
 
@@ -1854,6 +1864,79 @@ function openDrawer(candidate, rank) {
     }
     
     const explain = candidate.explainability || { reasons_high: [], reasons_low: [] };
+    const breakdown = explain.breakdown || { domain_fit: 80, seniority_fit: 90, soft_signals: 75, team_fit: 85 };
+    const teamFitDetails = explain.team_fit_details || { mindset_alignment: "N/A", focus_alignment: "N/A", expectation_alignment: "N/A" };
+    const whyCandidate = explain.why_candidate || "No dynamic evaluation summary generated for this candidate.";
+    
+    // Domain Fit
+    const domVal = breakdown.domain_fit || 0;
+    const domEl = document.getElementById('detail-breakdown-domain');
+    const domBar = document.getElementById('detail-breakdown-domain-bar');
+    if (domEl) domEl.textContent = `${domVal.toFixed(0)}%`;
+    if (domBar) domBar.style.width = `${domVal}%`;
+    
+    // Seniority Fit
+    const senVal = breakdown.seniority_fit || 0;
+    const senEl = document.getElementById('detail-breakdown-seniority');
+    const senBar = document.getElementById('detail-breakdown-seniority-bar');
+    if (senEl) senEl.textContent = `${senVal.toFixed(0)}%`;
+    if (senBar) senBar.style.width = `${senVal}%`;
+    
+    // Culture Fit
+    const cultVal = breakdown.soft_signals || breakdown.culture_fit || 0;
+    const cultEl = document.getElementById('detail-breakdown-culture');
+    const cultBar = document.getElementById('detail-breakdown-culture-bar');
+    if (cultEl) cultEl.textContent = `${cultVal.toFixed(0)}%`;
+    if (cultBar) cultBar.style.width = `${cultVal}%`;
+    
+    // Team Fit
+    const teamVal = breakdown.team_fit || 0;
+    const teamEl = document.getElementById('detail-breakdown-team');
+    const teamBar = document.getElementById('detail-breakdown-team-bar');
+    if (teamEl) teamEl.textContent = `${teamVal.toFixed(0)}%`;
+    if (teamBar) teamBar.style.width = `${teamVal}%`;
+    
+    // Why Candidate Text
+    const whyEl = document.getElementById('detail-why-candidate-text');
+    if (whyEl) whyEl.textContent = whyCandidate;
+    
+    // Team Fit Alignment Dimensions Badges
+    const mindsetBadge = document.getElementById('detail-alignment-mindset');
+    const focusBadge = document.getElementById('detail-alignment-focus');
+    const expectationBadge = document.getElementById('detail-alignment-expectation');
+    
+    if (mindsetBadge) {
+        mindsetBadge.textContent = teamFitDetails.mindset_alignment || "N/A";
+        const isMatch = (teamFitDetails.mindset_alignment || "").includes("Match");
+        mindsetBadge.style.background = isMatch ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)";
+        mindsetBadge.style.color = isMatch ? "#34d399" : "#f87171";
+        mindsetBadge.style.border = isMatch ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(239, 68, 68, 0.3)";
+    }
+    if (focusBadge) {
+        focusBadge.textContent = teamFitDetails.focus_alignment || "N/A";
+        const isMatch = (teamFitDetails.focus_alignment || "").includes("Match");
+        const isPartial = (teamFitDetails.focus_alignment || "").includes("Partial");
+        if (isMatch) {
+            focusBadge.style.background = "rgba(16, 185, 129, 0.2)";
+            focusBadge.style.color = "#34d399";
+            focusBadge.style.border = "1px solid rgba(16, 185, 129, 0.3)";
+        } else if (isPartial) {
+            focusBadge.style.background = "rgba(245, 158, 11, 0.2)";
+            focusBadge.style.color = "#fbbf24";
+            focusBadge.style.border = "1px solid rgba(245, 158, 11, 0.3)";
+        } else {
+            focusBadge.style.background = "rgba(239, 68, 68, 0.2)";
+            focusBadge.style.color = "#f87171";
+            focusBadge.style.border = "1px solid rgba(239, 68, 68, 0.3)";
+        }
+    }
+    if (expectationBadge) {
+        expectationBadge.textContent = teamFitDetails.expectation_alignment || "N/A";
+        const isMatch = (teamFitDetails.expectation_alignment || "").includes("Match");
+        expectationBadge.style.background = isMatch ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)";
+        expectationBadge.style.color = isMatch ? "#34d399" : "#f87171";
+        expectationBadge.style.border = isMatch ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(239, 68, 68, 0.3)";
+    }
     
     if (explainHighList) {
         explainHighList.innerHTML = '';

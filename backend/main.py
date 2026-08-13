@@ -170,6 +170,17 @@ def run_schema_migrations(engine_to_migrate):
                 except Exception as e:
                     logger.warning(f"Failed to add explainability column: {e}")
                     
+            # Add team_profile to jobs if not present
+            try:
+                job_columns = [c['name'] for c in inspector.get_columns('jobs')]
+                if 'team_profile' not in job_columns:
+                    dialect = engine_to_migrate.dialect.name
+                    col_type = "JSON" if dialect == "postgresql" else "TEXT"
+                    conn.execute(text(f"ALTER TABLE jobs ADD COLUMN team_profile {col_type}"))
+                    logger.info("Migrated database: added 'team_profile' column to 'jobs' table.")
+            except Exception as e:
+                logger.warning(f"Failed to add team_profile column to jobs: {e}")
+                    
             # Ensure indexes exist on high-query columns
             try:
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_evaluations_status ON evaluations (status)"))
@@ -611,10 +622,16 @@ class ShortlistResumeItem(BaseModel):
     filename: str
     object_key: str
 
+class TeamProfile(BaseModel):
+    mindset: str = "Enterprise"
+    focus: str = "Backend-heavy"
+    expectation: str = "Ownership"
+
 class ShortlistJSONRequest(BaseModel):
     jd: str
     semantic_weight: float = 0.5
     resumes: List[ShortlistResumeItem]
+    team_profile: Optional[TeamProfile] = None
 
 @api_router.post("/storage/presign-upload")
 def get_presigned_upload_url(
@@ -700,10 +717,12 @@ async def shortlist(
     try:
         # Save Job record under active tenant (pending background computations)
         job_service = JobService(read_db, write_db)
+        team_profile_dict = payload.team_profile.dict() if payload.team_profile else None
         job = job_service.create_job(
             title=f"Shortlist Run - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", 
             description=payload.jd, 
-            organization_id=current_user.organization_id
+            organization_id=current_user.organization_id,
+            team_profile=team_profile_dict
         )
         
         # Build resumes info lists pointing to S3 keys

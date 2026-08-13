@@ -248,6 +248,42 @@
                             </div>
                         </div>
 
+                        <!-- Hiring Manager's Team Profile -->
+                        <div class="input-group team-profile-group">
+                            <label>
+                                <span style="display: flex; align-items: center; gap: 5px;">
+                                    <i class="fa-solid fa-users-gear" style="color: #6366f1;"></i>
+                                    <span>Hiring Manager's Team Profile</span>
+                                </span>
+                                <span class="tooltip" title="Define the profile of the team to assess candidate job-to-team fit."><i class="fa-solid fa-circle-question"></i></span>
+                            </label>
+                            
+                            <div class="team-profile-selectors" style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                                <div class="profile-selector-item" style="display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="font-size: 0.8rem; color: #94a3b8;">Mindset:</span>
+                                    <select id="team-mindset" name="team_mindset" class="profile-select" style="background: rgba(15, 23, 42, 0.6); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 3px 8px; font-size: 0.8rem; width: 120px;">
+                                        <option value="Startup">Startup</option>
+                                        <option value="Enterprise">Enterprise</option>
+                                    </select>
+                                </div>
+                                <div class="profile-selector-item" style="display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="font-size: 0.8rem; color: #94a3b8;">Focus:</span>
+                                    <select id="team-focus" name="team_focus" class="profile-select" style="background: rgba(15, 23, 42, 0.6); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 3px 8px; font-size: 0.8rem; width: 120px;">
+                                        <option value="Backend-heavy">Backend-heavy</option>
+                                        <option value="Product-heavy">Product-heavy</option>
+                                        <option value="Fullstack">Fullstack</option>
+                                    </select>
+                                </div>
+                                <div class="profile-selector-item" style="display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="font-size: 0.8rem; color: #94a3b8;">Expectation:</span>
+                                    <select id="team-expectation" name="team_expectation" class="profile-select" style="background: rgba(15, 23, 42, 0.6); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 3px 8px; font-size: 0.8rem; width: 120px;">
+                                        <option value="Ownership">Ownership</option>
+                                        <option value="Support">Support</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Submit Button -->
                         <button type="submit" id="submit-btn" class="btn primary-btn">
                             <span class="btn-text">Rank Candidates</span>
@@ -541,6 +577,81 @@
                             <div class="meter-bar-container">
                                 <div class="meter-bar-fill orange" id="detail-experience-bar" style="width: 0%;"></div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Explainable AI Score Breakdown -->
+                <div class="detail-section explainable-ai-breakdown" id="explainable-ai-breakdown-section" style="margin-top: 20px;">
+                    <h3><i class="fa-solid fa-square-poll-vertical" style="color: #6366f1; margin-right: 8px;"></i> Explainable AI Score Breakdown</h3>
+                    <div class="explainable-metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px;">
+                        
+                        <div class="explain-metric-item" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem;">
+                                <span style="color: #94a3b8;">Domain Fit</span>
+                                <strong id="detail-breakdown-domain">0%</strong>
+                            </div>
+                            <div class="meter-bar-container" style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
+                                <div class="meter-bar-fill green" id="detail-breakdown-domain-bar" style="width: 0%; height: 100%; background: #10b981; transition: width 0.8s ease;"></div>
+                            </div>
+                        </div>
+
+                        <div class="explain-metric-item" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem;">
+                                <span style="color: #94a3b8;">Seniority Fit</span>
+                                <strong id="detail-breakdown-seniority">0%</strong>
+                            </div>
+                            <div class="meter-bar-container" style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
+                                <div class="meter-bar-fill blue" id="detail-breakdown-seniority-bar" style="width: 0%; height: 100%; background: #3b82f6; transition: width 0.8s ease;"></div>
+                            </div>
+                        </div>
+
+                        <div class="explain-metric-item" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem;">
+                                <span style="color: #94a3b8;">Culture & Soft-Signal Fit</span>
+                                <strong id="detail-breakdown-culture">0%</strong>
+                            </div>
+                            <div class="meter-bar-container" style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
+                                <div class="meter-bar-fill purple" id="detail-breakdown-culture-bar" style="width: 0%; height: 100%; background: #a855f7; transition: width 0.8s ease;"></div>
+                            </div>
+                        </div>
+
+                        <div class="explain-metric-item" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem;">
+                                <span style="color: #94a3b8;">Hiring Manager Team Fit</span>
+                                <strong id="detail-breakdown-team">0%</strong>
+                            </div>
+                            <div class="meter-bar-container" style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
+                                <div class="meter-bar-fill pink" id="detail-breakdown-team-bar" style="width: 0%; height: 100%; background: #ec4899; transition: width 0.8s ease;"></div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Why This Candidate Panel -->
+                <div class="detail-section why-candidate-panel" id="why-candidate-panel-section" style="margin-top: 20px;">
+                    <h3><i class="fa-solid fa-comment-medical" style="color: #10b981; margin-right: 8px;"></i> Why This Candidate?</h3>
+                    <div class="why-candidate-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(99, 102, 241, 0.08)); border: 1px solid rgba(16, 185, 129, 0.15); padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
+                        <p id="detail-why-candidate-text" style="font-size: 0.85rem; line-height: 1.5; color: rgba(255, 255, 255, 0.9); margin: 0;"></p>
+                    </div>
+                </div>
+
+                <!-- Job-to-Team Fit Alignment Details -->
+                <div class="detail-section team-alignment-panel" id="team-alignment-panel-section" style="margin-top: 20px;">
+                    <h3><i class="fa-solid fa-network-wired" style="color: #3b82f6; margin-right: 8px;"></i> Job-to-Team Fit Dimensions</h3>
+                    <div class="team-alignment-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem;">
+                            <span style="color: #94a3b8;">Mindset Alignment:</span>
+                            <span id="detail-alignment-mindset" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 2px 8px; border-radius: 4px; font-weight: 600;">Startup (Match)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem;">
+                            <span style="color: #94a3b8;">Team Focus Match:</span>
+                            <span id="detail-alignment-focus" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); padding: 2px 8px; border-radius: 4px; font-weight: 600;">Backend-heavy (Partial Match)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem;">
+                            <span style="color: #94a3b8;">Expectations Alignment:</span>
+                            <span id="detail-alignment-expectation" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 8px; border-radius: 4px; font-weight: 600;">Ownership (Match)</span>
                         </div>
                     </div>
                 </div>

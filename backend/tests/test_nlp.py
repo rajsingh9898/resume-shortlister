@@ -89,3 +89,46 @@ def test_skill_ontology_expansion():
     # JD asks for "postgresql" (lowercase)
     # Candidate mentions "PostgreSQL" (proper case)
     assert nlp_engine.check_skill_match_raw("postgresql", "Strong skills in PostgreSQL database administration", {"PostgreSQL"}) == True
+
+def test_explainable_ai_and_team_fit():
+    jd = "Looking for a Senior Python Developer with 5+ years of experience in Healthcare finance. Must know FastAPI and React."
+    resumes = [
+        {
+            "filename": "john_doe.txt",
+            "raw_text": "John Doe. Senior Software Architect with 7 years of Python experience in medical systems. Spearheaded multiple FastAPI backend platforms from scratch in an agile startup. Key traits: leadership, system architecture."
+        }
+    ]
+    
+    # Define a startup backend-heavy ownership team profile
+    team_profile = {
+        "mindset": "Startup",
+        "focus": "Backend-heavy",
+        "expectation": "Ownership"
+    }
+    
+    result = nlp_engine.compute_nlp_shortlist(jd, resumes, semantic_weight=0.5, team_profile=team_profile)
+    assert "candidates" in result
+    c = result["candidates"][0]
+    
+    assert "explainability" in c
+    explain = c["explainability"]
+    
+    # 1. Verify breakdown fits exist
+    assert "breakdown" in explain
+    bd = explain["breakdown"]
+    assert "domain_fit" in bd
+    assert "seniority_fit" in bd
+    assert "soft_signals" in bd
+    assert "team_fit" in bd
+    
+    # 2. Verify team fit alignment details
+    assert "team_fit_details" in explain
+    tfd = explain["team_fit_details"]
+    assert "mindset_alignment" in tfd
+    assert "focus_alignment" in tfd
+    assert "expectation_alignment" in tfd
+    assert "Startup (Match)" in tfd["mindset_alignment"]
+    
+    # 3. Verify why candidate reason is generated
+    assert "why_candidate" in explain
+    assert "Highly Recommended" in explain["why_candidate"] or "Good Match" in explain["why_candidate"]
