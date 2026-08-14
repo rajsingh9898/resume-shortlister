@@ -132,3 +132,21 @@ def test_explainable_ai_and_team_fit():
     # 3. Verify why candidate reason is generated
     assert "why_candidate" in explain
     assert "Highly Recommended" in explain["why_candidate"] or "Good Match" in explain["why_candidate"]
+    
+    # 4. Verify Skill Gap Roadmap
+    assert "skill_gap_roadmap" in explain
+    roadmap = explain["skill_gap_roadmap"]
+    assert "summary" in roadmap
+    assert "strengths" in roadmap
+    assert "gaps" in roadmap
+    assert "upskilling_recommendations" in roadmap
+    assert len(roadmap["strengths"]) > 0
+    
+    # 5. Verify Interview Kit
+    assert "interview_kit" in explain
+    kit = explain["interview_kit"]
+    assert "screening" in kit
+    assert "technical" in kit
+    assert "system_design" in kit
+    assert "behavioral" in kit
+    assert len(kit["technical"]) > 0

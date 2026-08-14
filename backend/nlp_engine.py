@@ -417,6 +417,71 @@ def pearson_correlation(x: list, y: list) -> float:
         return 0.0
     return num / ((den_x * den_y) ** 0.5)
 
+def generate_skill_gap_roadmap(matched_skills: list, missing_skills: list, exp_years: float) -> dict:
+    matched = matched_skills if matched_skills else []
+    missing = missing_skills if missing_skills else []
+    
+    if matched:
+        strong_str = "Strong in " + ", ".join(matched[:3])
+    else:
+        strong_str = "Lacks explicit matching keywords from the JD"
+        
+    if missing:
+        missing_str = "but missing " + ", ".join(missing[:3])
+    else:
+        missing_str = "fully covering all required skills from the JD"
+        
+    summary = f"{strong_str}, {missing_str}."
+    
+    upskilling_recommendations = []
+    for skill in missing[:4]:
+        upskilling_recommendations.append(f"Complete hands-on projects or certifications covering {skill} development.")
+        
+    if exp_years < 3.0:
+        upskilling_recommendations.append("Gain more commercial experience working on team-based software development lifecycle processes.")
+        
+    return {
+        "summary": summary,
+        "strengths": matched[:5],
+        "gaps": missing[:5],
+        "upskilling_recommendations": upskilling_recommendations if upskilling_recommendations else ["Candidate meets all baseline technical requirements!"]
+    }
+
+def generate_interview_kit(matched_skills: list, missing_skills: list, exp_years: float, team_profile: dict = None) -> dict:
+    mindset = team_profile.get("mindset", "Enterprise") if team_profile else "Enterprise"
+    focus = team_profile.get("focus", "Backend-heavy") if team_profile else "Backend-heavy"
+    expectation = team_profile.get("expectation", "Ownership") if team_profile else "Ownership"
+    
+    matched = matched_skills[:3] if matched_skills else ["Python"]
+    missing = missing_skills[:3] if missing_skills else ["Cloud Infrastructure"]
+    
+    screening = [
+        f"What elements of our team's {mindset} mindset align with your career goals, and why do you want to join us?",
+        f"You mention experience in {', '.join(matched)}. Can you quickly summarize a recent project where you applied these?"
+    ]
+    
+    technical = [
+        f"Since the team focus is {focus}, can you write a code snippet or outline the architecture to handle concurrency using {matched[0]}?",
+        f"If you were asked to implement {missing[0]} in our stack tomorrow, what step-by-step approach would you take to get up to speed?"
+    ]
+    
+    system_design = [
+        f"How would you design a distributed, high-throughput system leveraging {matched[0]} that gracefully degrades if a dependency using {missing[0]} becomes unavailable?",
+        f"Walk us through how you design database models, query indexing strategies, and cache invalidation policies for a high-traffic endpoint."
+    ]
+    
+    behavioral = [
+        f"As we emphasize {expectation} within our engineering team, tell me about a time you noticed an undocumented gap in a system and took complete ownership of resolving it.",
+        "Tell me about a time you had to make a tough technical compromise to meet a tight deadline. What was the impact, and how did you communicate it?"
+    ]
+    
+    return {
+        "screening": screening,
+        "technical": technical,
+        "system_design": system_design,
+        "behavioral": behavioral
+    }
+
 def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0.5, team_profile: dict = None) -> dict:
     # 1. Parse Job Description Parameters
     jd_clean = preprocess_text(jd_raw)
@@ -743,7 +808,9 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
                 "team_fit": round(team_fit_score * 100, 1)
             },
             "team_fit_details": team_fit_details,
-            "why_candidate": why_candidate
+            "why_candidate": why_candidate,
+            "skill_gap_roadmap": generate_skill_gap_roadmap(matched_skills, missing_skills, candidate_exp),
+            "interview_kit": generate_interview_kit(matched_skills, missing_skills, candidate_exp, team_profile)
         }
         
         candidates_list.append({

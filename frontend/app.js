@@ -1830,14 +1830,68 @@ function openDrawer(candidate, rank) {
         });
     }
 
-    // Generate context screening questions list
-    const questions = generateInterviewQuestions(candidate);
-    detailInterviewQuestionsList.innerHTML = '';
-    questions.forEach(q => {
-        const li = document.createElement('li');
-        li.innerHTML = q;
-        detailInterviewQuestionsList.appendChild(li);
-    });
+    // Populate Skill Gap Roadmap
+    const explain = candidate.explainability || { reasons_high: [], reasons_low: [] };
+    const roadmap = explain.skill_gap_roadmap || {
+        summary: "No skill gaps calculated.",
+        strengths: candidate.matched_skills,
+        gaps: candidate.missing_skills,
+        upskilling_recommendations: ["Ensure candidate baseline requirements are verified during interview."]
+    };
+    
+    const summaryEl = document.getElementById('roadmap-summary');
+    if (summaryEl) summaryEl.textContent = roadmap.summary;
+    
+    const strengthsEl = document.getElementById('roadmap-strengths');
+    if (strengthsEl) {
+        strengthsEl.innerHTML = '';
+        if (roadmap.strengths && roadmap.strengths.length > 0) {
+            roadmap.strengths.forEach(s => {
+                const b = document.createElement('span');
+                b.className = 'badge';
+                b.style.background = 'rgba(74, 222, 128, 0.12)';
+                b.style.color = '#4ade80';
+                b.style.border = '1px solid rgba(74, 222, 128, 0.2)';
+                b.textContent = s;
+                strengthsEl.appendChild(b);
+            });
+        } else {
+            strengthsEl.innerHTML = '<span style="color: #64748b; font-size: 0.75rem;">None listed</span>';
+        }
+    }
+    
+    const gapsEl = document.getElementById('roadmap-gaps');
+    if (gapsEl) {
+        gapsEl.innerHTML = '';
+        if (roadmap.gaps && roadmap.gaps.length > 0) {
+            roadmap.gaps.forEach(g => {
+                const b = document.createElement('span');
+                b.className = 'badge';
+                b.style.background = 'rgba(248, 113, 113, 0.12)';
+                b.style.color = '#f87171';
+                b.style.border = '1px solid rgba(248, 113, 113, 0.2)';
+                b.textContent = g;
+                gapsEl.appendChild(b);
+            });
+        } else {
+            gapsEl.innerHTML = '<span style="color: #64748b; font-size: 0.75rem;">None listed</span>';
+        }
+    }
+    
+    const recsEl = document.getElementById('roadmap-recommendations');
+    if (recsEl) {
+        recsEl.innerHTML = '';
+        if (roadmap.upskilling_recommendations) {
+            roadmap.upskilling_recommendations.forEach(r => {
+                const li = document.createElement('li');
+                li.textContent = r;
+                recsEl.appendChild(li);
+            });
+        }
+    }
+    
+    // Initialize Interview Kit Tab
+    switchInterviewRound('screening');
 
     // Animate SVG category donut chart coverage
     animateSkillDonut(candidate);
@@ -1863,7 +1917,7 @@ function openDrawer(candidate, rank) {
         detailModelVersion.textContent = candidate.model_version || 'v2.1.0';
     }
     
-    const explain = candidate.explainability || { reasons_high: [], reasons_low: [] };
+    
     const breakdown = explain.breakdown || { domain_fit: 80, seniority_fit: 90, soft_signals: 75, team_fit: 85 };
     const teamFitDetails = explain.team_fit_details || { mindset_alignment: "N/A", focus_alignment: "N/A", expectation_alignment: "N/A" };
     const whyCandidate = explain.why_candidate || "No dynamic evaluation summary generated for this candidate.";
@@ -2508,3 +2562,80 @@ if (btnToggleResumeText) {
         }
     });
 }
+
+window.switchInterviewRound = function(roundName) {
+    if (!currentDrawerCandidate) return;
+    
+    // Update active tab button style
+    const tabIds = {
+        'screening': 'btn-tab-screening',
+        'technical': 'btn-tab-technical',
+        'system_design': 'btn-tab-system_design',
+        'behavioral': 'btn-tab-behavioral'
+    };
+    
+    Object.keys(tabIds).forEach(r => {
+        const btn = document.getElementById(tabIds[r]);
+        if (btn) {
+            if (r === roundName) {
+                btn.style.background = 'var(--primary-color)';
+                btn.style.color = 'white';
+            } else {
+                btn.style.background = 'transparent';
+                btn.style.color = '#94a3b8';
+            }
+        }
+    });
+    
+    // Render round-specific questions
+    const explain = currentDrawerCandidate.explainability || {};
+    const kit = explain.interview_kit || {};
+    const questions = kit[roundName] || [
+        "What key learnings have you obtained from your most recent technical project?",
+        "How do you approach learning a new tool or framework rapidly under tight client constraints?"
+    ];
+    
+    const qList = document.getElementById('interview-kit-questions-list');
+    if (qList) {
+        qList.innerHTML = '';
+        questions.forEach(q => {
+            const li = document.createElement('li');
+            li.style.display = 'flex';
+            li.style.justifyContent = 'space-between';
+            li.style.alignItems = 'flex-start';
+            li.style.gap = '15px';
+            
+            const txt = document.createElement('span');
+            txt.textContent = q;
+            txt.style.flex = '1';
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'btn';
+            copyBtn.style.padding = '3px 8px';
+            copyBtn.style.fontSize = '0.7rem';
+            copyBtn.style.background = 'rgba(255,255,255,0.06)';
+            copyBtn.style.border = '1px solid rgba(255,255,255,0.1)';
+            copyBtn.style.color = '#cbd5e1';
+            copyBtn.style.cursor = 'pointer';
+            copyBtn.style.borderRadius = '4px';
+            copyBtn.style.minWidth = '75px';
+            copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
+            
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(q).then(() => {
+                    copyBtn.innerHTML = '<i class="fa-solid fa-check" style="color: #4ade80;"></i> Copied';
+                    showToast("Question copied to clipboard!", "success");
+                    setTimeout(() => {
+                        copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
+                    }, 2000);
+                }).catch(() => {
+                    showToast("Failed to copy question.", "error");
+                });
+            };
+            
+            li.appendChild(txt);
+            li.appendChild(copyBtn);
+            qList.appendChild(li);
+        });
+    }
+};

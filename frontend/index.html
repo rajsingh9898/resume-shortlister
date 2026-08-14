@@ -746,13 +746,49 @@
                     </div>
                 </div>
 
-                <!-- Contextual Tailored Screening Questions -->
-                <div class="detail-section">
-                    <h3><i class="fa-solid fa-clipboard-question"></i> Tailored Screening Questions</h3>
-                    <p class="questionnaire-sub"><i class="fa-solid fa-circle-info"></i> Tailored behavioral and technical screening questions targeting candidate's requirements gaps.</p>
-                    <ul class="questions-list" id="detail-interview-questions-list">
-                        <!-- Dynamic questions list -->
-                    </ul>
+                <!-- Skill Gap Roadmap -->
+                <div class="detail-section skill-gap-roadmap-section">
+                    <h3><i class="fa-solid fa-route" style="color: #f59e0b; margin-right: 8px;"></i> Candidate Skill Gap Roadmap</h3>
+                    <p class="questionnaire-sub"><i class="fa-solid fa-circle-info"></i> Personalized upskilling recommendations and gap summary.</p>
+                    
+                    <div class="roadmap-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.06); padding: 15px; border-radius: 8px; margin-top: 10px; display: flex; flex-direction: column; gap: 12px;">
+                        <div id="roadmap-summary" style="font-size: 0.85rem; line-height: 1.5; font-style: italic; color: #cbd5e1; border-left: 3px solid #f59e0b; padding-left: 10px;"></div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 5px;">
+                            <div>
+                                <h4 style="font-size: 0.8rem; text-transform: uppercase; color: #4ade80; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;"><i class="fa-solid fa-circle-check"></i> Strengths</h4>
+                                <div id="roadmap-strengths" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                            </div>
+                            <div>
+                                <h4 style="font-size: 0.8rem; text-transform: uppercase; color: #f87171; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;"><i class="fa-solid fa-circle-xmark"></i> Gaps</h4>
+                                <div id="roadmap-gaps" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px;">
+                            <h4 style="font-size: 0.8rem; text-transform: uppercase; color: #38bdf8; margin-bottom: 8px;">Upskilling Recommendations</h4>
+                            <ol id="roadmap-recommendations" style="font-size: 0.8rem; line-height: 1.6; color: #94a3b8; margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;"></ol>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recruiter Interview Kit -->
+                <div class="detail-section interview-kit-section">
+                    <h3><i class="fa-solid fa-folder-open" style="color: #38bdf8; margin-right: 8px;"></i> Interactive Interview Kit</h3>
+                    <p class="questionnaire-sub"><i class="fa-solid fa-circle-info"></i> Role-specific round-based sets matching candidate gaps.</p>
+                    
+                    <!-- Round tabs navigation -->
+                    <div class="interview-tabs" style="display: flex; background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 3px; margin-top: 12px; gap: 4px;">
+                        <button class="int-tab-btn active" id="btn-tab-screening" onclick="switchInterviewRound('screening')" style="flex: 1; text-align: center; font-size: 0.75rem; padding: 6px 4px; border-radius: 4px; border: none; background: var(--primary-color); color: white; cursor: pointer; transition: all 0.3s ease; font-weight: 600;">Screening</button>
+                        <button class="int-tab-btn" id="btn-tab-technical" onclick="switchInterviewRound('technical')" style="flex: 1; text-align: center; font-size: 0.75rem; padding: 6px 4px; border-radius: 4px; border: none; background: transparent; color: #94a3b8; cursor: pointer; transition: all 0.3s ease; font-weight: 600;">Technical</button>
+                        <button class="int-tab-btn" id="btn-tab-system_design" onclick="switchInterviewRound('system_design')" style="flex: 1; text-align: center; font-size: 0.75rem; padding: 6px 4px; border-radius: 4px; border: none; background: transparent; color: #94a3b8; cursor: pointer; transition: all 0.3s ease; font-weight: 600;">System Design</button>
+                        <button class="int-tab-btn" id="btn-tab-behavioral" onclick="switchInterviewRound('behavioral')" style="flex: 1; text-align: center; font-size: 0.75rem; padding: 6px 4px; border-radius: 4px; border: none; background: transparent; color: #94a3b8; cursor: pointer; transition: all 0.3s ease; font-weight: 600;">Behavioral</button>
+                    </div>
+
+                    <!-- Questions list container -->
+                    <div id="interview-kit-questions-container" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.06); padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        <ul id="interview-kit-questions-list" style="margin: 0; padding-left: 20px; font-size: 0.85rem; line-height: 1.6; color: #cbd5e1; display: flex; flex-direction: column; gap: 12px;"></ul>
+                    </div>
                 </div>
 
                 <!-- Full Parsed Resume Text Accordion -->
