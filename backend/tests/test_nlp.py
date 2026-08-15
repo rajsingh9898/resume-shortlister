@@ -150,3 +150,38 @@ def test_explainable_ai_and_team_fit():
     assert "system_design" in kit
     assert "behavioral" in kit
     assert len(kit["technical"]) > 0
+    
+    # 6. Verify Talent Graph & Adjacent Roles
+    assert "talent_graph" in explain
+    tg = explain["talent_graph"]
+    assert "adjacent_roles" in tg
+    # In our dummy resume, candidate Doe mentions FastAPI, agile startup, Python.
+    # Check that it compiles adjacent role options if any match.
+    assert isinstance(tg["adjacent_roles"], list)
+
+def test_bias_blind_anonymization():
+    from backend.main import anonymize_resume_text
+    
+    # Raw sample containing location, school name, age-proxies (dates), email, and phone
+    raw_text = "I graduated from Stanford University in 2012. I live in San Francisco, CA 94105. Contact me at john.doe@stanford.edu or 415-555-0199. Work experience: 2012-2016."
+    
+    anonymized = anonymize_resume_text(raw_text)
+    
+    # 1. Verify university is redacted
+    assert "Stanford University" not in anonymized
+    assert "[REDACTED UNIVERSITY]" in anonymized
+    
+    # 2. Verify location and ZIP are redacted
+    assert "San Francisco" not in anonymized
+    assert "94105" not in anonymized
+    assert "[REDACTED LOCATION" in anonymized
+    
+    # 3. Verify years / ranges are redacted
+    assert "2012-2016" not in anonymized
+    assert "[REDACTED YEAR RANGE]" in anonymized
+    
+    # 4. Verify contact details are redacted
+    assert "john.doe@stanford.edu" not in anonymized
+    assert "[REDACTED EMAIL]" in anonymized
+    assert "415-555-0199" not in anonymized
+    assert "[REDACTED PHONE]" in anonymized

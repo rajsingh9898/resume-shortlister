@@ -5,6 +5,7 @@ let activeJdSkills = [];
 let jdExperienceRequired = 0;
 let jdDegreesRequired = [];
 let currentJobId = null;
+let biasBlindMode = false;
 let currentPage = 1;
 let currentLimit = 1000;
 let totalPages = 1;
@@ -704,7 +705,7 @@ async function fetchJobCandidates(jobId, page = 1) {
     const w = getWeights();
     
     let url = `/api/jobs/${jobId}/candidates?page=${page}&limit=${currentLimit}`;
-    url += `&semantic_w=${w.semantic}&skills_w=${w.skills}&experience_w=${w.experience}`;
+    url += `&semantic_w=${w.semantic}&skills_w=${w.skills}&experience_w=${w.experience}&bias_blind=${biasBlindMode}`;
     
     if (filter && filter !== 'all') {
         url += `&filter=${filter}`;
@@ -1890,6 +1891,104 @@ function openDrawer(candidate, rank) {
         }
     }
     
+    // Render Adjacent Roles Fit
+    const adjacentRolesList = document.getElementById('detail-adjacent-roles-list');
+    if (adjacentRolesList) {
+        adjacentRolesList.innerHTML = '';
+        const adjacentRoles = (explain.talent_graph && explain.talent_graph.adjacent_roles) || [];
+        if (adjacentRoles.length === 0) {
+            adjacentRolesList.innerHTML = '<span style="color: #64748b; font-size: 0.8rem; font-style: italic;">No adjacent matches found. Target profile remains highly focused.</span>';
+        } else {
+            adjacentRoles.forEach(roleFit => {
+                const card = document.createElement('div');
+                card.style.background = 'rgba(255, 255, 255, 0.03)';
+                card.style.border = '1px solid rgba(255,255,255,0.06)';
+                card.style.padding = '10px';
+                card.style.borderRadius = '6px';
+                card.style.display = 'flex';
+                card.style.justifyContent = 'space-between';
+                card.style.alignItems = 'center';
+                
+                const infoDiv = document.createElement('div');
+                infoDiv.innerHTML = `
+                    <div style="font-weight: 600; font-size: 0.85rem; color: #e2e8f0;">${roleFit.role}</div>
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Transferable: ${roleFit.transferable_skills.join(', ')}</div>
+                `;
+                
+                const pctBadge = document.createElement('span');
+                pctBadge.style.background = 'rgba(168, 85, 247, 0.15)';
+                pctBadge.style.color = '#c084fc';
+                pctBadge.style.border = '1px solid rgba(168, 85, 247, 0.3)';
+                pctBadge.style.padding = '2px 8px';
+                pctBadge.style.borderRadius = '4px';
+                pctBadge.style.fontSize = '0.8rem';
+                pctBadge.style.fontWeight = '600';
+                pctBadge.textContent = `${roleFit.confidence}% Match`;
+                
+                card.appendChild(infoDiv);
+                card.appendChild(pctBadge);
+                adjacentRolesList.appendChild(card);
+            });
+        }
+    }
+
+    // Render Similar Candidates
+    const similarCandidatesList = document.getElementById('detail-similar-candidates-list');
+    if (similarCandidatesList) {
+        similarCandidatesList.innerHTML = '';
+        const similarCandidates = candidate.similar_candidates || [];
+        if (similarCandidates.length === 0) {
+            similarCandidatesList.innerHTML = '<span style="color: #64748b; font-size: 0.8rem; font-style: italic;">No similar candidates identified in the current pool.</span>';
+        } else {
+            similarCandidates.forEach(simCand => {
+                const item = document.createElement('div');
+                item.style.background = 'rgba(255, 255, 255, 0.03)';
+                item.style.border = '1px solid rgba(255,255,255,0.06)';
+                item.style.padding = '10px';
+                item.style.borderRadius = '6px';
+                item.style.display = 'flex';
+                item.style.justifyContent = 'space-between';
+                item.style.alignItems = 'center';
+                item.style.cursor = 'pointer';
+                item.style.transition = 'all 0.2s ease';
+                
+                item.onmouseover = () => { item.style.background = 'rgba(255, 255, 255, 0.08)'; };
+                item.onmouseout = () => { item.style.background = 'rgba(255, 255, 255, 0.03)'; };
+                
+                // Click to view similar candidate details immediately
+                item.onclick = () => {
+                    const targetCand = rankedCandidates.find(rc => rc.id === simCand.id);
+                    if (targetCand) {
+                        openDrawer(targetCand);
+                    }
+                };
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.innerHTML = `
+                    <div style="font-weight: 600; font-size: 0.85rem; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-user-tag" style="font-size: 0.75rem;"></i>
+                        <span>${simCand.label}</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Shared Skills: ${simCand.shared_skills.slice(0, 3).join(', ')}${simCand.shared_skills.length > 3 ? '...' : ''}</div>
+                `;
+                
+                const simBadge = document.createElement('span');
+                simBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+                simBadge.style.color = '#fbbf24';
+                simBadge.style.border = '1px solid rgba(245, 158, 11, 0.3)';
+                simBadge.style.padding = '2px 8px';
+                simBadge.style.borderRadius = '4px';
+                simBadge.style.fontSize = '0.8rem';
+                simBadge.style.fontWeight = '600';
+                simBadge.textContent = `${simCand.similarity}% Similar`;
+                
+                item.appendChild(nameDiv);
+                item.appendChild(simBadge);
+                similarCandidatesList.appendChild(item);
+            });
+        }
+    }
+    
     // Initialize Interview Kit Tab
     switchInterviewRound('screening');
 
@@ -2135,6 +2234,27 @@ function openDrawer(candidate, rank) {
 btnStatusShortlisted.onclick = () => setCandidateStatus('Shortlisted');
 btnStatusReview.onclick = () => setCandidateStatus('Under Review');
 btnStatusRejected.onclick = () => setCandidateStatus('Rejected');
+
+const biasBlindToggleBtn = document.getElementById('bias-blind-toggle');
+if (biasBlindToggleBtn) {
+    biasBlindToggleBtn.addEventListener('click', () => {
+        biasBlindMode = !biasBlindMode;
+        if (biasBlindMode) {
+            biasBlindToggleBtn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> <span>Bias-Blind Mode: On</span>';
+            biasBlindToggleBtn.style.background = 'rgba(99, 102, 241, 0.2)';
+            biasBlindToggleBtn.style.color = '#818cf8';
+            biasBlindToggleBtn.style.border = '1px solid rgba(99, 102, 241, 0.4)';
+        } else {
+            biasBlindToggleBtn.innerHTML = '<i class="fa-solid fa-eye"></i> <span>Bias-Blind Mode: Off</span>';
+            biasBlindToggleBtn.style.background = 'rgba(255,255,255,0.05)';
+            biasBlindToggleBtn.style.color = '#94a3b8';
+            biasBlindToggleBtn.style.border = '1px solid rgba(255,255,255,0.1)';
+        }
+        if (currentJobId) {
+            fetchJobCandidates(currentJobId, currentPage);
+        }
+    });
+}
 
 function closeDrawer() {
     detailDrawer.classList.remove('open');
@@ -2527,13 +2647,14 @@ if (btnToggleResumeText) {
             
             const candId = currentDrawerCandidate.id;
             
+            const cacheKey = candId + "_" + biasBlindMode;
             // Check cache first
-            if (candidateResumeTextCache[candId]) {
-                detailFullResumeText.textContent = candidateResumeTextCache[candId];
+            if (candidateResumeTextCache[cacheKey]) {
+                detailFullResumeText.textContent = candidateResumeTextCache[cacheKey];
             } else {
                 detailFullResumeText.textContent = 'Loading full parsed resume text...';
                 
-                fetch(`/api/candidates/${candId}/resume-text`, {
+                fetch(`/api/candidates/${candId}/resume-text?bias_blind=${biasBlindMode}`, {
                     headers: {
                         'Authorization': `Bearer ${userToken}`
                     }
@@ -2544,7 +2665,7 @@ if (btnToggleResumeText) {
                 })
                 .then(data => {
                     const text = data.raw_text || "No text content found in this resume.";
-                    candidateResumeTextCache[candId] = text;
+                    candidateResumeTextCache[cacheKey] = text;
                     // Make sure the candidate hasn't changed while downloading
                     if (currentDrawerCandidate && currentDrawerCandidate.id === candId) {
                         detailFullResumeText.textContent = text;

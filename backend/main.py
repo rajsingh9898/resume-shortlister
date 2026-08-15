@@ -41,6 +41,62 @@ except Exception as e:
     redis_client = None
 
 # Import Celery background worker tasks
+import re
+
+def anonymize_resume_text(text: str) -> str:
+    if not text:
+        return ""
+    
+    # 1. Redact potential university names (e.g., University of X, X University, X College)
+    text = re.sub(
+        r'\b(?:University\s+of\s+[A-Za-z0-9\s\-]+|([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+University)|([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+College))\b',
+        '[REDACTED UNIVERSITY]',
+        text,
+        flags=re.IGNORECASE
+    )
+    
+    # 2. Redact location proxies (e.g., City, State or ZIP codes)
+    text = re.sub(
+        r'\b[A-Z][a-zA-Z\s\.\-]+,\s+[A-Z]{2}\s+\d{5}\b',
+        '[REDACTED LOCATION & ZIP]',
+        text
+    )
+    text = re.sub(
+        r'\b[A-Z][a-zA-Z\s\.\-]+,\s+[A-Z]{2}\b',
+        '[REDACTED LOCATION]',
+        text
+    )
+    
+    # 3. Redact year ranges (age proxies)
+    text = re.sub(
+        r'\b(19\d{2}|20\d{2})\s*(?:-|to)\s*(19\d{2}|20\d{2})\b',
+        '[REDACTED YEAR RANGE]',
+        text
+    )
+    
+    # 4. Redact single years with contexts (since, graduated, from, class of)
+    text = re.sub(
+        r'\b(?:in|since|graduated\s+in|from|class\s+of)\s+(19\d{2}|20\d{2})\b',
+        lambda m: m.group(0).replace(m.group(1), '[REDACTED YEAR]'),
+        text,
+        flags=re.IGNORECASE
+    )
+    
+    # 5. Redact candidate contact details (Email/Phone) to be extremely secure
+    text = re.sub(
+        r'\b[\w\.-]+@[\w\.-]+\.\w{2,}\b',
+        '[REDACTED EMAIL]',
+        text
+    )
+    text = re.sub(
+        r'\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b',
+        '[REDACTED PHONE]',
+        text
+    )
+    
+    return text
+
+# Import Celery background worker tasks
 try:
     from backend.tasks import celery_app, process_shortlist_task
 except ImportError:
@@ -866,6 +922,7 @@ def get_job_candidates(
     semantic_w: float = 40.0,
     skills_w: float = 30.0,
     experience_w: float = 30.0,
+    bias_blind: bool = False,
     current_user: User = Depends(get_current_user),
     read_db: Session = Depends(get_read_db),
     write_db: Session = Depends(get_write_db)
@@ -964,17 +1021,70 @@ def get_job_candidates(
             "all_extracted_skills": c["all_extracted_skills"],
             "candidate_exp": c["candidate_exp"],
             "experience_confidence": c["experience_confidence"],
-            "candidate_degrees": c["candidate_degrees"],
+            "candidate_degrees": list(c["candidate_degrees"]),
             "degrees_confidence": c["degrees_confidence"],
             "degree_match": c["degree_match"],
             "soft_traits": c["soft_traits"],
             "status": c["status"],
             "notes": c["notes"],
             "model_version": c["model_version"],
-            "explainability": c["explainability"],
+            "explainability": dict(c["explainability"]),
             "snippet": c["snippet"]
         }
         all_candidates.append(cand_dict)
+        
+    # Sort all candidates by final score descending
+    all_candidates.sort(key=lambda x: x["score"], reverse=True)
+    
+    # Compute dynamic similar candidates based on matched skills overlap
+    for idx, c1 in enumerate(all_candidates):
+        c1_skills = set(c1["matched_skills"])
+        sims = []
+        for c2 in all_candidates:
+            if c2["id"] == c1["id"]:
+                continue
+            c2_skills = set(c2["matched_skills"])
+            intersection = c1_skills.intersection(c2_skills)
+            union = c1_skills.union(c2_skills)
+            sim_percentage = round((len(intersection) / len(union) * 100), 0) if union else 0.0
+            
+            c2_idx = all_candidates.index(c2)
+            c2_label = f"Candidate #{c2_idx + 1}" if bias_blind else c2["filename"]
+            
+            sims.append({
+                "id": c2["id"],
+                "label": c2_label,
+                "score": c2["score"],
+                "similarity": sim_percentage,
+                "shared_skills": sorted(list(intersection))
+            })
+        sims.sort(key=lambda x: x["similarity"], reverse=True)
+        c1["similar_candidates"] = sims[:3]
+        
+    # If Bias-Blind mode is requested, redact candidate information dynamically
+    if bias_blind:
+        for idx, c in enumerate(all_candidates):
+            c["filename"] = f"Candidate #{idx + 1}"
+            c["snippet"] = anonymize_resume_text(c["snippet"])
+            
+            # Anonymize degree names (remove school references)
+            scrubbed_degrees = []
+            for deg in c["candidate_degrees"]:
+                scrubbed_deg = re.sub(r'\s+(?:from|at)\s+.+$', '', deg, flags=re.IGNORECASE)
+                scrubbed_deg = re.sub(
+                    r'\b(?:University\s+of\s+[A-Za-z0-9\s\-]+|([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+University))\b',
+                    '[REDACTED SCHOOL]',
+                    scrubbed_deg,
+                    flags=re.IGNORECASE
+                )
+                scrubbed_degrees.append(scrubbed_deg)
+            c["candidate_degrees"] = scrubbed_degrees
+            
+            # Clean why_candidate statement in explainability if present
+            if "explainability" in c and "why_candidate" in c["explainability"]:
+                c["explainability"]["why_candidate"] = anonymize_resume_text(c["explainability"]["why_candidate"])
+            if "explainability" in c and "skill_gap_roadmap" in c["explainability"]:
+                c["explainability"]["skill_gap_roadmap"]["summary"] = anonymize_resume_text(c["explainability"]["skill_gap_roadmap"]["summary"])
         
     # Calculate stats across ALL matching records for this job run BEFORE pagination filters
     total_resumes = len(all_candidates)
@@ -1120,6 +1230,7 @@ def get_job_candidates(
 def get_candidate_resume_text(
     request: Request,
     candidate_id: int,
+    bias_blind: bool = False,
     current_user: User = Depends(get_current_user),
     read_db: Session = Depends(get_read_db),
     write_db: Session = Depends(get_write_db)
@@ -1140,6 +1251,9 @@ def get_candidate_resume_text(
         raw_text = raw_text_bytes.decode("utf-8")
     except Exception:
         raw_text = resume.raw_text or "No parsed text available."
+        
+    if bias_blind:
+        raw_text = anonymize_resume_text(raw_text)
         
     return {"raw_text": raw_text}
 

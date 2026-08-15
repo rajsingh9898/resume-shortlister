@@ -482,6 +482,34 @@ def generate_interview_kit(matched_skills: list, missing_skills: list, exp_years
         "behavioral": behavioral
     }
 
+ADJACENT_ROLES_TAXONOMY = {
+    "Platform Engineer": {"Kubernetes", "Docker", "AWS", "Terraform", "Cloud", "CI/CD", "Go", "Linux", "DevOps"},
+    "Automation Engineer": {"Python", "Selenium", "Automation", "QA", "Testing", "Scripting", "Bash", "Cypress"},
+    "Data Engineer": {"Spark", "Hadoop", "Python", "SQL", "ETL", "PostgreSQL", "Redshift", "Kafka", "Data Pipeline"},
+    "Fullstack Engineer": {"React", "Vue", "Node.js", "JavaScript", "TypeScript", "HTML", "CSS", "Tailwind"},
+    "Security Engineer": {"Cybersecurity", "Penetration Testing", "OAuth", "SSL", "IAM", "Vulnerability", "Firewall"}
+}
+
+def identify_adjacent_roles_and_transferable_skills(candidate_skills: list) -> list:
+    if not candidate_skills:
+        return []
+    cand_skills_set = {s.lower() for s in candidate_skills}
+    adjacent_matches = []
+    
+    for role, role_skills in ADJACENT_ROLES_TAXONOMY.items():
+        overlap = [s for s in role_skills if s.lower() in cand_skills_set]
+        match_ratio = len(overlap) / len(role_skills)
+        if len(overlap) >= 2: # At least 2 matching transferable skills
+            adjacent_matches.append({
+                "role": role,
+                "transferable_skills": overlap,
+                "confidence": round(match_ratio * 100, 1)
+            })
+            
+    # Sort by match confidence descending
+    adjacent_matches.sort(key=lambda x: x["confidence"], reverse=True)
+    return adjacent_matches
+
 def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0.5, team_profile: dict = None) -> dict:
     # 1. Parse Job Description Parameters
     jd_clean = preprocess_text(jd_raw)
@@ -796,6 +824,14 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
         if len(soft_traits) >= 2:
             reasons_high.append("Demonstrates key traits: leadership, system architecture, or agile experience.")
             
+        flat_candidate_skills = []
+        for cat_list in c_skills_dict.values():
+            flat_candidate_skills.extend(cat_list)
+            
+        talent_graph = {
+            "adjacent_roles": identify_adjacent_roles_and_transferable_skills(flat_candidate_skills)
+        }
+
         explainability = {
             "reasons_high": reasons_high,
             "reasons_low": reasons_low,
@@ -810,7 +846,8 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
             "team_fit_details": team_fit_details,
             "why_candidate": why_candidate,
             "skill_gap_roadmap": generate_skill_gap_roadmap(matched_skills, missing_skills, candidate_exp),
-            "interview_kit": generate_interview_kit(matched_skills, missing_skills, candidate_exp, team_profile)
+            "interview_kit": generate_interview_kit(matched_skills, missing_skills, candidate_exp, team_profile),
+            "talent_graph": talent_graph
         }
         
         candidates_list.append({

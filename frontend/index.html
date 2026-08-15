@@ -458,7 +458,10 @@
                     <div class="ranking-header">
                         <div class="ranking-header-title">
                             <h3>Ranked Shortlist</h3>
-                            <div class="action-buttons-group">
+                            <div class="action-buttons-group" style="display: flex; align-items: center; gap: 10px;">
+                                <button id="bias-blind-toggle" class="btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; font-weight: 600; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;">
+                                    <i class="fa-solid fa-eye"></i> <span>Bias-Blind Mode: Off</span>
+                                </button>
                                 <button id="backup-btn" class="btn export-btn" onclick="exportDatabaseBackup()"><i class="fa-solid fa-database"></i> Backup DB</button>
                                 <button id="export-btn" class="btn export-btn"><i class="fa-solid fa-file-csv"></i> Export Report</button>
                             </div>
@@ -653,6 +656,24 @@
                             <span style="color: #94a3b8;">Expectations Alignment:</span>
                             <span id="detail-alignment-expectation" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 8px; border-radius: 4px; font-weight: 600;">Ownership (Match)</span>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Adjacent Roles Fit -->
+                <div class="detail-section adjacent-roles-panel" id="adjacent-roles-panel-section" style="margin-top: 20px;">
+                    <h3><i class="fa-solid fa-graduation-cap" style="color: #a855f7; margin-right: 8px;"></i> Adjacent Roles Fit</h3>
+                    <p class="questionnaire-sub"><i class="fa-solid fa-circle-info"></i> Translatable skills alignment for adjacent roles in your organization.</p>
+                    <div id="detail-adjacent-roles-list" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                        <!-- Injected dynamically -->
+                    </div>
+                </div>
+
+                <!-- Similar Candidates -->
+                <div class="detail-section similar-candidates-panel" id="similar-candidates-panel-section" style="margin-top: 20px;">
+                    <h3><i class="fa-solid fa-people-arrows" style="color: #f59e0b; margin-right: 8px;"></i> Similar Candidates in Pool</h3>
+                    <p class="questionnaire-sub"><i class="fa-solid fa-circle-info"></i> Candidates sharing high skills overlap (click to view details).</p>
+                    <div id="detail-similar-candidates-list" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                        <!-- Injected dynamically -->
                     </div>
                 </div>
 
