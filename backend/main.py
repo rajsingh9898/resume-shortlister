@@ -1001,12 +1001,104 @@ def get_job_candidates(
         
     jd_exp, jd_skills_set, jd_degrees, cached_list = cached_payload
     
+    # 1. Recruiter Preference Memory calculations
+    shortlist_skills_counts = {}
+    reject_skills_counts = {}
+    total_shortlisted = 0
+    total_rejected = 0
+    
+    for c in cached_list:
+        status = c["status"]
+        matched = c["matched_skills"] or []
+        if status == "Shortlisted":
+            total_shortlisted += 1
+            for s in matched:
+                shortlist_skills_counts[s] = shortlist_skills_counts.get(s, 0) + 1
+        elif status == "Rejected":
+            total_rejected += 1
+            for s in matched:
+                reject_skills_counts[s] = reject_skills_counts.get(s, 0) + 1
+                
+    # Calculate adaptive skill boosts
+    skill_boosts = {}
+    all_feedback_skills = set(shortlist_skills_counts.keys()).union(set(reject_skills_counts.keys()))
+    for s in all_feedback_skills:
+        sh_count = shortlist_skills_counts.get(s, 0)
+        rj_count = reject_skills_counts.get(s, 0)
+        ratio = (sh_count - rj_count) / max(sh_count + rj_count, 1)
+        skill_boosts[s] = ratio * 4.0
+        
+    preferred_skills = sorted(
+        [{"skill": s, "boost": round(b, 1)} for s, b in skill_boosts.items() if b > 0.5],
+        key=lambda x: x["boost"],
+        reverse=True
+    )
+    penalized_skills = sorted(
+        [{"skill": s, "penalty": round(abs(b), 1)} for s, b in skill_boosts.items() if b < -0.5],
+        key=lambda x: x["penalty"],
+        reverse=True
+    )
+
+    # 2. Market Intelligence Insight calculations
+    jd_text_lower = job.description.lower()
+    classified_role = "Backend Engineer"
+    if "frontend" in jd_text_lower:
+        classified_role = "Frontend Engineer"
+    elif "fullstack" in jd_text_lower or "full stack" in jd_text_lower:
+        classified_role = "Fullstack Engineer"
+    elif "devops" in jd_text_lower or "platform" in jd_text_lower or "kubernetes" in jd_text_lower:
+        classified_role = "DevOps/Platform Engineer"
+    elif "data engineer" in jd_text_lower or "etl" in jd_text_lower or "hadoop" in jd_text_lower:
+        classified_role = "Data Engineer"
+    elif "product manager" in jd_text_lower or "agile" in jd_text_lower:
+        classified_role = "Product Manager"
+        
+    base_min = 85000
+    base_max = 115000
+    if jd_exp > 5:
+        base_min = 145000
+        base_max = 205000
+    elif jd_exp >= 2:
+        base_min = 110000
+        base_max = 145000
+        
+    if classified_role in ["DevOps/Platform Engineer", "Backend Engineer", "Data Engineer"]:
+        base_min = int(base_min * 1.10)
+        base_max = int(base_max * 1.10)
+        
+    salary_range = f"${base_min:,} - ${base_max:,}"
+    
+    qualified_candidates = [c for c in cached_list if c["skills_score"] >= 0.5]
+    supply_ratio = len(qualified_candidates) / len(cached_list) if cached_list else 0.0
+    
+    if supply_ratio < 0.2:
+        difficulty = "Low Supply (Difficult to Hire)"
+        feasibility = "Challenging"
+    elif supply_ratio < 0.5:
+        difficulty = "Moderate Supply"
+        feasibility = "Moderate"
+    else:
+        difficulty = "High Supply (Easy to Hire)"
+        feasibility = "Highly Feasible"
+        
+    jd_skills_top = list(jd_skills_set)[:3]
+    skills_str = " + ".join(jd_skills_top) if jd_skills_top else "Required skills"
+    market_summary = f"{skills_str} profiles are in high demand and {difficulty.lower()}. Feasibility is {feasibility.lower()}."
+
     # Calculate dynamic final scores based on current weight blend configurations
     all_candidates = []
     for c in cached_list:
         final_score = (c["cosine_score"] * semantic_w / 100.0) + \
                       (c["skills_score"] * skills_w / 100.0) + \
                       (c["experience_score"] * experience_w / 100.0)
+        
+        # Apply recruiter preference boost/penalty
+        preference_adjustment = 0.0
+        for s in c["matched_skills"]:
+            preference_adjustment += skill_boosts.get(s, 0.0)
+        preference_adjustment = max(min(preference_adjustment, 12.0), -12.0)
+        
+        final_score = max(min(final_score + preference_adjustment, 100.0), 0.0)
         final_score = round(final_score, 1)
         
         cand_dict = {
@@ -1029,7 +1121,8 @@ def get_job_candidates(
             "notes": c["notes"],
             "model_version": c["model_version"],
             "explainability": dict(c["explainability"]),
-            "snippet": c["snippet"]
+            "snippet": c["snippet"],
+            "preference_adjustment": round(preference_adjustment, 1)
         }
         all_candidates.append(cand_dict)
         
@@ -1213,7 +1306,20 @@ def get_job_candidates(
             "experience_years": jd_exp,
             "degrees": jd_degrees
         },
-        "bias_warnings": bias_warnings
+        "bias_warnings": bias_warnings,
+        "recruiter_learning": {
+            "total_shortlisted": total_shortlisted,
+            "total_rejected": total_rejected,
+            "preferred_skills": preferred_skills[:5],
+            "penalized_skills": penalized_skills[:5]
+        },
+        "market_intelligence": {
+            "classified_role": classified_role,
+            "salary_range": salary_range,
+            "difficulty": difficulty,
+            "feasibility": feasibility,
+            "summary": market_summary
+        }
     }
     
     # Save cache

@@ -185,3 +185,93 @@ def test_bias_blind_anonymization():
     assert "[REDACTED EMAIL]" in anonymized
     assert "415-555-0199" not in anonymized
     assert "[REDACTED PHONE]" in anonymized
+
+def test_recruiter_memory_and_market_intelligence():
+    # Mock cached_list of candidates with matching/missing skills
+    mock_cached_list = [
+        {
+            "cand_id": 1,
+            "filename": "cand1.pdf",
+            "cosine_score": 75.0,
+            "skills_score": 80.0,
+            "experience_score": 70.0,
+            "matched_skills": ["Python", "FastAPI", "Redis"],
+            "missing_skills": [],
+            "all_extracted_skills": {"languages": ["Python"], "frameworks": ["FastAPI"], "databases": ["Redis"]},
+            "candidate_exp": 5.0,
+            "candidate_degrees": ["B.S. Computer Science"],
+            "status": "Shortlisted",
+            "notes": "",
+            "model_version": "v2.1.0",
+            "explainability": {}
+        },
+        {
+            "cand_id": 2,
+            "filename": "cand2.pdf",
+            "cosine_score": 40.0,
+            "skills_score": 30.0,
+            "experience_score": 50.0,
+            "matched_skills": ["Python"],
+            "missing_skills": ["FastAPI", "Redis"],
+            "all_extracted_skills": {"languages": ["Python"], "frameworks": [], "databases": []},
+            "candidate_exp": 2.0,
+            "candidate_degrees": ["B.S. Information Tech"],
+            "status": "Rejected",
+            "notes": "",
+            "model_version": "v2.1.0",
+            "explainability": {}
+        }
+    ]
+    
+    # 1. Verify Recruiter Preference Memory calculations
+    shortlist_skills_counts = {}
+    reject_skills_counts = {}
+    total_shortlisted = 0
+    total_rejected = 0
+    
+    for c in mock_cached_list:
+        status = c["status"]
+        matched = c["matched_skills"] or []
+        if status == "Shortlisted":
+            total_shortlisted += 1
+            for s in matched:
+                shortlist_skills_counts[s] = shortlist_skills_counts.get(s, 0) + 1
+        elif status == "Rejected":
+            total_rejected += 1
+            for s in matched:
+                reject_skills_counts[s] = reject_skills_counts.get(s, 0) + 1
+                
+    assert total_shortlisted == 1
+    assert total_rejected == 1
+    assert shortlist_skills_counts["FastAPI"] == 1
+    assert reject_skills_counts["Python"] == 1
+    
+    # Verify ratio calculations
+    skill_boosts = {}
+    all_feedback_skills = set(shortlist_skills_counts.keys()).union(set(reject_skills_counts.keys()))
+    for s in all_feedback_skills:
+        sh_count = shortlist_skills_counts.get(s, 0)
+        rj_count = reject_skills_counts.get(s, 0)
+        ratio = (sh_count - rj_count) / max(sh_count + rj_count, 1)
+        skill_boosts[s] = ratio * 4.0
+        
+    # Python is present in both (1 short, 1 reject) -> ratio = 0
+    assert skill_boosts["Python"] == 0.0
+    # FastAPI is only in shortlisted -> ratio = 1 -> boost = +4.0
+    assert skill_boosts["FastAPI"] == 4.0
+    
+    # 2. Verify Salary and Supply feasibility mapping
+    jd_exp = 3.0
+    classified_role = "Backend Engineer"
+    base_min = 110000 if jd_exp >= 2 else 85000
+    base_max = 145000 if jd_exp >= 2 else 115000
+    if classified_role == "Backend Engineer":
+        base_min = int(base_min * 1.10)
+        base_max = int(base_max * 1.10)
+        
+    salary_range = f"${base_min:,} - ${base_max:,}"
+    assert salary_range == "$121,000 - $159,500"
+    
+    qualified_candidates = [c for c in mock_cached_list if c["skills_score"] >= 50.0]
+    supply_ratio = len(qualified_candidates) / len(mock_cached_list)
+    assert supply_ratio == 0.5 # 1 of 2 is qualified

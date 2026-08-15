@@ -751,6 +751,77 @@ async function fetchJobCandidates(jobId, page = 1) {
         jdDegreesRequired = data.jd_requirements.degrees;
         renderRequirementsEditor();
         
+        // Render Market Intelligence Dashboard Card
+        const marketPanel = document.getElementById('market-intelligence-panel');
+        if (marketPanel && data.market_intelligence) {
+            const mi = data.market_intelligence;
+            
+            // Classified role
+            const roleEl = marketPanel.querySelector('.fa-brain-circuit + span');
+            if (roleEl) roleEl.textContent = `Market Insight: ${mi.classified_role}`;
+            
+            // Salary range
+            const salaryVal = document.getElementById('market-salary-val');
+            if (salaryVal) salaryVal.textContent = mi.salary_range;
+            
+            // Supply difficulty / Feasibility
+            const difficultyBadge = document.getElementById('market-difficulty-badge');
+            if (difficultyBadge) {
+                difficultyBadge.textContent = mi.difficulty;
+                if (mi.difficulty.includes("Low Supply")) {
+                    difficultyBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+                    difficultyBadge.style.color = '#f87171';
+                    difficultyBadge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                } else if (mi.difficulty.includes("Moderate")) {
+                    difficultyBadge.style.background = 'rgba(245, 158, 11, 0.2)';
+                    difficultyBadge.style.color = '#fbbf24';
+                    difficultyBadge.style.border = '1px solid rgba(245, 158, 11, 0.3)';
+                } else {
+                    difficultyBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+                    difficultyBadge.style.color = '#34d399';
+                    difficultyBadge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+                }
+            }
+            
+            // Feasibility Level
+            const feasibilityVal = document.getElementById('market-feasibility-val');
+            if (feasibilityVal) {
+                feasibilityVal.textContent = mi.feasibility;
+                if (mi.feasibility === "Challenging") {
+                    feasibilityVal.style.color = '#f87171';
+                } else if (mi.feasibility === "Moderate") {
+                    feasibilityVal.style.color = '#fbbf24';
+                } else {
+                    feasibilityVal.style.color = '#34d399';
+                }
+            }
+            
+            // Market summary text
+            const summaryText = document.getElementById('market-summary-text');
+            if (summaryText) summaryText.textContent = mi.summary;
+        }
+
+        // Render Recruiter Learning Banner
+        const learningBanner = document.getElementById('recruiter-learning-banner');
+        const learningText = document.getElementById('recruiter-learning-text');
+        if (learningBanner && learningText && data.recruiter_learning) {
+            const rl = data.recruiter_learning;
+            const totalActions = rl.total_shortlisted + rl.total_rejected;
+            if (totalActions > 0) {
+                let text = `Recruiter Preference adaptation model active: Adapting scoring weights based on ${rl.total_shortlisted} shortlisted and ${rl.total_rejected} rejected profiles.`;
+                if (rl.preferred_skills.length > 0) {
+                    text += ` Preferred: ${rl.preferred_skills.map(ps => ps.skill).slice(0, 3).join(', ')}.`;
+                }
+                if (rl.penalized_skills.length > 0) {
+                    text += ` Adjusted: ${rl.penalized_skills.map(ps => ps.skill).slice(0, 3).join(', ')}.`;
+                }
+                learningText.textContent = text;
+                learningBanner.style.display = 'flex';
+            } else {
+                learningBanner.style.display = 'none';
+            }
+        }
+        
         // Render candidate listing items
         emptyState.classList.remove('active');
         resultsState.classList.add('active');
@@ -939,6 +1010,20 @@ function renderCandidatesList(candidates) {
             statusBadgeHtml = `<span class="cand-status-badge ${badgeClass}">${savedStatus}</span>`;
         }
 
+        let prefBadgeHtml = '';
+        if (candidate.preference_adjustment && candidate.preference_adjustment !== 0) {
+            const isPositive = candidate.preference_adjustment > 0;
+            const sign = isPositive ? '+' : '';
+            const badgeBg = isPositive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.12)';
+            const badgeColor = isPositive ? '#34d399' : '#f87171';
+            const badgeBorder = isPositive ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.2)';
+            prefBadgeHtml = `
+                <span class="cand-meta-badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-size: 0.72rem; font-weight: 700; margin-left: 6px; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-graduation-cap"></i> ${sign}${candidate.preference_adjustment}
+                </span>
+            `;
+        }
+
         item.innerHTML = `
             <div class="candidate-checkbox-container">
                 <input type="checkbox" class="candidate-card-checkbox" data-filename="${candidate.filename}" ${isChecked ? 'checked' : ''}>
@@ -949,11 +1034,12 @@ function renderCandidatesList(candidates) {
                     <span class="candidate-title" title="${candidate.filename}">
                         ${candidate.filename}
                     </span>
-                    <span class="candidate-subtitle">
+                    <span class="candidate-subtitle" style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
                         ${statusBadgeHtml}
                         <span class="cand-meta-badge">${expLabel}</span>
                         <span class="cand-meta-badge">${degreeLabel}</span>
                         ${microBadgesHtml}
+                        ${prefBadgeHtml}
                     </span>
                 </div>
             </div>
