@@ -275,3 +275,83 @@ def test_recruiter_memory_and_market_intelligence():
     qualified_candidates = [c for c in mock_cached_list if c["skills_score"] >= 50.0]
     supply_ratio = len(qualified_candidates) / len(mock_cached_list)
     assert supply_ratio == 0.5 # 1 of 2 is qualified
+
+def test_hiring_brief_and_workforce_planning():
+    # 1. Verify Hiring Brief calculations
+    mock_candidates = [
+        {
+            "score": 75.0,
+            "filename": "alice.pdf",
+            "matched_skills": ["Python", "FastAPI"],
+            "missing_skills": ["Redis"]
+        },
+        {
+            "score": 45.0,
+            "filename": "bob.pdf",
+            "matched_skills": ["Python"],
+            "missing_skills": ["FastAPI", "Redis"]
+        }
+    ]
+    
+    global_matched_freq = {}
+    global_missing_freq = {}
+    for cand in mock_candidates:
+        for s in cand["matched_skills"]:
+            global_matched_freq[s] = global_matched_freq.get(s, 0) + 1
+        for s in cand["missing_skills"]:
+            global_missing_freq[s] = global_missing_freq.get(s, 0) + 1
+            
+    sorted_matched = sorted(global_matched_freq.items(), key=lambda x: x[1], reverse=True)
+    sorted_missing = sorted(global_missing_freq.items(), key=lambda x: x[1], reverse=True)
+    
+    # Python matched 2 times, FastAPI matched 1 time
+    assert sorted_matched[0] == ("Python", 2)
+    assert sorted_matched[1] == ("FastAPI", 1)
+    
+    # Redis missing 2 times, FastAPI missing 1 time
+    assert sorted_missing[0] == ("Redis", 2)
+    assert sorted_missing[1] == ("FastAPI", 1)
+    
+    # Strengths & Risks lists
+    pool_strengths = []
+    top_matched = [s for s, count in sorted_matched[:3]]
+    if top_matched:
+        pool_strengths.append(f"Strong match alignment: {', '.join(top_matched)}.")
+    assert "Strong match alignment: Python, FastAPI." in pool_strengths
+    
+    # 2. Verify Multi-Role Workforce matching logic
+    cand_flat_skills = {"python", "fastapi", "redis", "postgres"}
+    
+    mock_other_jobs = [
+        {
+            "id": 101,
+            "title": "Backend Dev",
+            "skills": {"python", "fastapi", "redis"}
+        },
+        {
+            "id": 102,
+            "title": "Data Analyst",
+            "skills": {"python", "excel", "sql"}
+        }
+    ]
+    
+    other_matches = []
+    for oj in mock_other_jobs:
+        oj_skills_set = oj["skills"]
+        intersect = cand_flat_skills.intersection(oj_skills_set)
+        match_pct = round((len(intersect) / len(oj_skills_set) * 100), 1)
+        other_matches.append({
+            "job_id": oj["id"],
+            "title": oj["title"],
+            "match_percentage": match_pct
+        })
+        
+    other_matches.sort(key=lambda x: x["match_percentage"], reverse=True)
+    
+    # Backend Dev should match 3/3 = 100%
+    assert other_matches[0]["job_id"] == 101
+    assert other_matches[0]["match_percentage"] == 100.0
+    
+    # Data Analyst should match 1/3 = 33.3%
+    assert other_matches[1]["job_id"] == 102
+    assert other_matches[1]["match_percentage"] == 33.3

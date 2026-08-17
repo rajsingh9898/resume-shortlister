@@ -6,6 +6,7 @@ let jdExperienceRequired = 0;
 let jdDegreesRequired = [];
 let currentJobId = null;
 let biasBlindMode = false;
+let currentHiringBrief = null;
 let currentPage = 1;
 let currentLimit = 1000;
 let totalPages = 1;
@@ -821,6 +822,8 @@ async function fetchJobCandidates(jobId, page = 1) {
                 learningBanner.style.display = 'none';
             }
         }
+        
+        currentHiringBrief = data.hiring_brief;
         
         // Render candidate listing items
         emptyState.classList.remove('active');
@@ -2018,6 +2021,80 @@ function openDrawer(candidate, rank) {
         }
     }
 
+    // Render Multi-Role Planning Mobility
+    const mrTitle = document.getElementById('detail-multi-role-best-title');
+    const mrPct = document.getElementById('detail-multi-role-best-pct');
+    const mrBar = document.getElementById('detail-multi-role-best-bar');
+    const mrSecondaryList = document.getElementById('detail-multi-role-secondary-list');
+    
+    if (candidate.multi_role_planning) {
+        const mr = candidate.multi_role_planning;
+        
+        // Best fit
+        if (mr.best_fit) {
+            if (mrTitle) mrTitle.textContent = mr.best_fit.title;
+            if (mrPct) mrPct.textContent = `${mr.best_fit.match_percentage.toFixed(0)}%`;
+            if (mrBar) mrBar.style.width = `${mr.best_fit.match_percentage}%`;
+        } else {
+            if (mrTitle) mrTitle.textContent = 'None identified';
+            if (mrPct) mrPct.textContent = '0%';
+            if (mrBar) mrBar.style.width = '0%';
+        }
+        
+        // Secondary openings
+        if (mrSecondaryList) {
+            mrSecondaryList.innerHTML = '';
+            if (!mr.secondary_matches || mr.secondary_matches.length === 0) {
+                mrSecondaryList.innerHTML = '<span style="color: #64748b; font-size: 0.8rem; font-style: italic;">No secondary role fits found.</span>';
+            } else {
+                mr.secondary_matches.forEach(match => {
+                    const row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.alignItems = 'center';
+                    row.style.justifyContent = 'space-between';
+                    row.style.background = 'rgba(255,255,255,0.02)';
+                    row.style.border = '1px solid rgba(255,255,255,0.05)';
+                    row.style.padding = '8px 12px';
+                    row.style.borderRadius = '6px';
+                    row.style.fontSize = '0.8rem';
+                    row.style.cursor = 'pointer';
+                    row.style.transition = 'all 0.2s ease';
+                    
+                    row.onmouseover = () => { row.style.background = 'rgba(99, 102, 241, 0.1)'; };
+                    row.onmouseout = () => { row.style.background = 'rgba(255,255,255,0.02)'; };
+                    
+                    row.onclick = () => {
+                        closeDrawer();
+                        currentJobId = match.job_id;
+                        
+                        // Select job visually in sidebar
+                        const sidebarItems = document.querySelectorAll('.job-item');
+                        sidebarItems.forEach(item => {
+                            const jobIdAttr = item.getAttribute('data-job-id');
+                            if (jobIdAttr == match.job_id.toString()) {
+                                item.classList.add('active');
+                            } else {
+                                item.classList.remove('active');
+                            }
+                        });
+                        
+                        fetchJobCandidates(currentJobId, 1);
+                        showToast(`Switched workspace to job: ${match.title}`, "info");
+                    };
+                    
+                    row.innerHTML = `
+                        <span style="font-weight: 600; color: #cbd5e1; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-arrow-right-arrow-left" style="font-size: 0.7rem; color: #818cf8;"></i>
+                            <span>${match.title}</span>
+                        </span>
+                        <span style="color: #818cf8; font-weight: 700;">${match.match_percentage.toFixed(0)}%</span>
+                    `;
+                    mrSecondaryList.appendChild(row);
+                });
+            }
+        }
+    }
+
     // Render Similar Candidates
     const similarCandidatesList = document.getElementById('detail-similar-candidates-list');
     if (similarCandidatesList) {
@@ -2352,6 +2429,59 @@ document.addEventListener('keydown', (e) => {
         closeDrawer();
     }
 });
+
+function showHiringBriefModal() {
+    if (!currentHiringBrief) {
+        showToast("Hiring brief data is not loaded yet.", "error");
+        return;
+    }
+    const modal = document.getElementById('hiring-brief-modal');
+    if (modal) {
+        document.getElementById('brief-role-title').textContent = `Hiring Brief: ${currentHiringBrief.role_title}`;
+        
+        const strengthsList = document.getElementById('brief-strengths-list');
+        strengthsList.innerHTML = '';
+        currentHiringBrief.strengths.forEach(s => {
+            const li = document.createElement('li');
+            li.textContent = s;
+            strengthsList.appendChild(li);
+        });
+        
+        const risksList = document.getElementById('brief-risks-list');
+        risksList.innerHTML = '';
+        currentHiringBrief.risks.forEach(r => {
+            const li = document.createElement('li');
+            li.textContent = r;
+            risksList.appendChild(li);
+        });
+        
+        const focusList = document.getElementById('brief-focus-list');
+        focusList.innerHTML = '';
+        currentHiringBrief.interview_focus.forEach(f => {
+            const li = document.createElement('li');
+            li.textContent = f;
+            focusList.appendChild(li);
+        });
+        
+        document.getElementById('brief-recommendation-text').textContent = currentHiringBrief.recommendation;
+        
+        modal.style.display = 'flex';
+    }
+}
+
+function closeHiringBriefModal() {
+    const modal = document.getElementById('hiring-brief-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+window.closeHiringBriefModal = closeHiringBriefModal;
+
+const hiringBriefBtn = document.getElementById('hiring-brief-btn');
+if (hiringBriefBtn) {
+    hiringBriefBtn.addEventListener('click', showHiringBriefModal);
+}
 
 /* Export Shortlist report to CSV file */
 exportBtn.addEventListener('click', () => {

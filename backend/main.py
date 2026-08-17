@@ -1085,6 +1085,22 @@ def get_job_candidates(
     skills_str = " + ".join(jd_skills_top) if jd_skills_top else "Required skills"
     market_summary = f"{skills_str} profiles are in high demand and {difficulty.lower()}. Feasibility is {feasibility.lower()}."
 
+    # Fetch active jobs for multi-role alignment
+    from backend.models import Job
+    org_jobs = read_db.query(Job).filter(Job.organization_id == current_user.organization_id).all()
+    
+    # Parse requirements for each job
+    jobs_parsed_skills = {}
+    for oj in org_jobs:
+        oj_skills_dict = nlp_engine.extract_skills_from_text(oj.description)
+        oj_skills = []
+        for cat_skills in oj_skills_dict.values():
+            oj_skills.extend(cat_skills)
+        jobs_parsed_skills[oj.id] = {
+            "title": oj.title,
+            "skills": {s.lower() for s in oj_skills}
+        }
+
     # Calculate dynamic final scores based on current weight blend configurations
     all_candidates = []
     for c in cached_list:
@@ -1100,6 +1116,30 @@ def get_job_candidates(
         
         final_score = max(min(final_score + preference_adjustment, 100.0), 0.0)
         final_score = round(final_score, 1)
+        
+        # Compute Multi-Role Workforce matching
+        cand_flat_skills = {s.lower() for cat in c["all_extracted_skills"].values() for s in cat}
+        other_matches = []
+        for oj_id, oj_data in jobs_parsed_skills.items():
+            oj_skills_set = oj_data["skills"]
+            intersect = cand_flat_skills.intersection(oj_skills_set)
+            match_pct = round((len(intersect) / len(oj_skills_set) * 100), 1) if oj_skills_set else 0.0
+            
+            other_matches.append({
+                "job_id": oj_id,
+                "title": oj_data["title"],
+                "match_percentage": match_pct,
+                "shared_skills": sorted(list(intersect))
+            })
+            
+        other_matches.sort(key=lambda x: x["match_percentage"], reverse=True)
+        best_fit = other_matches[0] if other_matches else None
+        secondary_matches = [m for m in other_matches[1:] if m["match_percentage"] >= 20.0]
+        
+        cand_multi_role = {
+            "best_fit": best_fit,
+            "secondary_matches": secondary_matches[:3]
+        }
         
         cand_dict = {
             "id": c["cand_id"],
@@ -1122,7 +1162,8 @@ def get_job_candidates(
             "model_version": c["model_version"],
             "explainability": dict(c["explainability"]),
             "snippet": c["snippet"],
-            "preference_adjustment": round(preference_adjustment, 1)
+            "preference_adjustment": round(preference_adjustment, 1),
+            "multi_role_planning": cand_multi_role
         }
         all_candidates.append(cand_dict)
         
@@ -1276,6 +1317,65 @@ def get_job_candidates(
         if corr_format < -0.4:
             bias_warnings.append(f"⚠️ Bias Alert: Match scores correlate negatively with non-standard formatting (correlation: {corr_format:.2f}). Formatting issues may be penalizing candidates.")
             
+    # 3. Generate concise Hiring Brief for Hiring Managers
+    pool_strengths = []
+    pool_risks = []
+    interview_focus = []
+    final_recommendations = ""
+    
+    # Analyze matched vs missing skills frequencies globally
+    global_matched_freq = {}
+    global_missing_freq = {}
+    for cand in all_candidates:
+        for s in cand["matched_skills"]:
+            global_matched_freq[s] = global_matched_freq.get(s, 0) + 1
+        for s in cand["missing_skills"]:
+            global_missing_freq[s] = global_missing_freq.get(s, 0) + 1
+            
+    # Rank matched skills and missing skills
+    sorted_matched = sorted(global_matched_freq.items(), key=lambda x: x[1], reverse=True)
+    sorted_missing = sorted(global_missing_freq.items(), key=lambda x: x[1], reverse=True)
+    
+    # Pool Strengths
+    top_matched = [s for s, count in sorted_matched[:3]]
+    if top_matched:
+        pool_strengths.append(f"Strong match alignment across the pool in core competencies: {', '.join(top_matched)}.")
+    pool_strengths.append(f"The pool features an average candidate matching score of {avg_score}%.")
+    
+    # Pool Risks
+    top_missing = [s for s, count in sorted_missing[:3]]
+    if top_missing:
+        pool_risks.append(f"Technical stack gaps identified: a significant portion of candidates lack {', '.join(top_missing)}.")
+    if avg_score < 60.0:
+        pool_risks.append("Overall pool scoring is below average, indicating high difficulty finding a perfect fit.")
+        
+    # Interview Focus
+    if top_missing:
+        interview_focus.append(f"Practical problem solving around missing skill domains: {', '.join(top_missing)}.")
+    interview_focus.append("System architecture scalability, database optimization patterns, and core tooling competency.")
+    
+    # Final Recommendation
+    shortlisted_candidates = [c for c in all_candidates if c["score"] >= 70.0]
+    if shortlisted_candidates:
+        # Anonymize candidate filenames if bias_blind mode is requested
+        top_cand_names = []
+        for c in shortlisted_candidates[:2]:
+            if bias_blind:
+                top_cand_names.append(f"Candidate #{all_candidates.index(c) + 1}")
+            else:
+                top_cand_names.append(c["filename"])
+        final_recommendations = f"Proceed to screening loops with top candidates ({', '.join(top_cand_names)}) who demonstrate high core requirements match. Use technical loops to probe remaining pool candidates on missing stack items."
+    else:
+        final_recommendations = "No candidate currently meets the 70% shortlist threshold. Recommend expanding the search or adjusting the skills criteria weight slider."
+        
+    hiring_brief = {
+        "role_title": classified_role,
+        "strengths": pool_strengths,
+        "risks": pool_risks,
+        "interview_focus": interview_focus,
+        "recommendation": final_recommendations
+    }
+
     response_data = {
         "candidates": paginated_list, # legacy candidates envelope
         "items": paginated_list,      # standardized items envelope
@@ -1319,7 +1419,8 @@ def get_job_candidates(
             "difficulty": difficulty,
             "feasibility": feasibility,
             "summary": market_summary
-        }
+        },
+        "hiring_brief": hiring_brief
     }
     
     # Save cache
