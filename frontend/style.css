@@ -2566,6 +2566,19 @@ textarea:focus {
         border-bottom: 2px solid #f43f5e !important;
         color: #9f1239 !important;
     }
+
+    /* Print overrides for full page Hiring Brief */
+    #view-hiring-brief {
+        background: white !important;
+        color: black !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    #view-hiring-brief * {
+        color: black !important;
+        background: transparent !important;
+    }
 }
 
 /* Auth Screen styles (Phase 2 Auth Overlay) */
