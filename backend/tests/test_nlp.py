@@ -355,3 +355,67 @@ def test_hiring_brief_and_workforce_planning():
     # Data Analyst should match 1/3 = 33.3%
     assert other_matches[1]["job_id"] == 102
     assert other_matches[1]["match_percentage"] == 33.3
+
+
+def test_send_status_update_email_simulated(db):
+    from backend.tasks import send_status_update_email
+    from backend.models import Candidate, Job, Organization
+
+    org = db.query(Organization).first()
+    if not org:
+        org = Organization(name="Test Org")
+        db.add(org)
+        db.commit()
+        db.refresh(org)
+
+    job = db.query(Job).first()
+    if not job:
+        job = Job(title="Backend Developer", description="FastAPI", organization_id=org.id)
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+
+    candidate = db.query(Candidate).filter_by(email="test@candidate.local").first()
+    if not candidate:
+        candidate = Candidate(
+            name="Test Candidate",
+            email="test@candidate.local",
+            organization_id=org.id
+        )
+        db.add(candidate)
+        db.commit()
+        db.refresh(candidate)
+
+    result = send_status_update_email(candidate.id, job.id, "Under Review", "Shortlisted")
+    assert "Email simulated successfully" in result or "Email sent successfully" in result
+
+
+def test_compute_nlp_shortlist_new_team_profiles():
+    from backend.nlp_engine import compute_nlp_shortlist
+    
+    resumes_data = [
+        {
+            "filename": "ai_dev.pdf",
+            "parsed_skills": ["python", "pytorch", "transformers", "llm"],
+            "experience_years": 4.0,
+            "raw_text": "I am a Machine Learning Engineer. I develop models using PyTorch, Tensorflow, and Transformers. I lead research experiments."
+        }
+    ]
+    
+    team_profile = {
+        "mindset": "Research-driven",
+        "focus": "AI / Machine Learning",
+        "expectation": "Research & Development"
+    }
+    
+    result = compute_nlp_shortlist(
+        jd_raw="Looking for AI developer with PyTorch",
+        resumes=resumes_data,
+        semantic_weight=0.5,
+        team_profile=team_profile
+    )
+    
+    match_card = result["candidates"][0]
+    assert match_card["explainability"]["team_fit_details"]["mindset_alignment"] == "Research-driven (Match)"
+    assert match_card["explainability"]["team_fit_details"]["focus_alignment"] == "AI / Machine Learning (Match)"
+    assert match_card["explainability"]["team_fit_details"]["expectation_alignment"] == "Research & Development (Match)"

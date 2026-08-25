@@ -54,4 +54,12 @@ class Settings:
     S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME", "talentai-resumes")
     S3_REGION: str = os.getenv("S3_REGION", "us-east-1")
 
+    # SMTP Configuration (automated status emails)
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "no-reply@talentai.local")
+    SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "TalentAI Automated Recruitment")
+
 settings = Settings()

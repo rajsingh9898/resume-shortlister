@@ -701,7 +701,7 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
                 else:
                     mindset_score = 0.6
                     team_fit_details["mindset_alignment"] = "Startup (Low Correlation)"
-            else:
+            elif mindset == "Enterprise":
                 ent_keywords = ["enterprise", "architecture", "robust", "scalable", "compliance", "process", "legacy", "migration", "testing", "unit test", "java", "c#", "dotnet", "oracle", "kubernetes"]
                 matched_count = sum(1 for kw in ent_keywords if kw in raw_txt.lower())
                 if matched_count >= 2:
@@ -710,14 +710,42 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
                 else:
                     mindset_score = 0.7
                     team_fit_details["mindset_alignment"] = "Enterprise (Partial Match)"
+            elif mindset == "Research-driven":
+                res_keywords = ["research", "thesis", "phd", "academic", "papers", "study", "analysis", "experiments", "deep learning", "evaluation"]
+                matched_count = sum(1 for kw in res_keywords if kw in raw_txt.lower())
+                if matched_count >= 2:
+                    mindset_score = 1.0
+                    team_fit_details["mindset_alignment"] = "Research-driven (Match)"
+                else:
+                    mindset_score = 0.7
+                    team_fit_details["mindset_alignment"] = "Research-driven (Partial)"
+            elif mindset == "Agile-focused":
+                agile_keywords = ["agile", "scrum", "sprint", "retrospective", "jira", "kanban", "standup", "velocity", "cicd"]
+                matched_count = sum(1 for kw in agile_keywords if kw in raw_txt.lower())
+                if matched_count >= 2:
+                    mindset_score = 1.0
+                    team_fit_details["mindset_alignment"] = "Agile-focused (Match)"
+                else:
+                    mindset_score = 0.7
+                    team_fit_details["mindset_alignment"] = "Agile-focused (Partial)"
+            else: # Growth-oriented or default
+                growth_keywords = ["growth", "scale", "optimize", "acquisition", "metrics", "analytics", "experiments", "conversion", "b2b"]
+                matched_count = sum(1 for kw in growth_keywords if kw in raw_txt.lower())
+                if matched_count >= 2:
+                    mindset_score = 1.0
+                    team_fit_details["mindset_alignment"] = f"{mindset} (Match)"
+                else:
+                    mindset_score = 0.7
+                    team_fit_details["mindset_alignment"] = f"{mindset} (Partial)"
             
             # Focus
             focus = team_profile.get("focus", "Backend-heavy")
             focus_score = 0.5
             backend_terms = ["python", "java", "c#", "postgres", "sql", "django", "fastapi", "database", "api", "backend", "node", "docker", "redis", "celery"]
-            frontend_terms = ["react", "javascript", "html", "css", "frontend", "ui", "ux", "user interface", "design", "tailwind", "sass"]
+            frontend_terms = ["react", "javascript", "html", "css", "frontend", "ui", "ux", "user interface", "design", "tailwind", "sass", "vue", "angular", "figma"]
             be_count = sum(1 for t in backend_terms if t in raw_txt.lower())
             fe_count = sum(1 for t in frontend_terms if t in raw_txt.lower())
+            
             if focus == "Backend-heavy":
                 if be_count > fe_count:
                     focus_score = 1.0
@@ -728,17 +756,53 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
                 else:
                     focus_score = 0.4
                     team_fit_details["focus_alignment"] = "Backend-heavy (Low Alignment)"
-            elif focus == "Product-heavy":
+            elif focus == "Product-heavy" or focus == "Frontend-heavy":
                 if fe_count > be_count:
                     focus_score = 1.0
-                    team_fit_details["focus_alignment"] = "Product-heavy (Match)"
+                    team_fit_details["focus_alignment"] = f"{focus} (Match)"
                 elif fe_count > 0:
                     focus_score = 0.8
-                    team_fit_details["focus_alignment"] = "Product-heavy (Partial Match)"
+                    team_fit_details["focus_alignment"] = f"{focus} (Partial Match)"
                 else:
                     focus_score = 0.4
-                    team_fit_details["focus_alignment"] = "Product-heavy (Low Alignment)"
-            else:
+                    team_fit_details["focus_alignment"] = f"{focus} (Low Alignment)"
+            elif focus == "AI / Machine Learning":
+                ai_terms = ["tensorflow", "pytorch", "keras", "machine learning", "deep learning", "nlp", "transformers", "scikit-learn", "numpy", "pandas", "llm", "ai", "model"]
+                ai_count = sum(1 for t in ai_terms if t in raw_txt.lower())
+                if ai_count >= 2:
+                    focus_score = 1.0
+                    team_fit_details["focus_alignment"] = "AI / Machine Learning (Match)"
+                elif ai_count > 0:
+                    focus_score = 0.7
+                    team_fit_details["focus_alignment"] = "AI / Machine Learning (Partial Match)"
+                else:
+                    focus_score = 0.4
+                    team_fit_details["focus_alignment"] = "AI / Machine Learning (Low Alignment)"
+            elif focus == "Data Analytics":
+                da_terms = ["sql", "excel", "pandas", "numpy", "powerbi", "tableau", "analytics", "dashboard", "matplot", "seaborn", "data analyst", "bi"]
+                da_count = sum(1 for t in da_terms if t in raw_txt.lower())
+                if da_count >= 2:
+                    focus_score = 1.0
+                    team_fit_details["focus_alignment"] = "Data Analytics (Match)"
+                elif da_count > 0:
+                    focus_score = 0.7
+                    team_fit_details["focus_alignment"] = "Data Analytics (Partial Match)"
+                else:
+                    focus_score = 0.4
+                    team_fit_details["focus_alignment"] = "Data Analytics (Low Alignment)"
+            elif focus == "DevOps & Infrastructure":
+                devops_terms = ["docker", "kubernetes", "aws", "gcp", "azure", "cicd", "terraform", "ansible", "jenkins", "linux", "bash", "cloud", "infrastructure"]
+                devops_count = sum(1 for t in devops_terms if t in raw_txt.lower())
+                if devops_count >= 2:
+                    focus_score = 1.0
+                    team_fit_details["focus_alignment"] = "DevOps & Infrastructure (Match)"
+                elif devops_count > 0:
+                    focus_score = 0.7
+                    team_fit_details["focus_alignment"] = "DevOps & Infrastructure (Partial Match)"
+                else:
+                    focus_score = 0.4
+                    team_fit_details["focus_alignment"] = "DevOps & Infrastructure (Low Alignment)"
+            else: # Fullstack or default
                 if be_count > 0 and fe_count > 0:
                     focus_score = 1.0
                     team_fit_details["focus_alignment"] = "Fullstack (Match)"
@@ -761,7 +825,7 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
                 else:
                     expectation_score = 0.5
                     team_fit_details["expectation_alignment"] = "Ownership (Partial)"
-            else:
+            elif expectation == "Support":
                 sup_keywords = ["support", "maintenance", "ticket", "resolve", "debug", "document", "jira", "customer support", "fixing", "bugs"]
                 matched_count = sum(1 for kw in sup_keywords if kw in raw_txt.lower())
                 if matched_count > 0:
@@ -770,6 +834,33 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
                 else:
                     expectation_score = 0.6
                     team_fit_details["expectation_alignment"] = "Support (Partial)"
+            elif expectation == "Rapid Prototyping":
+                proto_keywords = ["prototype", "hackathon", "mvp", "rapid", "fast", "speed", "mockup", "quick-turnaround", "bootstrap"]
+                matched_count = sum(1 for kw in proto_keywords if kw in raw_txt.lower())
+                if matched_count > 0:
+                    expectation_score = 1.0
+                    team_fit_details["expectation_alignment"] = "Rapid Prototyping (Match)"
+                else:
+                    expectation_score = 0.6
+                    team_fit_details["expectation_alignment"] = "Rapid Prototyping (Partial)"
+            elif expectation == "Scalability Optimization":
+                scale_keywords = ["scalability", "latency", "optimization", "performance", "high-throughput", "caching", "indexing", "load balancing", "profiling"]
+                matched_count = sum(1 for kw in scale_keywords if kw in raw_txt.lower())
+                if matched_count > 0:
+                    expectation_score = 1.0
+                    team_fit_details["expectation_alignment"] = "Scalability Optimization (Match)"
+                else:
+                    expectation_score = 0.6
+                    team_fit_details["expectation_alignment"] = "Scalability Optimization (Partial)"
+            else: # Research & Development or default
+                rd_keywords = ["r&d", "research", "experiment", "novel", "algorithm", "innovation", "patent", "publication", "prototype"]
+                matched_count = sum(1 for kw in rd_keywords if kw in raw_txt.lower())
+                if matched_count > 0:
+                    expectation_score = 1.0
+                    team_fit_details["expectation_alignment"] = f"{expectation} (Match)"
+                else:
+                    expectation_score = 0.6
+                    team_fit_details["expectation_alignment"] = f"{expectation} (Partial)"
                     
             team_fit_score = round((mindset_score + focus_score + expectation_score) / 3.0, 2)
             

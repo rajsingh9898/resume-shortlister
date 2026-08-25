@@ -1336,6 +1336,8 @@ window.setCandidateStatus = function(status) {
     const filename = currentDrawerCandidate.filename;
     localStorage.setItem(`talentai_status_${filename}`, status);
     
+    updateDrawerStatusUI(status);
+    
     // Sync status to PostgreSQL database
     fetch('/api/evaluation/update', {
         method: 'POST',
@@ -1348,16 +1350,31 @@ window.setCandidateStatus = function(status) {
             filename: filename,
             status: status
         })
-    }).catch(err => console.error("Database update failed:", err));
-    
-    updateDrawerStatusUI(status);
-    if (currentJobId) {
-        fetchJobCandidates(currentJobId, currentPage);
-    } else {
-        applyCandidatesFiltering();
-    }
-    
-    showToast(`Status updated: ${filename} is now marked as "${status}"`, "success");
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error(`Server returned status code ${res.status}`);
+        }
+        return res.json();
+    })
+    .then(data => {
+        if (currentJobId) {
+            fetchJobCandidates(currentJobId, currentPage);
+        } else {
+            applyCandidatesFiltering();
+        }
+        showToast(`Status updated: ${filename} is now marked as "${status}"`, "success");
+    })
+    .catch(err => {
+        console.error("Database update failed:", err);
+        showToast(`Failed to update status: ${err.message}`, "error");
+        // Refresh UI from database to match true status
+        if (currentJobId) {
+            fetchJobCandidates(currentJobId, currentPage);
+        } else {
+            applyCandidatesFiltering();
+        }
+    });
 };
 
 function updateDrawerStatusUI(status) {

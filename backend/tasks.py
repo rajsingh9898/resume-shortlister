@@ -193,10 +193,29 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
             file_path = next(r["file_path"] for r in resume_data if r["filename"] == filename)
             
             # Find or create Candidate (scoped under tenant Org)
-            candidate = db.query(Candidate).filter_by(name=filename, organization_id=job.organization_id).first()
+            import re
+            
+            # Extract email from raw resume text
+            email_match = re.search(r'\b[\w\.-]+@[\w\.-]+\.\w{2,}\b', raw_text)
+            candidate_email = email_match.group(0) if email_match else None
+            
+            # Extract clean name from filename
+            clean_name = filename
+            clean_name = re.sub(r'^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}-', '', clean_name)
+            clean_name = os.path.splitext(clean_name)[0]
+            if clean_name.lower().endswith('.txt') or clean_name.lower().endswith('.pdf') or clean_name.lower().endswith('.docx'):
+                clean_name = os.path.splitext(clean_name)[0]
+            clean_name = clean_name.replace('_', ' ').replace('-', ' ').title()
+
+            candidate = db.query(Candidate).filter(
+                (Candidate.name == clean_name) | (Candidate.name == filename),
+                Candidate.organization_id == job.organization_id
+            ).first()
+
             if not candidate:
                 candidate = Candidate(
-                    name=filename,
+                    name=clean_name,
+                    email=candidate_email,
                     experience_years=cand["candidate_exp"],
                     experience_confidence=cand["experience_confidence"],
                     degrees=cand["candidate_degrees"],
@@ -208,6 +227,8 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
                 db.commit()
                 db.refresh(candidate)
             else:
+                candidate.name = clean_name
+                candidate.email = candidate_email
                 candidate.experience_years = cand["candidate_exp"]
                 candidate.experience_confidence = cand["experience_confidence"]
                 candidate.degrees = cand["candidate_degrees"]
@@ -319,5 +340,125 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
                     error_message=f"Failed permanently after max retries. Error: {str(exc)}"
                 )
             raise exc
+    finally:
+        db.close()
+
+
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+@celery_app.task(bind=True, max_retries=3)
+def send_status_update_email(self, candidate_id: int, job_id: int, old_status: Optional[str], new_status: str):
+    db = SessionLocal()
+    try:
+        candidate = db.query(Candidate).filter_by(id=candidate_id).first()
+        job = db.query(Job).filter_by(id=job_id).first()
+        if not candidate or not job:
+            logger.warning(f"Candidate {candidate_id} or Job {job_id} not found. Skipping status update email.")
+            return f"Candidate {candidate_id} or Job {job_id} not found."
+            
+        candidate_email = candidate.email
+        candidate_name = candidate.name
+        
+        if not candidate_email:
+            logger.warning(f"Candidate {candidate_name} (ID: {candidate_id}) has no email address. Skipping email dispatch.")
+            return "Skipped: No email address on candidate record."
+
+        try:
+            from backend.models import Organization
+        except ImportError:
+            from models import Organization
+            
+        org = db.query(Organization).filter_by(id=candidate.organization_id).first()
+        org_name = org.name if org else "TalentAI Organization"
+
+        subject = f"Application Status Update: {job.title} at {org_name}"
+        
+        if new_status == "Shortlisted":
+            email_body = f"""
+            <html>
+            <body style="font-family: 'Outfit', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; padding: 24px;">
+                <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                    <div style="text-align: center; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px;">
+                        <h2 style="color: #6366f1; font-weight: 700; margin: 0; font-size: 1.5rem;">TalentAI Automated Notification</h2>
+                    </div>
+                    <p>Dear <strong>{candidate_name}</strong>,</p>
+                    <p>Congratulations! We have reviewed your application and we are pleased to inform you that your resume has been <strong>shortlisted</strong> for the <strong>{job.title}</strong> opening.</p>
+                    <p>You are invited to the next stage of our recruitment process, which includes a formal interview or technical assessment.</p>
+                    <p>Our team will contact you shortly to coordinate scheduling details.</p>
+                    <div style="margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 0.85rem; color: #64748b;">
+                        <p>Best regards,</p>
+                        <p><strong>The Recruitment Team</strong><br>{org_name}</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+        elif new_status == "Rejected":
+            email_body = f"""
+            <html>
+            <body style="font-family: 'Outfit', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; padding: 24px;">
+                <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                    <div style="text-align: center; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px;">
+                        <h2 style="color: #6366f1; font-weight: 700; margin: 0; font-size: 1.5rem;">TalentAI Automated Notification</h2>
+                    </div>
+                    <p>Dear <strong>{candidate_name}</strong>,</p>
+                    <p>Thank you for your interest in the <strong>{job.title}</strong> role at {org_name}.</p>
+                    <p>After careful review of your application, we regret to inform you that we will not be moving forward with your candidacy at this time.</p>
+                    <p>We appreciate the time you took to share your credentials with us and wish you the best of luck in your job search.</p>
+                    <div style="margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 0.85rem; color: #64748b;">
+                        <p>Best regards,</p>
+                        <p><strong>The Recruitment Team</strong><br>{org_name}</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+        else: # Under Review
+            email_body = f"""
+            <html>
+            <body style="font-family: 'Outfit', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; padding: 24px;">
+                <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                    <div style="text-align: center; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px;">
+                        <h2 style="color: #6366f1; font-weight: 700; margin: 0; font-size: 1.5rem;">TalentAI Automated Notification</h2>
+                    </div>
+                    <p>Dear <strong>{candidate_name}</strong>,</p>
+                    <p>Your application for the <strong>{job.title}</strong> role at {org_name} has been received and is currently <strong>under review</strong>.</p>
+                    <p>We will contact you as soon as an evaluation decision is finalized.</p>
+                    <div style="margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 0.85rem; color: #64748b;">
+                        <p>Best regards,</p>
+                        <p><strong>The Recruitment Team</strong><br>{org_name}</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+        if not settings.SMTP_USERNAME or not settings.SMTP_PASSWORD:
+            logger.warning(f"SMTP Credentials not configured. Simulated E-Mail Body for {candidate_email}:\\n{email_body}")
+            return "Email simulated successfully (credentials missing)."
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+        msg["To"] = candidate_email
+        msg.attach(MIMEText(email_body, "html"))
+
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            server.starttls()
+            server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_FROM_EMAIL, candidate_email, msg.as_string())
+            
+        logger.info(f"Status email successfully dispatched to {candidate_email} for status {new_status}.")
+        return "Email sent successfully."
+    except Exception as exc:
+        logger.error(f"Failed to dispatch status email: {exc}. Retrying...")
+        is_eager = getattr(celery_app.conf, "task_always_eager", False)
+        if is_eager:
+            logger.error(f"Eager mode active. Skipping Celery retry to prevent request failures. Error was: {exc}")
+            return f"Failed to send email: {str(exc)}"
+        backoff_delay = 10 * (2 ** self.request.retries)
+        raise self.retry(exc=exc, countdown=backoff_delay)
     finally:
         db.close()

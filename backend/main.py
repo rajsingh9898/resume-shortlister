@@ -1086,7 +1086,6 @@ def get_job_candidates(
     market_summary = f"{skills_str} profiles are in high demand and {difficulty.lower()}. Feasibility is {feasibility.lower()}."
 
     # Fetch active jobs for multi-role alignment
-    from backend.models import Job
     org_jobs = read_db.query(Job).filter(Job.organization_id == current_user.organization_id).all()
     
     # Parse requirements for each job
@@ -1540,6 +1539,11 @@ def update_evaluation(
         if status_changed:
             log_action = "STATUS_CHANGE"
             log_details = f"Candidate '{data.filename}' status updated from '{old_status}' to '{eval_record.status}'"
+            try:
+                from backend.tasks import send_status_update_email
+                send_status_update_email.delay(candidate.id, job_id, old_status, eval_record.status)
+            except Exception as e:
+                logger.error(f"Failed to queue status update email task: {e}")
         else:
             log_action = "update_evaluation"
             log_details = f"Updated comments for candidate '{data.filename}'"
