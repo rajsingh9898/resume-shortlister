@@ -1480,11 +1480,33 @@ def update_evaluation(
         )
 
     try:
-        # Find the Resume / Candidate matching the logged in tenant organization (read query)
-        resume = read_db.query(Resume).join(Candidate).filter(
+        # Resolve Job ID first
+        job_id = data.job_id
+        if not job_id:
+            job_service = JobService(read_db, write_db)
+            latest_job = job_service.get_latest_job(current_user.organization_id)
+            job_id = latest_job.id if latest_job else None
+            
+        if not job_id:
+            job = Job(title="Default Job Context", description="System generated context", organization_id=current_user.organization_id)
+            write_db.add(job)
+            write_db.commit()
+            write_db.refresh(job)
+            job_id = job.id
+
+        # Find the Resume / Candidate matching the job and organization context
+        resume = read_db.query(Resume).join(Candidate).join(Score, Score.candidate_id == Candidate.id).filter(
             Resume.filename == data.filename,
+            Score.job_id == job_id,
             Candidate.organization_id == current_user.organization_id
         ).first()
+        
+        if not resume:
+            # Fallback to general query by filename if score doesn't exist yet
+            resume = read_db.query(Resume).join(Candidate).filter(
+                Resume.filename == data.filename,
+                Candidate.organization_id == current_user.organization_id
+            ).first()
         
         if not resume:
             # Write operations route to write_db
@@ -1498,22 +1520,8 @@ def update_evaluation(
         else:
             candidate = resume.candidate
             
-        # Resolve Job ID
-        job_id = data.job_id
-        if not job_id:
-            job_service = JobService(read_db, write_db)
-            latest_job = job_service.get_latest_job(current_user.organization_id)
-            job_id = latest_job.id if latest_job else None
-            
-        if not job_id:
-            job = Job(title="Default Job Context", description="System generated context", organization_id=current_user.organization_id)
-            write_db.add(job)
-            write_db.commit()
-            write_db.refresh(job)
-            job_id = job.id
-            
-        # Find or create Evaluation record (read query)
-        eval_record = read_db.query(Evaluation).filter_by(job_id=job_id, candidate_id=candidate.id).first()
+        # Find or create Evaluation record using write_db so changes are tracked by the committing session
+        eval_record = write_db.query(Evaluation).filter_by(job_id=job_id, candidate_id=candidate.id).first()
         old_status = eval_record.status if eval_record else None
         status_changed = False
         
@@ -1540,7 +1548,10 @@ def update_evaluation(
             log_action = "STATUS_CHANGE"
             log_details = f"Candidate '{data.filename}' status updated from '{old_status}' to '{eval_record.status}'"
             try:
-                from backend.tasks import send_status_update_email
+                try:
+                    from backend.tasks import send_status_update_email
+                except ImportError:
+                    from tasks import send_status_update_email
                 send_status_update_email.delay(candidate.id, job_id, old_status, eval_record.status)
             except Exception as e:
                 logger.error(f"Failed to queue status update email task: {e}")

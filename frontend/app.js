@@ -8,7 +8,7 @@ let currentJobId = null;
 let biasBlindMode = false;
 let currentHiringBrief = null;
 let currentPage = 1;
-let currentLimit = 1000;
+let currentLimit = 10;
 let totalPages = 1;
 let currentUser = null;
 let userToken = localStorage.getItem('talentai_token') || null;
@@ -993,13 +993,14 @@ function renderCandidatesList(candidates) {
         if (candidate.score >= 70) scoreClass = 'high';
         else if (candidate.score >= 40) scoreClass = 'mid';
 
+        const globalRank = (currentPage - 1) * currentLimit + index + 1;
         const item = document.createElement('div');
         item.className = 'candidate-card';
         item.onclick = (e) => {
-            if (e.target.closest('.candidate-checkbox-container') || e.target.closest('.candidate-card-checkbox')) {
+            if (e.target.closest('.candidate-checkbox-container') || e.target.closest('.candidate-card-checkbox') || e.target.closest('.candidate-actions') || e.target.closest('.quick-status-btn')) {
                 return;
             }
-            openDrawer(candidate, index + 1);
+            openDrawer(candidate, globalRank);
         };
 
         const expLabel = candidate.candidate_exp > 0 ? `${candidate.candidate_exp} Yrs Exp` : 'Exp not listed';
@@ -1037,30 +1038,47 @@ function renderCandidatesList(candidates) {
         }
 
         item.innerHTML = `
-            <div class="candidate-checkbox-container">
-                <input type="checkbox" class="candidate-card-checkbox" data-filename="${candidate.filename}" ${isChecked ? 'checked' : ''}>
-            </div>
-            <div class="candidate-main">
-                <span class="rank-badge">#${index + 1}</span>
-                <div class="candidate-profile">
-                    <span class="candidate-title" title="${candidate.filename}">
-                        ${candidate.filename}
-                    </span>
-                    <span class="candidate-subtitle" style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
-                        ${statusBadgeHtml}
-                        <span class="cand-meta-badge">${expLabel}</span>
-                        <span class="cand-meta-badge">${degreeLabel}</span>
-                        ${microBadgesHtml}
-                        ${prefBadgeHtml}
-                    </span>
+            <div class="candidate-card-top" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
+                    <div class="candidate-checkbox-container">
+                        <input type="checkbox" class="candidate-card-checkbox" data-filename="${candidate.filename}" ${isChecked ? 'checked' : ''}>
+                    </div>
+                    <div class="candidate-main" style="margin-left: 0; display: flex; align-items: center; gap: 16px; flex: 1;">
+                        <span class="rank-badge">#${globalRank}</span>
+                        <div class="candidate-profile">
+                            <span class="candidate-title" title="${candidate.filename}">
+                                ${candidate.filename}
+                            </span>
+                            <span class="candidate-subtitle" style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+                                ${statusBadgeHtml}
+                                <span class="cand-meta-badge">${expLabel}</span>
+                                <span class="cand-meta-badge">${degreeLabel}</span>
+                                ${microBadgesHtml}
+                                ${prefBadgeHtml}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="candidate-right" style="display: flex; align-items: center; gap: 12px;">
+                    <div class="score-badge">
+                        <span class="score-percent ${scoreClass}">${candidate.score}%</span>
+                        <span class="score-lbl">Match Score</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right arrow-icon"></i>
                 </div>
             </div>
-            <div class="candidate-right">
-                <div class="score-badge">
-                    <span class="score-percent ${scoreClass}">${candidate.score}%</span>
-                    <span class="score-lbl">Match Score</span>
-                </div>
-                <i class="fa-solid fa-chevron-right arrow-icon"></i>
+            
+            <div class="candidate-actions" style="margin-top: 10px; display: flex; gap: 8px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px; width: 100%; justify-content: flex-start; align-items: center;">
+                <span style="font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-right: 4px; display: inline-block;">Action:</span>
+                <button class="quick-status-btn btn-shortlisted ${savedStatus === 'Shortlisted' ? 'active' : ''}" data-status="Shortlisted" onclick="window.quickSetCandidateStatus('${candidate.filename}', 'Shortlisted', event)">
+                    <i class="fa-solid fa-circle-check"></i> Shortlist
+                </button>
+                <button class="quick-status-btn btn-review ${savedStatus === 'Under Review' ? 'active' : ''}" data-status="Under Review" onclick="window.quickSetCandidateStatus('${candidate.filename}', 'Under Review', event)">
+                    <i class="fa-solid fa-clock"></i> Review
+                </button>
+                <button class="quick-status-btn btn-rejected ${savedStatus === 'Rejected' ? 'active' : ''}" data-status="Rejected" onclick="window.quickSetCandidateStatus('${candidate.filename}', 'Rejected', event)">
+                    <i class="fa-solid fa-circle-xmark"></i> Reject
+                </button>
             </div>
         `;
         
@@ -1369,6 +1387,65 @@ window.setCandidateStatus = function(status) {
         console.error("Database update failed:", err);
         showToast(`Failed to update status: ${err.message}`, "error");
         // Refresh UI from database to match true status
+        if (currentJobId) {
+            fetchJobCandidates(currentJobId, currentPage);
+        } else {
+            applyCandidatesFiltering();
+        }
+    });
+};
+
+window.quickSetCandidateStatus = function(filename, status, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    localStorage.setItem(`talentai_status_${filename}`, status);
+    
+    // Optimistic UI updates
+    const card = document.querySelector(`.candidate-card-checkbox[data-filename="${filename}"]`)?.closest('.candidate-card');
+    if (card) {
+        card.querySelectorAll('.quick-status-btn').forEach(btn => {
+            if (btn.getAttribute('data-status') === status) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        const badge = card.querySelector('.cand-status-badge');
+        if (badge) {
+            badge.textContent = status;
+            badge.className = `cand-status-badge ${status === 'Shortlisted' ? 'shortlisted' : status === 'Rejected' ? 'rejected' : 'review'}`;
+        }
+    }
+    
+    fetch('/api/evaluation/update', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${userToken}`
+        },
+        body: JSON.stringify({
+            job_id: currentJobId,
+            filename: filename,
+            status: status
+        })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error(`Server returned status code ${res.status}`);
+        return res.json();
+    })
+    .then(data => {
+        if (currentJobId) {
+            fetchJobCandidates(currentJobId, currentPage);
+        } else {
+            applyCandidatesFiltering();
+        }
+        showToast(`Status updated: ${filename} is now marked as "${status}"`, "success");
+    })
+    .catch(err => {
+        console.error("Database update failed:", err);
+        showToast(`Failed to update status: ${err.message}`, "error");
         if (currentJobId) {
             fetchJobCandidates(currentJobId, currentPage);
         } else {

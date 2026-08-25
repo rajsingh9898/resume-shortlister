@@ -3269,6 +3269,93 @@ body.light-theme .input-wrapper input:focus, body.light-theme .input-wrapper sel
     }
     .threshold-slider-group {
         width: 100% !important;
+}
+/* Mobile Phone Responsive overrides (Proper UI on Phone) */
+@media (max-width: 640px) {
+    /* Main Layout */
+    .app-main {
+        padding: 10px !important;
+        gap: 20px !important;
+    }
+    
+    .panel {
+        padding: 20px !important;
+    }
+
+    /* View Switcher Tabs */
+    .view-switcher-tabs {
+        flex-direction: column !important;
+        max-width: 100% !important;
+        border-radius: 16px !important;
+        padding: 6px !important;
+        gap: 6px !important;
+    }
+    
+    .view-tab-btn {
+        width: 100% !important;
+        padding: 12px !important;
+        font-size: 0.88rem !important;
+        justify-content: center !important;
+    }
+
+    /* Header for Hiring Brief page view */
+    #view-hiring-brief > div {
+        padding: 20px !important;
+    }
+    #view-hiring-brief > div > div:first-child {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 16px !important;
+    }
+    #view-hiring-brief button {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    /* Talent Mobility Map matrix grid */
+    #view-workforce-map > div {
+        padding: 20px !important;
+    }
+    #workforce-matrix-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+
+    /* Action Buttons in shortlists header */
+    .ranking-header-title {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 16px !important;
+    }
+    .action-buttons-group {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        gap: 8px !important;
+    }
+    .action-buttons-group .btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    /* Filters panel & sliders */
+    .filters-panel {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 16px !important;
+    }
+    .filter-badges-container {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+    .threshold-slider-group {
+        width: 100% !important;
     }
     .threshold-slider {
         width: 100% !important;
@@ -3279,4 +3366,53 @@ body.light-theme .input-wrapper input:focus, body.light-theme .input-wrapper sel
         width: 100% !important;
         max-width: 100% !important;
     }
+}
+
+/* Quick Status Actions Row in Candidate Cards */
+.candidate-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 4px;
+}
+
+.quick-status-btn {
+    background: rgba(15, 23, 42, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.quick-status-btn:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: #f1f5f9;
+}
+
+.quick-status-btn.btn-shortlisted.active {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #34d399 !important;
+    border-color: rgba(16, 185, 129, 0.4) !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.05);
+}
+
+.quick-status-btn.btn-review.active {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #60a5fa !important;
+    border-color: rgba(59, 130, 246, 0.4) !important;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.05);
+}
+
+.quick-status-btn.btn-rejected.active {
+    background: rgba(239, 68, 68, 0.12) !important;
+    color: #f87171 !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.05);
 }
