@@ -1,0 +1,33 @@
+Raj Singh
+Email: rajsingh98447859@gmail.com | Phone: 7388445597                                                           LinkedIn: www.linkedin.com/in/raj-singh-49aa842a5
+
+Objective
+Motivated and enthusiastic Computer Science student seeking an internship opportunity to apply my programming skills and gain hands-on experience in software development.
+
+Education
+Shri Ram Murti Smarak College of Engineering Technology and Research, Bareilly, Uttar Pradesh
+B. Tech in Computer Science and Engineering (Expected: 2027)
+
+Technical Skills
+Programming Languages: Python, HTML
+Frameworks & Libraries: Streamlit, Tkinter, Pandas, NumPy, Matplotlib
+Tools & Technologies: Git, VS Code
+
+Projects
+Emotional Based Song Recommendation System
+Developed a mini-project using Python and Streamlit.
+Built a system that recommends songs based on user emotions.
+
+Relevant Coursework
+Data Structures and Algorithms
+Web Development
+Object-Oriented Programming
+
+Certifications
+Google Cloud Arcade Facilitator Program — Google Cloud / Qwiklabs
+Completed hands-on labs and quests on Google Cloud Platform services including Compute Engine, Cloud Storage, IAM, and BigQuery. Earned multiple skill badges on Google Cloud Skills Boost.
+Skill Badges Link: https://www.cloudskillsboost.google/public_profiles/712ff563-b52b-4ec0-9db8-73abd28e6fd9
+Completed: June 2025
+Google Workspace Bring AI to Work Workshop
+TCS iON Master Data Management for Beginners
+

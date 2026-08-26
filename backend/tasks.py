@@ -237,7 +237,7 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
                 db.commit()
                 
             # Create or update Resume reference (keep raw_text empty in database to save space)
-            resume = db.query(Resume).filter_by(filename=filename).first()
+            resume = db.query(Resume).filter_by(candidate_id=candidate.id, filename=filename).first()
             if not resume:
                 resume = Resume(
                     candidate_id=candidate.id,
