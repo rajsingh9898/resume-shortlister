@@ -81,32 +81,20 @@ def extract_name_from_text(raw_text: str, filename: str) -> str:
     return candidate_name
 
 
-# Initialize Celery app
-REDIS_URL = settings.REDIS_URL
-celery_app = Celery("talentai_tasks", broker=REDIS_URL, backend=REDIS_URL)
+# Initialize Celery app in permanent Eager Mode (no Redis dependency)
+celery_app = Celery("talentai_tasks")
 celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
-    worker_prefetch_multiplier=1,
-    task_acks_late=True,
-    task_reject_on_worker_lost=True,
+    broker_url="memory://",
+    result_backend="cache+memory://",
+    task_always_eager=True,
+    task_eager_propagates=True,
+    task_store_eager_result=True,
 )
-
-try:
-    import redis
-    r = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=0.2, socket_timeout=0.2)
-    r.ping()
-    logger.info("Celery broker connected to Redis successfully.")
-except Exception as e:
-    logger.warning(f"Redis broker connection failed: {e}. Enabling Celery Eager Mode with memory backend fallback.")
-    celery_app.conf.broker_url = "memory://"
-    celery_app.conf.result_backend = "cache+memory://"
-    celery_app.conf.task_always_eager = True
-    celery_app.conf.task_eager_propagates = True
-    celery_app.conf.task_store_eager_result = True
 
 from celery.signals import task_prerun, task_postrun, task_failure
 import time
@@ -334,15 +322,16 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
         db.commit()
         
         # Clear any cached lookups for this job ID
-        try:
-            import redis
-            redis_client = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=0.5, socket_timeout=0.5)
-            # Find and delete cached pages
-            keys = redis_client.keys(f"job_candidates:{job_id}:*")
-            if keys:
-                redis_client.delete(*keys)
-        except Exception as e:
-            logger.warning(f"Redis invalidation failed during task: {e}")
+        if settings.REDIS_URL:
+            try:
+                import redis
+                redis_client = redis.Redis.from_url(settings.REDIS_URL, socket_connect_timeout=0.2, socket_timeout=0.2)
+                # Find and delete cached pages
+                keys = redis_client.keys(f"job_candidates:{job_id}:*")
+                if keys:
+                    redis_client.delete(*keys)
+            except Exception as e:
+                logger.warning(f"Redis invalidation failed during task: {e}")
             
         # Update lifecycle status to success
         if self.request.id:

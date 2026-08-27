@@ -166,7 +166,7 @@
                         <div class="user-avatar" id="user-avatar-initials" style="width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #ec4899, #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">RS</div>
                         <div class="user-info-text" style="display: flex; flex-direction: column; text-align: left; line-height: 1.2;">
                             <span class="user-name-display" id="user-name-display" style="font-size: 0.85rem; font-weight: 600; color: var(--text-color);">Raj Singh</span>
-                            <span class="user-role-badge" id="user-role-badge" style="font-size: 0.7rem; color: #cbd5e1; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Admin</span>
+                            <span class="user-role-badge" id="user-role-badge" style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Admin</span>
                         </div>
                         <button class="logout-icon-btn" onclick="handleLogout()" title="Log Out" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 5px; font-size: 1rem; margin-left: 5px; transition: opacity 0.2s;"><i class="fa-solid fa-right-from-bracket"></i></button>
                     </div>
@@ -242,7 +242,7 @@
                                 <span id="lbl-semantic-blend" style="font-size: 0.8rem; font-weight: 600; color: #8b5cf6;">50% Transformer</span>
                             </label>
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 0.75rem; color: #94a3b8;">TF-IDF</span>
+                                <span style="font-size: 0.75rem; color: var(--text-dark);">TF-IDF</span>
                                 <input type="range" id="semantic-blend-weight" name="semantic_weight" min="0" max="100" value="50" step="5" class="weight-slider" style="flex: 1;" oninput="document.getElementById('lbl-semantic-blend').textContent = this.value + '% Transformer'">
                                 <span style="font-size: 0.75rem; color: #ec4899;">L6-Transformer</span>
                             </div>
@@ -260,8 +260,8 @@
                             
                             <div class="team-profile-selectors" style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
                                 <div class="profile-selector-item" style="display: flex; align-items: center; justify-content: space-between;">
-                                    <span style="font-size: 0.8rem; color: #94a3b8;">Mindset:</span>
-                                    <select id="team-mindset" name="team_mindset" class="profile-select" style="background: rgba(15, 23, 42, 0.6); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 3px 8px; font-size: 0.8rem; width: 160px;">
+                                    <span>Mindset:</span>
+                                    <select id="team-mindset" name="team_mindset" class="profile-select">
                                         <option value="Startup">Startup</option>
                                         <option value="Enterprise">Enterprise</option>
                                         <option value="Research-driven">Research-driven</option>
@@ -270,8 +270,8 @@
                                     </select>
                                 </div>
                                 <div class="profile-selector-item" style="display: flex; align-items: center; justify-content: space-between;">
-                                    <span style="font-size: 0.8rem; color: #94a3b8;">Focus:</span>
-                                    <select id="team-focus" name="team_focus" class="profile-select" style="background: rgba(15, 23, 42, 0.6); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 3px 8px; font-size: 0.8rem; width: 160px;">
+                                    <span>Focus:</span>
+                                    <select id="team-focus" name="team_focus" class="profile-select">
                                         <option value="Backend-heavy">Backend-heavy</option>
                                         <option value="Product-heavy">Product-heavy</option>
                                         <option value="Fullstack">Fullstack</option>
@@ -282,8 +282,8 @@
                                     </select>
                                 </div>
                                 <div class="profile-selector-item" style="display: flex; align-items: center; justify-content: space-between;">
-                                    <span style="font-size: 0.8rem; color: #94a3b8;">Expectation:</span>
-                                    <select id="team-expectation" name="team_expectation" class="profile-select" style="background: rgba(15, 23, 42, 0.6); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 3px 8px; font-size: 0.8rem; width: 160px;">
+                                    <span>Expectation:</span>
+                                    <select id="team-expectation" name="team_expectation" class="profile-select">
                                         <option value="Ownership">Ownership</option>
                                         <option value="Support">Support</option>
                                         <option value="Rapid Prototyping">Rapid Prototyping</option>
@@ -405,16 +405,16 @@
                 <!-- Results State -->
                 <div id="results-state" class="dashboard-state">
                     <!-- Premium View Switcher Tab Bar -->
-                    <div class="view-switcher-tabs" style="display: flex; gap: 4px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 4px; border-radius: 12px; margin-bottom: 24px; max-width: 480px;">
-                        <button class="view-tab-btn active" data-view="ranked-pool" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; color: #fff; background: rgba(99, 102, 241, 0.15); transition: all 0.3s ease;">
+                    <div class="view-switcher-tabs">
+                        <button class="view-tab-btn active" data-view="ranked-pool">
                             <i class="fa-solid fa-ranking-star"></i>
                             <span>Ranked Pool</span>
                         </button>
-                        <button class="view-tab-btn" data-view="hiring-brief" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; color: #94a3b8; background: transparent; transition: all 0.3s ease;">
+                        <button class="view-tab-btn" data-view="hiring-brief">
                             <i class="fa-solid fa-file-invoice"></i>
                             <span>Hiring Brief</span>
                         </button>
-                        <button class="view-tab-btn" data-view="workforce-map" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; color: #94a3b8; background: transparent; transition: all 0.3s ease;">
+                        <button class="view-tab-btn" data-view="workforce-map">
                             <i class="fa-solid fa-folder-tree"></i>
                             <span>Talent Mobility Map</span>
                         </button>
@@ -428,7 +428,7 @@
                             <i class="fa-solid fa-triangle-exclamation"></i>
                             <span>Fairness & Bias Check Warnings</span>
                         </div>
-                        <ul id="bias-warnings-list" style="margin: 0; padding-left: 20px; color: #cbd5e1; font-size: 0.88rem; display: flex; flex-direction: column; gap: 6px;">
+                        <ul id="bias-warnings-list" style="margin: 0; padding-left: 20px; color: var(--text-primary); font-size: 0.88rem; display: flex; flex-direction: column; gap: 6px;">
                             <!-- Injected dynamically in JS -->
                         </ul>
                     </div>
@@ -459,29 +459,29 @@
                     </div>
 
                     <!-- Market Intelligence Dashboard -->
-                    <div class="market-intelligence-panel" id="market-intelligence-panel" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(245, 158, 11, 0.08)); border: 1px solid rgba(99, 102, 241, 0.15); padding: 18px 22px; border-radius: 16px; margin: 20px 0; text-align: left; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                            <div style="display: flex; align-items: center; gap: 10px; color: #818cf8; font-weight: 700; font-family: 'Outfit', sans-serif; font-size: 1.1rem;">
+                    <div class="market-intelligence-panel" id="market-intelligence-panel">
+                        <div class="market-intelligence-header">
+                            <div class="market-intelligence-title">
                                 <i class="fa-solid fa-brain-circuit"></i>
                                 <span>Market Intelligence & Supply Insight</span>
                             </div>
-                            <span id="market-difficulty-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); padding: 3px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700;">Moderate Supply</span>
+                            <span id="market-difficulty-badge" class="market-difficulty-badge">Moderate Supply</span>
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 12px;">
-                            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 10px;">
-                                <div style="color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Estimated Salary (Annual)</div>
-                                <div id="market-salary-val" style="color: #f8fafc; font-size: 1.1rem; font-weight: 700; margin-top: 4px;">$120,000 - $160,000</div>
+                        <div class="market-grid">
+                            <div class="market-card">
+                                <div class="market-card-label">Estimated Salary (Annual)</div>
+                                <div id="market-salary-val" class="market-card-val">$120,000 - $160,000</div>
                             </div>
-                            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 10px;">
-                                <div style="color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Skill Demand Index</div>
-                                <div id="market-demand-val" style="color: #38bdf8; font-size: 1.1rem; font-weight: 700; margin-top: 4px;">High Demand</div>
+                            <div class="market-card">
+                                <div class="market-card-label">Skill Demand Index</div>
+                                <div id="market-demand-val" class="market-card-val demand">High Demand</div>
                             </div>
-                            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 10px;">
-                                <div style="color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Hiring Feasibility</div>
-                                <div id="market-feasibility-val" style="color: #34d399; font-size: 1.1rem; font-weight: 700; margin-top: 4px;">Highly Feasible</div>
+                            <div class="market-card">
+                                <div class="market-card-label">Hiring Feasibility</div>
+                                <div id="market-feasibility-val" class="market-card-val feasibility">Highly Feasible</div>
                             </div>
                         </div>
-                        <p id="market-summary-text" style="font-size: 0.85rem; line-height: 1.5; color: #cbd5e1; margin: 0;"></p>
+                        <p id="market-summary-text" class="market-summary-text"></p>
                     </div>
 
                     <!-- Recruiter Preference Adaptation Banner -->
@@ -519,7 +519,7 @@
                         <div class="ranking-header-title">
                             <h3>Ranked Shortlist</h3>
                             <div class="action-buttons-group" style="display: flex; align-items: center; gap: 10px;">
-                                <button id="bias-blind-toggle" class="btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; font-weight: 600; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;">
+                                <button id="bias-blind-toggle" class="btn secondary-btn" style="font-weight: 600; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; padding: 6px 12px; border-radius: 6px; cursor: pointer;">
                                     <i class="fa-solid fa-eye"></i> <span>Bias-Blind Mode: Off</span>
                                 </button>
                                 <button id="backup-btn" class="btn export-btn" onclick="exportDatabaseBackup()"><i class="fa-solid fa-database"></i> Backup DB</button>
@@ -579,7 +579,7 @@
                                     <span style="background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 10px; border-radius: 12px; font-size: 1.5rem;"><i class="fa-solid fa-file-invoice"></i></span>
                                     <div>
                                         <h2 style="font-weight: 700; margin: 0; font-size: 1.5rem;" id="full-brief-role-title">Hiring Brief Summary</h2>
-                                        <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 0 0;">NLP generated screening brief for hiring managers</p>
+                                        <p style="color: var(--text-dark); font-size: 0.85rem; margin: 4px 0 0 0;">NLP generated screening brief for hiring managers</p>
                                     </div>
                                 </div>
                                 <button class="btn" onclick="window.print()" style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); color: #818cf8; font-weight: 600; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;"><i class="fa-solid fa-print"></i> Print Summary</button>
@@ -589,13 +589,13 @@
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 24px;">
                                 <div style="background: rgba(16, 185, 129, 0.03); border: 1px solid rgba(16, 185, 129, 0.15); padding: 20px; border-radius: 14px;">
                                     <h4 style="margin: 0 0 12px 0; color: #34d399; font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-circle-check"></i> Candidate Pool Strengths</h4>
-                                    <ul id="full-brief-strengths-list" style="margin: 0; padding-left: 20px; color: #cbd5e1; font-size: 0.88rem; display: flex; flex-direction: column; gap: 8px; line-height: 1.5;">
+                                    <ul id="full-brief-strengths-list" style="margin: 0; padding-left: 20px; color: var(--text-muted); font-size: 0.88rem; display: flex; flex-direction: column; gap: 8px; line-height: 1.5;">
                                         <!-- Injected in JS -->
                                     </ul>
                                 </div>
                                 <div style="background: rgba(239, 68, 68, 0.03); border: 1px solid rgba(239, 68, 68, 0.15); padding: 20px; border-radius: 14px;">
                                     <h4 style="margin: 0 0 12px 0; color: #f87171; font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-circle-xmark"></i> Identified Stack Risks</h4>
-                                    <ul id="full-brief-risks-list" style="margin: 0; padding-left: 20px; color: #cbd5e1; font-size: 0.88rem; display: flex; flex-direction: column; gap: 8px; line-height: 1.5;">
+                                    <ul id="full-brief-risks-list" style="margin: 0; padding-left: 20px; color: var(--text-muted); font-size: 0.88rem; display: flex; flex-direction: column; gap: 8px; line-height: 1.5;">
                                         <!-- Injected in JS -->
                                     </ul>
                                 </div>
@@ -604,7 +604,7 @@
                             <!-- Interview Focus Areas -->
                             <div style="background: rgba(56, 189, 248, 0.03); border: 1px solid rgba(56, 189, 248, 0.15); padding: 20px; border-radius: 14px; margin-bottom: 24px;">
                                 <h4 style="margin: 0 0 12px 0; color: #38bdf8; font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-lightbulb"></i> Recommended Interview Focus Areas</h4>
-                                <ul id="full-brief-focus-list" style="margin: 0; padding-left: 20px; color: #cbd5e1; font-size: 0.88rem; display: flex; flex-direction: column; gap: 8px; line-height: 1.5;">
+                                <ul id="full-brief-focus-list" style="margin: 0; padding-left: 20px; color: var(--text-muted); font-size: 0.88rem; display: flex; flex-direction: column; gap: 8px; line-height: 1.5;">
                                     <!-- Injected in JS -->
                                 </ul>
                             </div>
@@ -612,7 +612,7 @@
                             <!-- Recommendations -->
                             <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.12)); border: 1px solid rgba(99, 102, 241, 0.25); padding: 24px; border-radius: 14px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);">
                                 <h4 style="margin: 0 0 12px 0; color: #a78bfa; font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-clipboard-list"></i> Final Recommendation & Next Steps</h4>
-                                <p id="full-brief-recommendation-text" style="margin: 0; color: #e2e8f0; font-size: 0.9rem; line-height: 1.6;"></p>
+                                <p id="full-brief-recommendation-text" style="margin: 0; color: var(--text-primary); font-size: 0.9rem; line-height: 1.6;"></p>
                             </div>
                         </div>
                     </div>
@@ -627,7 +627,7 @@
                                     <span style="background: rgba(139, 92, 246, 0.15); color: #a78bfa; padding: 10px; border-radius: 12px; font-size: 1.5rem;"><i class="fa-solid fa-folder-tree"></i></span>
                                     <div>
                                         <h2 style="font-weight: 700; margin: 0; font-size: 1.5rem;">Talent Mobility Map</h2>
-                                        <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 0 0;">Cross-role compatibility matching across all open organizational positions</p>
+                                        <p style="color: var(--text-dark); font-size: 0.85rem; margin: 4px 0 0 0;">Cross-role compatibility matching across all open organizational positions</p>
                                     </div>
                                 </div>
                             </div>
@@ -928,46 +928,46 @@
 
                 <!-- Skill Gap Roadmap -->
                 <div class="detail-section skill-gap-roadmap-section">
-                    <h3><i class="fa-solid fa-route" style="color: #f59e0b; margin-right: 8px;"></i> Candidate Skill Gap Roadmap</h3>
+                    <h3><i class="fa-solid fa-route" style="color: var(--text-muted); margin-right: 8px;"></i> Candidate Skill Gap Roadmap</h3>
                     <p class="questionnaire-sub"><i class="fa-solid fa-circle-info"></i> Personalized upskilling recommendations and gap summary.</p>
                     
                     <div class="roadmap-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.06); padding: 15px; border-radius: 8px; margin-top: 10px; display: flex; flex-direction: column; gap: 12px;">
-                        <div id="roadmap-summary" style="font-size: 0.85rem; line-height: 1.5; font-style: italic; color: #cbd5e1; border-left: 3px solid #f59e0b; padding-left: 10px;"></div>
+                        <div id="roadmap-summary" style="font-size: 0.85rem; line-height: 1.5; font-style: italic; color: var(--text-muted); border-left: 3px solid var(--warning); padding-left: 10px;"></div>
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 5px;">
                             <div>
-                                <h4 style="font-size: 0.8rem; text-transform: uppercase; color: #4ade80; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;"><i class="fa-solid fa-circle-check"></i> Strengths</h4>
+                                <h4 style="font-size: 0.8rem; text-transform: uppercase; color: var(--success); margin-bottom: 8px; display: flex; align-items: center; gap: 5px;"><i class="fa-solid fa-circle-check"></i> Strengths</h4>
                                 <div id="roadmap-strengths" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                             </div>
                             <div>
-                                <h4 style="font-size: 0.8rem; text-transform: uppercase; color: #f87171; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;"><i class="fa-solid fa-circle-xmark"></i> Gaps</h4>
+                                <h4 style="font-size: 0.8rem; text-transform: uppercase; color: var(--danger); margin-bottom: 8px; display: flex; align-items: center; gap: 5px;"><i class="fa-solid fa-circle-xmark"></i> Gaps</h4>
                                 <div id="roadmap-gaps" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                             </div>
                         </div>
 
                         <div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px;">
-                            <h4 style="font-size: 0.8rem; text-transform: uppercase; color: #38bdf8; margin-bottom: 8px;">Upskilling Recommendations</h4>
-                            <ol id="roadmap-recommendations" style="font-size: 0.8rem; line-height: 1.6; color: #94a3b8; margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;"></ol>
+                            <h4 style="font-size: 0.8rem; text-transform: uppercase; color: var(--blue); margin-bottom: 8px;">Upskilling Recommendations</h4>
+                            <ol id="roadmap-recommendations" style="font-size: 0.8rem; line-height: 1.6; color: var(--text-muted); margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;"></ol>
                         </div>
                     </div>
                 </div>
 
                 <!-- Recruiter Interview Kit -->
                 <div class="detail-section interview-kit-section">
-                    <h3><i class="fa-solid fa-folder-open" style="color: #38bdf8; margin-right: 8px;"></i> Interactive Interview Kit</h3>
+                    <h3><i class="fa-solid fa-folder-open" style="color: var(--blue); margin-right: 8px;"></i> Interactive Interview Kit</h3>
                     <p class="questionnaire-sub"><i class="fa-solid fa-circle-info"></i> Role-specific round-based sets matching candidate gaps.</p>
                     
                     <!-- Round tabs navigation -->
-                    <div class="interview-tabs" style="display: flex; background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 3px; margin-top: 12px; gap: 4px;">
+                    <div class="interview-tabs" style="display: flex; background: var(--legend-bg); border: 1px solid var(--drawer-border); border-radius: 6px; padding: 3px; margin-top: 12px; gap: 4px;">
                         <button class="int-tab-btn active" id="btn-tab-screening" onclick="switchInterviewRound('screening')" style="flex: 1; text-align: center; font-size: 0.75rem; padding: 6px 4px; border-radius: 4px; border: none; background: var(--primary-color); color: white; cursor: pointer; transition: all 0.3s ease; font-weight: 600;">Screening</button>
-                        <button class="int-tab-btn" id="btn-tab-technical" onclick="switchInterviewRound('technical')" style="flex: 1; text-align: center; font-size: 0.75rem; padding: 6px 4px; border-radius: 4px; border: none; background: transparent; color: #94a3b8; cursor: pointer; transition: all 0.3s ease; font-weight: 600;">Technical</button>
-                        <button class="int-tab-btn" id="btn-tab-system_design" onclick="switchInterviewRound('system_design')" style="flex: 1; text-align: center; font-size: 0.75rem; padding: 6px 4px; border-radius: 4px; border: none; background: transparent; color: #94a3b8; cursor: pointer; transition: all 0.3s ease; font-weight: 600;">System Design</button>
-                        <button class="int-tab-btn" id="btn-tab-behavioral" onclick="switchInterviewRound('behavioral')" style="flex: 1; text-align: center; font-size: 0.75rem; padding: 6px 4px; border-radius: 4px; border: none; background: transparent; color: #94a3b8; cursor: pointer; transition: all 0.3s ease; font-weight: 600;">Behavioral</button>
+                        <button class="int-tab-btn" id="btn-tab-technical" onclick="switchInterviewRound('technical')" style="flex: 1; text-align: center; font-size: 0.75rem; padding: 6px 4px; border-radius: 4px; border: none; background: transparent; color: var(--text-dark); cursor: pointer; transition: all 0.3s ease; font-weight: 600;">Technical</button>
+                        <button class="int-tab-btn" id="btn-tab-system_design" onclick="switchInterviewRound('system_design')" style="flex: 1; text-align: center; font-size: 0.75rem; padding: 6px 4px; border-radius: 4px; border: none; background: transparent; color: var(--text-dark); cursor: pointer; transition: all 0.3s ease; font-weight: 600;">System Design</button>
+                        <button class="int-tab-btn" id="btn-tab-behavioral" onclick="switchInterviewRound('behavioral')" style="flex: 1; text-align: center; font-size: 0.75rem; padding: 6px 4px; border-radius: 4px; border: none; background: transparent; color: var(--text-dark); cursor: pointer; transition: all 0.3s ease; font-weight: 600;">Behavioral</button>
                     </div>
 
                     <!-- Questions list container -->
                     <div id="interview-kit-questions-container" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.06); padding: 15px; border-radius: 8px; margin-top: 10px;">
-                        <ul id="interview-kit-questions-list" style="margin: 0; padding-left: 20px; font-size: 0.85rem; line-height: 1.6; color: #cbd5e1; display: flex; flex-direction: column; gap: 12px;"></ul>
+                        <ul id="interview-kit-questions-list" style="margin: 0; padding-left: 20px; font-size: 0.85rem; line-height: 1.6; color: var(--text-muted); display: flex; flex-direction: column; gap: 12px;"></ul>
                     </div>
                 </div>
 

@@ -29,16 +29,8 @@ try:
 except ImportError:
     from config import settings
 
-# Redis Caching Setup
-REDIS_URL = settings.REDIS_URL
-try:
-    redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True, socket_connect_timeout=0.2, socket_timeout=0.2)
-    # Check connectivity
-    redis_client.ping()
-    logger.info("Connected to Redis for caching successfully.")
-except Exception as e:
-    logger.warning(f"Redis connection failed: {e}. Falling back to no cache.")
-    redis_client = None
+# Redis Caching disabled to remove Redis dependency
+redis_client = None
 
 # Import Celery background worker tasks
 import re
@@ -1831,13 +1823,13 @@ def get_health_status():
     finally:
         db.close()
         
-    redis_ok = False
-    if redis_client:
+    redis_ok = True
+    if settings.REDIS_URL and redis_client:
         try:
             redis_client.ping()
-            redis_ok = True
         except Exception as e:
             logger.error(f"Health check Redis failure: {e}")
+            redis_ok = False
             
     worker_ok = True
     if not celery_app.conf.task_always_eager:
@@ -1856,7 +1848,7 @@ def get_health_status():
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
         "components": {
             "database": "healthy" if db_ok else "unhealthy",
-            "redis": "healthy" if redis_ok else "unhealthy",
+            "redis": "healthy" if redis_ok else ("disabled" if not settings.REDIS_URL else "unhealthy"),
             "celery_worker": "healthy" if worker_ok else "unhealthy"
         }
     }

@@ -38,9 +38,9 @@
     --orange-bg: rgba(234, 88, 12, 0.06);
     --orange-border: rgba(234, 88, 12, 0.2);
 
-    --text-primary: #0f172a; /* Dark Slate */
-    --text-muted: #334155; /* Medium Slate */
-    --text-dark: #64748b; /* Gray Slate */
+    --text-primary: #000000; /* Pure Black */
+    --text-muted: #111111; /* Rich Black */
+    --text-dark: #27272a; /* Zinc Black */
 
     /* Quick status buttons (Light Mode) */
     --quick-btn-bg: rgba(71, 85, 105, 0.05);
@@ -3222,92 +3222,7 @@ body:not(.dark-theme) .input-wrapper input:focus, body:not(.dark-theme) .input-w
     box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 /* Mobile Phone Responsive overrides (Proper UI on Phone) */
-@media (max-width: 640px) {
-    /* Main Layout */
-    .app-main {
-        padding: 10px !important;
-        gap: 20px !important;
-    }
-    
-    .panel {
-        padding: 20px !important;
-    }
 
-    /* View Switcher Tabs */
-    .view-switcher-tabs {
-        flex-direction: column !important;
-        max-width: 100% !important;
-        border-radius: 16px !important;
-        padding: 6px !important;
-        gap: 6px !important;
-    }
-    
-    .view-tab-btn {
-        width: 100% !important;
-        padding: 12px !important;
-        font-size: 0.88rem !important;
-        justify-content: center !important;
-    }
-
-    /* Header for Hiring Brief page view */
-    #view-hiring-brief > div {
-        padding: 20px !important;
-    }
-    #view-hiring-brief > div > div:first-child {
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 16px !important;
-    }
-    #view-hiring-brief button {
-        width: 100% !important;
-        justify-content: center !important;
-    }
-
-    /* Talent Mobility Map matrix grid */
-    #view-workforce-map > div {
-        padding: 20px !important;
-    }
-    #workforce-matrix-grid {
-        grid-template-columns: 1fr !important;
-        gap: 16px !important;
-    }
-
-    /* Stats Grid */
-    .stats-grid {
-        grid-template-columns: 1fr !important;
-        gap: 16px !important;
-    }
-
-    /* Action Buttons in shortlists header */
-    .ranking-header-title {
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 16px !important;
-    }
-    .action-buttons-group {
-        flex-direction: column !important;
-        align-items: stretch !important;
-        width: 100% !important;
-        gap: 8px !important;
-    }
-    .action-buttons-group .btn {
-        width: 100% !important;
-        justify-content: center !important;
-    }
-
-    /* Filters panel & sliders */
-    .filters-panel {
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 16px !important;
-    }
-    .filter-badges-container {
-        flex-wrap: wrap !important;
-        gap: 8px !important;
-    }
-    .threshold-slider-group {
-        width: 100% !important;
-}
 /* Mobile Phone Responsive overrides (Proper UI on Phone) */
 @media (max-width: 640px) {
     /* Main Layout */
@@ -3453,4 +3368,152 @@ body:not(.dark-theme) .input-wrapper input:focus, body:not(.dark-theme) .input-w
     color: var(--quick-btn-rj-color) !important;
     border-color: var(--quick-btn-rj-border) !important;
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.05);
+}
+
+/* ==========================================
+   THEME-AWARE DYNAMIC VIEW SWITCHER TABS
+   ========================================== */
+.view-switcher-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--legend-bg) !important;
+    border: 1px solid var(--drawer-border) !important;
+    padding: 4px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    max-width: 480px;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.view-tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.82rem;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.view-tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(128, 128, 128, 0.08);
+}
+
+.view-tab-btn.active {
+    color: var(--text-primary) !important;
+    background: var(--purple-bg) !important;
+    border: 1px solid var(--purple-border) !important;
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.05);
+}
+
+/* ==========================================
+   THEME-AWARE TEAM SELECTORS
+   ========================================== */
+.profile-selector-item span {
+    font-size: 0.8rem;
+    color: var(--text-muted) !important;
+    font-weight: 600;
+}
+
+.profile-select {
+    background: var(--textarea-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--textarea-border) !important;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    width: 160px;
+    outline: none;
+    transition: all var(--transition-speed);
+}
+
+.profile-select:focus {
+    border-color: var(--primary-color) !important;
+}
+
+/* ==========================================
+   THEME-AWARE MARKET INTELLIGENCE PANEL
+   ========================================== */
+.market-intelligence-panel {
+    background: var(--legend-bg) !important;
+    border: 1px solid var(--drawer-border) !important;
+    padding: 18px 22px;
+    border-radius: 16px;
+    margin: 20px 0;
+    text-align: left;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    transition: all var(--transition-speed);
+}
+
+.market-card {
+    background: var(--textarea-bg) !important;
+    border: 1px solid var(--textarea-border) !important;
+    padding: 12px;
+    border-radius: 10px;
+    transition: all var(--transition-speed);
+}
+
+.market-card-label {
+    color: var(--text-dark) !important;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.market-card-val {
+    color: var(--text-primary) !important;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+.market-card-val.demand {
+    color: var(--text-primary) !important;
+}
+
+.market-card-val.feasibility {
+    color: var(--text-primary) !important;
+}
+
+.market-summary-text {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-muted) !important;
+    margin: 0;
+}
+
+.market-intelligence-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.market-intelligence-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-primary) !important;
+    font-weight: 700;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+}
+
+.market-difficulty-badge {
+    background: var(--warning-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--warning-border) !important;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
 }

@@ -2543,12 +2543,8 @@ function switchView(viewName) {
     document.querySelectorAll('.view-tab-btn').forEach(btn => {
         if (btn.getAttribute('data-view') === viewName) {
             btn.classList.add('active');
-            btn.style.background = 'rgba(99, 102, 241, 0.15)';
-            btn.style.color = '#fff';
         } else {
             btn.classList.remove('active');
-            btn.style.background = 'transparent';
-            btn.style.color = '#94a3b8';
         }
     });
 
