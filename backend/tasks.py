@@ -39,6 +39,48 @@ try:
 except ImportError:
     from s3_client import storage_client
 
+def clean_filename_to_name(filename: str) -> str:
+    import re
+    clean_name = filename
+    clean_name = re.sub(r'^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}-', '', clean_name)
+    clean_name = os.path.splitext(clean_name)[0]
+    if clean_name.lower().endswith('.txt') or clean_name.lower().endswith('.pdf') or clean_name.lower().endswith('.docx'):
+        clean_name = os.path.splitext(clean_name)[0]
+    clean_name = clean_name.replace('_', ' ').replace('-', ' ').title()
+    return clean_name
+
+def extract_name_from_text(raw_text: str, filename: str) -> str:
+    import re
+    if not raw_text or not raw_text.strip():
+        return clean_filename_to_name(filename)
+    
+    # Get the first few non-empty lines
+    lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+    if not lines:
+        return clean_filename_to_name(filename)
+    
+    # Take the first non-empty line
+    first_line = lines[0]
+    
+    # Split by comma or vertical bar, which are common separators for name, contact info, etc.
+    parts = re.split(r'[,|•\t]', first_line)
+    candidate_name = parts[0].strip()
+    
+    # Strip common academic/professional suffixes
+    candidate_name = re.sub(r'\b(CPA|PMP|Ph\.D|PhD|MD|MBA|CFA)\b.*$', '', candidate_name, flags=re.IGNORECASE).strip()
+    
+    # Remove any email/phone patterns or URLs if they leaked into the segment
+    candidate_name = re.sub(r'\b[\w\.-]+@[\w\.-]+\.\w{2,}\b', '', candidate_name).strip()
+    candidate_name = re.sub(r'\b\+?\d{1,3}[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b', '', candidate_name).strip()
+    
+    # Validate length and words count to make sure it's a realistic name
+    words = candidate_name.split()
+    if not candidate_name or len(words) > 5 or len(candidate_name) > 40 or len(candidate_name) < 2:
+        return clean_filename_to_name(filename)
+        
+    return candidate_name
+
+
 # Initialize Celery app
 REDIS_URL = settings.REDIS_URL
 celery_app = Celery("talentai_tasks", broker=REDIS_URL, backend=REDIS_URL)
@@ -55,7 +97,7 @@ celery_app.conf.update(
 
 try:
     import redis
-    r = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=0.5, socket_timeout=0.5)
+    r = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=0.2, socket_timeout=0.2)
     r.ping()
     logger.info("Celery broker connected to Redis successfully.")
 except Exception as e:
@@ -199,13 +241,8 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
             email_match = re.search(r'\b[\w\.-]+@[\w\.-]+\.\w{2,}\b', raw_text)
             candidate_email = email_match.group(0) if email_match else None
             
-            # Extract clean name from filename
-            clean_name = filename
-            clean_name = re.sub(r'^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}-', '', clean_name)
-            clean_name = os.path.splitext(clean_name)[0]
-            if clean_name.lower().endswith('.txt') or clean_name.lower().endswith('.pdf') or clean_name.lower().endswith('.docx'):
-                clean_name = os.path.splitext(clean_name)[0]
-            clean_name = clean_name.replace('_', ' ').replace('-', ' ').title()
+            # Extract actual candidate name from resume text, fallback to filename
+            clean_name = extract_name_from_text(raw_text, filename)
 
             candidate = db.query(Candidate).filter(
                 (Candidate.name == clean_name) | (Candidate.name == filename),

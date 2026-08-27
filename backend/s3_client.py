@@ -32,13 +32,32 @@ class S3StorageWrapper:
             logger.warning("S3 credentials not fully configured. Using simulated local storage.")
             return
 
+        # Quick socket pre-check to avoid long OS-level TCP timeout on Windows
+        if self.endpoint_url:
+            import socket
+            from urllib.parse import urlparse
+            parsed = urlparse(self.endpoint_url)
+            host = parsed.hostname or "127.0.0.1"
+            port = parsed.port or 9000
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(0.3)
+            try:
+                sock.connect((host, port))
+                sock.close()
+            except (socket.timeout, ConnectionRefusedError, OSError):
+                sock.close()
+                logger.warning(f"S3/MinIO connection failed: endpoint {self.endpoint_url} is not reachable. Falling back to Simulated Local S3 Storage for offline development.")
+                self.s3_available = False
+                self.client = None
+                return
+
         try:
             # Configure signature version for S3 compatibility (e.g. MinIO)
             config = Config(
                 signature_version='s3v4',
-                connect_timeout=1.0,
-                read_timeout=1.0,
-                retries={'max_attempts': 1}
+                connect_timeout=0.3,
+                read_timeout=0.3,
+                retries={'max_attempts': 0}
             )
             
             self.client = boto3.client(

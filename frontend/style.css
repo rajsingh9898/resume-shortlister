@@ -42,6 +42,25 @@
     --text-muted: #334155; /* Medium Slate */
     --text-dark: #64748b; /* Gray Slate */
 
+    /* Quick status buttons (Light Mode) */
+    --quick-btn-bg: rgba(71, 85, 105, 0.05);
+    --quick-btn-color: #475569;
+    --quick-btn-border: rgba(71, 85, 105, 0.15);
+    --quick-btn-hover-bg: rgba(71, 85, 105, 0.1);
+    --quick-btn-hover-color: #1e293b;
+
+    --quick-btn-sh-bg: rgba(16, 185, 129, 0.12);
+    --quick-btn-sh-color: #065f46;
+    --quick-btn-sh-border: rgba(16, 185, 129, 0.35);
+
+    --quick-btn-rv-bg: rgba(59, 130, 246, 0.12);
+    --quick-btn-rv-color: #1d4ed8;
+    --quick-btn-rv-border: rgba(59, 130, 246, 0.35);
+
+    --quick-btn-rj-bg: rgba(225, 29, 72, 0.1);
+    --quick-btn-rj-color: #9f1239;
+    --quick-btn-rj-border: rgba(225, 29, 72, 0.3);
+
     --font-heading: 'Outfit', 'Inter', sans-serif;
     --font-body: 'Inter', sans-serif;
     --transition-speed: 0.3s;
@@ -132,6 +151,25 @@
     --highlight-miss-bg: rgba(253, 164, 175, 0.18);
     --highlight-match-color: #a7f3d0;
     --highlight-miss-color: #fecdd3;
+
+    /* Quick status buttons (Dark Mode) */
+    --quick-btn-bg: rgba(15, 23, 42, 0.45);
+    --quick-btn-color: #94a3b8;
+    --quick-btn-border: rgba(255, 255, 255, 0.08);
+    --quick-btn-hover-bg: rgba(255, 255, 255, 0.06);
+    --quick-btn-hover-color: #f1f5f9;
+
+    --quick-btn-sh-bg: rgba(16, 185, 129, 0.15);
+    --quick-btn-sh-color: #34d399;
+    --quick-btn-sh-border: rgba(16, 185, 129, 0.4);
+
+    --quick-btn-rv-bg: rgba(59, 130, 246, 0.15);
+    --quick-btn-rv-color: #60a5fa;
+    --quick-btn-rv-border: rgba(59, 130, 246, 0.4);
+
+    --quick-btn-rj-bg: rgba(239, 68, 68, 0.12);
+    --quick-btn-rj-color: #f87171;
+    --quick-btn-rj-border: rgba(239, 68, 68, 0.3);
 }
 
 /* Base Resets */
@@ -2768,31 +2806,31 @@ textarea:focus {
 }
 
 /* Light theme overrides for Auth Overlay */
-body.light-theme .auth-overlay {
+body:not(.dark-theme) .auth-overlay {
     background: rgba(241, 245, 249, 0.9);
 }
 
-body.light-theme .auth-card {
+body:not(.dark-theme) .auth-card {
     background: rgba(255, 255, 255, 0.8);
     border-color: rgba(0, 0, 0, 0.08);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1), 0 0 40px rgba(139, 92, 246, 0.08);
 }
 
-body.light-theme .auth-title {
+body:not(.dark-theme) .auth-title {
     color: #0f172a;
 }
 
-body.light-theme .auth-subtitle, body.light-theme .form-group label {
+body:not(.dark-theme) .auth-subtitle, body:not(.dark-theme) .form-group label {
     color: #475569;
 }
 
-body.light-theme .input-wrapper input, body.light-theme .input-wrapper select {
+body:not(.dark-theme) .input-wrapper input, body:not(.dark-theme) .input-wrapper select {
     background: rgba(0, 0, 0, 0.02);
     border-color: rgba(0, 0, 0, 0.08);
     color: #0f172a;
 }
 
-body.light-theme .input-wrapper input:focus, body.light-theme .input-wrapper select:focus {
+body:not(.dark-theme) .input-wrapper input:focus, body:not(.dark-theme) .input-wrapper select:focus {
     border-color: #8b5cf6;
     background: #fff;
 }
@@ -3169,8 +3207,8 @@ body.light-theme .input-wrapper input:focus, body.light-theme .input-wrapper sel
 
 /* Full Parsed Resume Text Styling */
 .detail-full-resume-text {
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--textarea-bg);
+    border: 1px solid var(--textarea-border);
     border-radius: 12px;
     padding: 18px;
     max-height: 400px;
@@ -3178,10 +3216,10 @@ body.light-theme .input-wrapper input:focus, body.light-theme .input-wrapper sel
     font-family: 'Fira Code', 'Courier New', Courier, monospace;
     font-size: 0.8rem;
     line-height: 1.5;
-    color: #e2e8f0;
+    color: var(--text-primary);
     white-space: pre-wrap;
     word-break: break-word;
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 /* Mobile Phone Responsive overrides (Proper UI on Phone) */
 @media (max-width: 640px) {
@@ -3376,9 +3414,9 @@ body.light-theme .input-wrapper input:focus, body.light-theme .input-wrapper sel
 }
 
 .quick-status-btn {
-    background: rgba(15, 23, 42, 0.45);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #94a3b8;
+    background: var(--quick-btn-bg);
+    border: 1px solid var(--quick-btn-border);
+    color: var(--quick-btn-color);
     font-size: 0.72rem;
     font-weight: 600;
     padding: 3px 8px;
@@ -3391,29 +3429,28 @@ body.light-theme .input-wrapper input:focus, body.light-theme .input-wrapper sel
 }
 
 .quick-status-btn:hover {
-    border-color: rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.06);
-    color: #f1f5f9;
+    border-color: var(--quick-btn-color);
+    background: var(--quick-btn-hover-bg);
+    color: var(--quick-btn-hover-color);
 }
 
 .quick-status-btn.btn-shortlisted.active {
-    background: rgba(16, 185, 129, 0.15) !important;
-    color: #34d399 !important;
-    border-color: rgba(16, 185, 129, 0.4) !important;
+    background: var(--quick-btn-sh-bg) !important;
+    color: var(--quick-btn-sh-color) !important;
+    border-color: var(--quick-btn-sh-border) !important;
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.05);
 }
 
 .quick-status-btn.btn-review.active {
-    background: rgba(59, 130, 246, 0.15) !important;
-    color: #60a5fa !important;
-    border-color: rgba(59, 130, 246, 0.4) !important;
+    background: var(--quick-btn-rv-bg) !important;
+    color: var(--quick-btn-rv-color) !important;
+    border-color: var(--quick-btn-rv-border) !important;
     box-shadow: 0 0 10px rgba(59, 130, 246, 0.05);
 }
 
 .quick-status-btn.btn-rejected.active {
-    background: rgba(239, 68, 68, 0.12) !important;
-    color: #f87171 !important;
-    border-color: rgba(239, 68, 68, 0.3) !important;
+    background: var(--quick-btn-rj-bg) !important;
+    color: var(--quick-btn-rj-color) !important;
+    border-color: var(--quick-btn-rj-border) !important;
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.05);
-}
 }

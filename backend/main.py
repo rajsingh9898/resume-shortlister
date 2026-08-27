@@ -32,7 +32,7 @@ except ImportError:
 # Redis Caching Setup
 REDIS_URL = settings.REDIS_URL
 try:
-    redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True, socket_connect_timeout=0.5, socket_timeout=0.5)
+    redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True, socket_connect_timeout=0.2, socket_timeout=0.2)
     # Check connectivity
     redis_client.ping()
     logger.info("Connected to Redis for caching successfully.")
