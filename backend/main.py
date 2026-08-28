@@ -265,32 +265,27 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Default seeding skipped or already present: {e}")
     finally:
         db.close()
+        
+    # Pre-warm SentenceTransformer model weights on startup to ensure instant ranking updates
+    try:
+        try:
+            from backend.nlp_engine import get_transformer_model
+        except ImportError:
+            from nlp_engine import get_transformer_model
+        logger.info("Pre-warming SentenceTransformer model ('all-MiniLM-L6-v2') on startup...")
+        get_transformer_model()
+        logger.info("SentenceTransformer model successfully loaded and warm.")
+    except Exception as e:
+        logger.warning(f"SentenceTransformer pre-warming failed on startup: {e}")
+        
     yield
 
 import threading
 
-class LocalCandidatesCache:
-    def __init__(self):
-        self._cache = {}
-        self._lock = threading.Lock()
-        
-    def get(self, job_id: int):
-        with self._lock:
-            return self._cache.get(job_id)
-            
-    def set(self, job_id: int, data):
-        with self._lock:
-            self._cache[job_id] = data
-            
-    def invalidate(self, job_id: int):
-        with self._lock:
-            self._cache.pop(job_id, None)
-            
-    def clear(self):
-        with self._lock:
-            self._cache.clear()
-
-candidates_local_cache = LocalCandidatesCache()
+try:
+    from backend.database import candidates_local_cache
+except ImportError:
+    from database import candidates_local_cache
 
 limiter = Limiter(key_func=get_remote_address, enabled=(settings.ENVIRONMENT != "development"))
 app = FastAPI(title="AI-Based Resume Shortlisting System", lifespan=lifespan)
@@ -705,10 +700,14 @@ def get_presigned_upload_url(
 
 @api_router.put("/storage/mock-upload")
 async def mock_upload_file(request: Request, key: str):
-    body_bytes = await request.body()
-    # Write the uploaded bytes directly to simulated storage
-    storage_client.upload_bytes(key, body_bytes)
-    return {"status": "success", "message": "Uploaded mock object successfully."}
+    try:
+        body_bytes = await request.body()
+        # Write the uploaded bytes directly to simulated storage
+        storage_client.upload_bytes(key, body_bytes)
+        return {"status": "success", "message": "Uploaded mock object successfully."}
+    except Exception as e:
+        logger.error(f"Mock upload failed for key {key}: {e}")
+        raise HTTPException(status_code=500, detail=f"Simulated local storage write failed: {str(e)}")
 
 @api_router.get("/storage/mock-download")
 def mock_download_file(key: str):

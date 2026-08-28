@@ -552,7 +552,8 @@ shortlistForm.addEventListener('submit', async (e) => {
                 body: file
             });
             if (!uploadRes.ok) {
-                throw new Error(`Failed to upload ${file.name} directly to storage bucket.`);
+                const errText = await uploadRes.text().catch(() => "Unknown error");
+                throw new Error(`Failed to upload ${file.name} directly to storage bucket (Status: ${uploadRes.status} - ${errText}).`);
             }
             
             resumesPayload.push({
@@ -756,50 +757,20 @@ async function fetchJobCandidates(jobId, page = 1) {
         const marketPanel = document.getElementById('market-intelligence-panel');
         if (marketPanel && data.market_intelligence) {
             const mi = data.market_intelligence;
-            
-            // Classified role
-            const roleEl = marketPanel.querySelector('.fa-brain-circuit + span');
-            if (roleEl) roleEl.textContent = `Market Insight: ${mi.classified_role}`;
-            
-            // Salary range
-            const salaryVal = document.getElementById('market-salary-val');
-            if (salaryVal) salaryVal.textContent = mi.salary_range;
-            
-            // Supply difficulty / Feasibility
-            const difficultyBadge = document.getElementById('market-difficulty-badge');
-            if (difficultyBadge) {
-                difficultyBadge.textContent = mi.difficulty;
-                if (mi.difficulty.includes("Low Supply")) {
-                    difficultyBadge.style.background = 'rgba(239, 68, 68, 0.2)';
-                    difficultyBadge.style.color = '#f87171';
-                    difficultyBadge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-                } else if (mi.difficulty.includes("Moderate")) {
-                    difficultyBadge.style.background = 'rgba(245, 158, 11, 0.2)';
-                    difficultyBadge.style.color = '#fbbf24';
-                    difficultyBadge.style.border = '1px solid rgba(245, 158, 11, 0.3)';
-                } else {
-                    difficultyBadge.style.background = 'rgba(16, 185, 129, 0.2)';
-                    difficultyBadge.style.color = '#34d399';
-                    difficultyBadge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
-                }
+            const focusSelect = document.getElementById('team-focus');
+            if (focusSelect) {
+                let mappedFocus = "Backend-heavy";
+                if (mi.classified_role === "Frontend Engineer") mappedFocus = "Frontend-heavy";
+                else if (mi.classified_role === "Fullstack Engineer") mappedFocus = "Fullstack";
+                else if (mi.classified_role === "DevOps/Platform Engineer") mappedFocus = "DevOps & Infrastructure";
+                else if (mi.classified_role === "Data Engineer") mappedFocus = "Data Analytics";
+                else if (mi.classified_role === "Product Manager") mappedFocus = "Product-heavy";
+                
+                focusSelect.value = mappedFocus;
+                updateMarketInsightFromFocus(mappedFocus);
+            } else {
+                updateMarketInsightFromFocus("Backend-heavy");
             }
-            
-            // Feasibility Level
-            const feasibilityVal = document.getElementById('market-feasibility-val');
-            if (feasibilityVal) {
-                feasibilityVal.textContent = mi.feasibility;
-                if (mi.feasibility === "Challenging") {
-                    feasibilityVal.style.color = '#f87171';
-                } else if (mi.feasibility === "Moderate") {
-                    feasibilityVal.style.color = '#fbbf24';
-                } else {
-                    feasibilityVal.style.color = '#34d399';
-                }
-            }
-            
-            // Market summary text
-            const summaryText = document.getElementById('market-summary-text');
-            if (summaryText) summaryText.textContent = mi.summary;
         }
 
         // Render Recruiter Learning Banner
@@ -3187,3 +3158,233 @@ window.switchInterviewRound = function(roundName) {
         });
     }
 };
+
+// Register real-time change listener to focus selector for market insight updates
+const teamFocusSelector = document.getElementById('team-focus');
+if (teamFocusSelector) {
+    teamFocusSelector.addEventListener('change', () => {
+        updateMarketInsightFromFocus(teamFocusSelector.value);
+    });
+    // Trigger initial state on load
+    updateMarketInsightFromFocus(teamFocusSelector.value);
+}
+
+// Register real-time listener to job description for auto-focus updates
+if (jobDescriptionInput) {
+    jobDescriptionInput.addEventListener('input', autoSelectFocusBasedOnJd);
+}
+
+function autoSelectFocusBasedOnJd() {
+    if (!jobDescriptionInput) return;
+    const text = jobDescriptionInput.value.toLowerCase();
+    const focusSelect = document.getElementById('team-focus');
+    if (!focusSelect) return;
+
+    let detectedFocus = null;
+
+    if (text.includes("machine learning") || text.includes("deep learning") || text.includes("pytorch") || text.includes("tensorflow") || text.includes("nlp") || text.includes(" llm") || text.includes("transformer") || text.includes(" ai ") || text.includes("artificial intelligence")) {
+        detectedFocus = "AI / Machine Learning";
+    } else if (text.includes("data analytics") || text.includes("data analyst") || text.includes("analytics") || text.includes("tableau") || text.includes("pandas") || text.includes("data science") || (text.includes("sql") && text.includes("analyst"))) {
+        detectedFocus = "Data Analytics";
+    } else if (text.includes("devops") || text.includes("kubernetes") || text.includes("docker") || text.includes("aws") || text.includes("ci/cd") || text.includes("infrastructure") || text.includes("cloud") || text.includes("terraform")) {
+        detectedFocus = "DevOps & Infrastructure";
+    } else if (text.includes("fullstack") || text.includes("full stack") || text.includes("mern")) {
+        detectedFocus = "Fullstack";
+    } else if (text.includes("frontend") || text.includes("react") || text.includes("vue") || text.includes("css") || text.includes("html") || text.includes("ui/ux") || text.includes("web developer")) {
+        detectedFocus = "Frontend-heavy";
+    } else if (text.includes("product manager") || text.includes("product owner") || text.includes("scrum") || text.includes("agile") || text.includes("roadmaps")) {
+        detectedFocus = "Product-heavy";
+    } else if (text.includes("backend") || text.includes("python") || text.includes("fastapi") || text.includes("django") || text.includes("node") || text.includes("java") || text.includes("golang") || text.includes("c++") || text.includes("database")) {
+        detectedFocus = "Backend-heavy";
+    }
+
+    if (detectedFocus && focusSelect.value !== detectedFocus) {
+        focusSelect.value = detectedFocus;
+        updateMarketInsightFromFocus(detectedFocus);
+    }
+}
+
+function updateMarketInsightFromFocus(focusValue) {
+    const marketPanel = document.getElementById('market-intelligence-panel');
+    if (!marketPanel) return;
+
+    let classifiedRole = "Backend Engineer";
+    let salaryRange = "$110,000 - $145,000";
+    let demand = "High Demand";
+    let feasibility = "Challenging";
+    let difficulty = "Low Supply (Difficult to Hire)";
+    let summary = "Backend Engineering profiles are in high demand and low supply (difficult to hire). Feasibility is challenging.";
+    
+    let salaryPercent = 55;
+    let demandPercent = 80;
+    let feasibilityPercent = 35;
+    
+    switch (focusValue) {
+        case "Backend-heavy":
+            classifiedRole = "Backend Engineer";
+            salaryRange = "$110,000 - $145,000";
+            demand = "High Demand";
+            feasibility = "Challenging";
+            difficulty = "Low Supply (Difficult to Hire)";
+            summary = "Backend Engineering profiles are in high demand and low supply (difficult to hire). Feasibility is challenging.";
+            salaryPercent = 60;
+            demandPercent = 80;
+            feasibilityPercent = 30;
+            break;
+        case "Product-heavy":
+            classifiedRole = "Product Manager";
+            salaryRange = "$120,000 - $160,000";
+            demand = "High Demand";
+            feasibility = "Moderate";
+            difficulty = "Moderate Supply";
+            summary = "Product Management profiles are in high demand and moderate supply. Feasibility is moderate.";
+            salaryPercent = 70;
+            demandPercent = 75;
+            feasibilityPercent = 60;
+            break;
+        case "Fullstack":
+            classifiedRole = "Fullstack Engineer";
+            salaryRange = "$115,000 - $155,000";
+            demand = "High Demand";
+            feasibility = "Moderate";
+            difficulty = "Moderate Supply";
+            summary = "Fullstack Engineering profiles are in high demand and moderate supply. Feasibility is moderate.";
+            salaryPercent = 65;
+            demandPercent = 85;
+            feasibilityPercent = 55;
+            break;
+        case "AI / Machine Learning":
+            classifiedRole = "AI / Machine Learning Engineer";
+            salaryRange = "$145,000 - $205,000";
+            demand = "Critical Demand";
+            feasibility = "Challenging";
+            difficulty = "Low Supply (Difficult to Hire)";
+            summary = "AI / Machine Learning profiles are in critical demand and low supply (difficult to hire). Feasibility is challenging.";
+            salaryPercent = 95;
+            demandPercent = 95;
+            feasibilityPercent = 15;
+            break;
+        case "Data Analytics":
+            classifiedRole = "Data Analyst / Engineer";
+            salaryRange = "$95,000 - $130,000";
+            demand = "Moderate Demand";
+            feasibility = "Highly Feasible";
+            difficulty = "High Supply (Easy to Hire)";
+            summary = "Data Analytics profiles are in moderate demand and high supply. Feasibility is highly feasible.";
+            salaryPercent = 45;
+            demandPercent = 55;
+            feasibilityPercent = 90;
+            break;
+        case "Frontend-heavy":
+            classifiedRole = "Frontend Engineer";
+            salaryRange = "$100,000 - $135,000";
+            demand = "High Demand";
+            feasibility = "Moderate";
+            difficulty = "Moderate Supply";
+            summary = "Frontend Engineering profiles are in high demand and moderate supply. Feasibility is moderate.";
+            salaryPercent = 50;
+            demandPercent = 70;
+            feasibilityPercent = 65;
+            break;
+        case "DevOps & Infrastructure":
+            classifiedRole = "DevOps / Platform Engineer";
+            salaryRange = "$125,000 - $170,000";
+            demand = "High Demand";
+            feasibility = "Challenging";
+            difficulty = "Low Supply (Difficult to Hire)";
+            summary = "DevOps & Infrastructure profiles are in high demand and low supply (difficult to hire). Feasibility is challenging.";
+            salaryPercent = 75;
+            demandPercent = 80;
+            feasibilityPercent = 35;
+            break;
+    }
+
+    const roleEl = marketPanel.querySelector('.market-intelligence-title span');
+    if (roleEl) roleEl.textContent = `Market Insight: ${classifiedRole}`;
+    
+    const salaryVal = document.getElementById('market-salary-val');
+    if (salaryVal) salaryVal.textContent = salaryRange;
+    
+    const demandVal = document.getElementById('market-demand-val');
+    if (demandVal) {
+        demandVal.textContent = demand;
+        demandVal.className = 'market-card-val demand';
+        if (demand.includes('Critical')) demandVal.style.color = '#a855f7';
+        else if (demand.includes('High')) demandVal.style.color = '#3b82f6';
+        else demandVal.style.color = '#eab308';
+    }
+    
+    const feasibilityVal = document.getElementById('market-feasibility-val');
+    if (feasibilityVal) {
+        feasibilityVal.textContent = feasibility;
+        feasibilityVal.className = 'market-card-val feasibility';
+        if (feasibility.includes('Highly')) feasibilityVal.style.color = '#22c55e';
+        else if (feasibility.includes('Moderate')) feasibilityVal.style.color = '#eab308';
+        else feasibilityVal.style.color = '#ef4444';
+    }
+    
+    const difficultyBadge = document.getElementById('market-difficulty-badge');
+    if (difficultyBadge) {
+        difficultyBadge.textContent = difficulty;
+        difficultyBadge.className = 'market-difficulty-badge';
+        if (difficulty.includes('Difficult')) {
+            difficultyBadge.style.background = 'rgba(239, 68, 68, 0.1)';
+            difficultyBadge.style.color = 'var(--text-primary)';
+            difficultyBadge.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+        } else if (difficulty.includes('Moderate')) {
+            difficultyBadge.style.background = 'rgba(234, 179, 8, 0.1)';
+            difficultyBadge.style.color = 'var(--text-primary)';
+            difficultyBadge.style.border = '1px solid rgba(234, 179, 8, 0.2)';
+        } else {
+            difficultyBadge.style.background = 'rgba(34, 197, 94, 0.1)';
+            difficultyBadge.style.color = 'var(--text-primary)';
+            difficultyBadge.style.border = '1px solid rgba(34, 197, 94, 0.2)';
+        }
+    }
+    
+    const summaryText = document.getElementById('market-summary-text');
+    if (summaryText) summaryText.textContent = summary;
+
+    let visualContainer = document.getElementById('market-visuals-container');
+    if (!visualContainer) {
+        visualContainer = document.createElement('div');
+        visualContainer.id = 'market-visuals-container';
+        visualContainer.style.marginTop = '20px';
+        visualContainer.style.paddingTop = '16px';
+        visualContainer.style.borderTop = '1px solid rgba(255,255,255,0.06)';
+        visualContainer.style.display = 'flex';
+        visualContainer.style.flexDirection = 'column';
+        visualContainer.style.gap = '12px';
+        marketPanel.appendChild(visualContainer);
+    }
+    
+    visualContainer.innerHTML = `
+        <div class="market-visual-row" style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted);">
+                <span>Salary Competitiveness Index</span>
+                <span style="font-weight: 600; color: var(--text-primary);">${salaryRange}</span>
+            </div>
+            <div class="market-bar-track" style="height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; overflow: hidden; position: relative;">
+                <div class="market-bar-fill" style="width: ${salaryPercent}%; height: 100%; background: linear-gradient(90deg, #3b82f6, #6366f1); border-radius: 4px; transition: width 0.4s ease;"></div>
+            </div>
+        </div>
+        <div class="market-visual-row" style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted);">
+                <span>Skill Demand Level</span>
+                <span style="font-weight: 600; color: var(--text-primary);">${demand}</span>
+            </div>
+            <div class="market-bar-track" style="height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; overflow: hidden; position: relative;">
+                <div class="market-bar-fill" style="width: ${demandPercent}%; height: 100%; background: linear-gradient(90deg, #eab308, #ef4444); border-radius: 4px; transition: width 0.4s ease;"></div>
+            </div>
+        </div>
+        <div class="market-visual-row" style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted);">
+                <span>Hiring Feasibility Gauge</span>
+                <span style="font-weight: 600; color: var(--text-primary);">${feasibility}</span>
+            </div>
+            <div class="market-bar-track" style="height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; overflow: hidden; position: relative;">
+                <div class="market-bar-fill" style="width: ${feasibilityPercent}%; height: 100%; background: linear-gradient(90deg, #22c55e, #10b981); border-radius: 4px; transition: width 0.4s ease;"></div>
+            </div>
+        </div>
+    `;
+}

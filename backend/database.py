@@ -55,3 +55,29 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# --- THEME-SAFE LOCAL CANDIDATES CACHE ---
+import threading
+
+class LocalCandidatesCache:
+    def __init__(self):
+        self._cache = {}
+        self._lock = threading.Lock()
+        
+    def get(self, job_id: int):
+        with self._lock:
+            return self._cache.get(job_id)
+            
+    def set(self, job_id: int, data):
+        with self._lock:
+            self._cache[job_id] = data
+            
+    def invalidate(self, job_id: int):
+        with self._lock:
+            self._cache.pop(job_id, None)
+            
+    def clear(self):
+        with self._lock:
+            self._cache.clear()
+
+candidates_local_cache = LocalCandidatesCache()

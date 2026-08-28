@@ -333,6 +333,17 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
             except Exception as e:
                 logger.warning(f"Redis invalidation failed during task: {e}")
             
+        # Invalidate in-memory local cache so new candidate details are served immediately
+        try:
+            try:
+                from backend.database import candidates_local_cache
+            except ImportError:
+                from database import candidates_local_cache
+            candidates_local_cache.invalidate(job_id)
+            logger.info(f"Local in-memory candidates cache invalidated for Job ID {job_id}")
+        except Exception as e:
+            logger.warning(f"Local cache invalidation failed during task: {e}")
+
         # Update lifecycle status to success
         if self.request.id:
             lifecycle_service.update_task_status(
