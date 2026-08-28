@@ -12,11 +12,11 @@ Developed by **Raj Singh**.
    - Parses multiple resumes concurrently using an asynchronous thread executor.
    - Extracts structured details including years of experience, educational degrees, contact emails, and matched/unmatched skills.
 
-2. **Advanced NLP Semantic Scoring Pipeline**:
-   - Computes TF-IDF vector vocabulary mappings.
-   - Computes Cosine Similarity between job requirements and resume texts.
-   - Applies custom weighting values dynamically (Semantic Similarity, Skills Match, and Experience Match).
-   - **Semantic Skill Synonyms**: Maps aliases and abbreviations (e.g. *postgres* to *PostgreSQL*, *pipelines* to *CI/CD*, *GitHub* to *Git*, and *Fast API* to *FastAPI*) for highly accurate parsing.
+2. **Hybrid NLP Semantic Scoring Pipeline**:
+   - **Dense Semantic Embeddings**: Uses Sentence-Transformers (`all-MiniLM-L6-v2`) to compute high-dimensional dense vector embeddings of job descriptions and resumes, capturing deep semantic context beyond simple keyword matches.
+   - **Sparse TF-IDF Vectorization**: Computes traditional TF-IDF vocabulary mappings and cosine similarity to ensure strict keyword alignment.
+   - **Dynamic Hybrid Blending**: Blends semantic transformer similarity and keyword TF-IDF similarity using a configurable sliding weight scale (e.g., 50/50 semantic vs. keyword blend).
+   - **Semantic Skill Synonyms**: Maps aliases and abbreviations (e.g., *postgres* to *PostgreSQL*, *pipelines* to *CI/CD*, *GitHub* to *Git*, and *Fast API* to *FastAPI*) for highly accurate parsing.
    - **Soft Traits Extraction**: Automatically detects professional traits: *Leadership & Mentorship*, *System Design & Architecture*, and *Agile Delivery & DevOps*.
 
 3. **Premium Unicorn Silver Design System**:
@@ -105,7 +105,7 @@ resume-shortlister/
 │
 ├── backend/
 │   ├── main.py             # FastAPI Server & REST Endpoints
-│   ├── nlp_engine.py       # TF-IDF, Regex Parsers & NER Skill Extractors
+│   ├── nlp_engine.py       # Sentence-Transformers, TF-IDF, Regex Parsers & NER Extractors
 │   └── test_nlp.py         # Backend NLP engine validator
 │
 ├── frontend/

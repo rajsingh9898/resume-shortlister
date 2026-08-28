@@ -1800,6 +1800,55 @@ def delete_candidate(
             
     return {"success": True, "message": "Candidate and all associated data fully purged for GDPR compliance."}
 
+# --- SMTP DIAGNOSTICS ENDPOINT ---
+class TestEmailRequest(BaseModel):
+    email: str
+
+@api_router.post("/test-email")
+def test_email_configuration(data: TestEmailRequest):
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    if not settings.SMTP_USERNAME or not settings.SMTP_PASSWORD:
+        return {
+            "success": False,
+            "error": "SMTP_USERNAME or SMTP_PASSWORD environment variables are missing/empty."
+        }
+        
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "TalentAI SMTP Diagnostics Test"
+        msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+        msg["To"] = data.email
+        
+        email_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.5;">
+            <h2>TalentAI SMTP Diagnostics</h2>
+            <p>Your SMTP configurations on Railway are successfully connected and working!</p>
+            <p><strong>Configured Sender:</strong> {settings.SMTP_FROM_EMAIL}</p>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(email_body, "html"))
+        
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_FROM_EMAIL, data.email, msg.as_string())
+            
+        return {
+            "success": True,
+            "message": f"Diagnostics test mail successfully sent to {data.email} via {settings.SMTP_HOST}:{settings.SMTP_PORT}"
+        }
+    except Exception as e:
+        logger.error(f"Diagnostics email failed: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 # --- OBSERVABILITY & HEALTH ENDPOINTS ---
 from fastapi import Response
 
