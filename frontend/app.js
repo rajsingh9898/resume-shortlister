@@ -2074,8 +2074,8 @@ function openDrawer(candidate, rank) {
                 
                 const infoDiv = document.createElement('div');
                 infoDiv.innerHTML = `
-                    <div style="font-weight: 600; font-size: 0.85rem; color: #e2e8f0;">${roleFit.role}</div>
-                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Transferable: ${roleFit.transferable_skills.join(', ')}</div>
+                    <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">${roleFit.role}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Transferable: ${roleFit.transferable_skills.join(', ')}</div>
                 `;
                 
                 const pctBadge = document.createElement('span');
@@ -2157,7 +2157,7 @@ function openDrawer(candidate, rank) {
                     };
                     
                     row.innerHTML = `
-                        <span style="font-weight: 600; color: #cbd5e1; display: flex; align-items: center; gap: 6px;">
+                        <span style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
                             <i class="fa-solid fa-arrow-right-arrow-left" style="font-size: 0.7rem; color: #818cf8;"></i>
                             <span>${match.title}</span>
                         </span>
@@ -2206,7 +2206,7 @@ function openDrawer(candidate, rank) {
                         <i class="fa-solid fa-user-tag" style="font-size: 0.75rem;"></i>
                         <span>${simCand.label}</span>
                     </div>
-                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Shared Skills: ${simCand.shared_skills.slice(0, 3).join(', ')}${simCand.shared_skills.length > 3 ? '...' : ''}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Shared Skills: ${simCand.shared_skills.slice(0, 3).join(', ')}${simCand.shared_skills.length > 3 ? '...' : ''}</div>
                 `;
                 
                 const simBadge = document.createElement('span');
