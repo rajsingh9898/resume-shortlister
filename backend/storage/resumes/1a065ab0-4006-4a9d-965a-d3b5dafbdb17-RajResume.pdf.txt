@@ -1,0 +1,51 @@
+Raj Singh
+Varanasi, UP|+91-7388445597|rajsingh98447859@gmail.com
+GitHub|Portfolio|LinkedIn|LeetCode
+Summary
+Final-year CS undergrad (CGPA: 7.2/10) seeking an AI/ML internship. Deployed 3 production AI systems with 100+
+real users, including fine-tuned BERT models (91% accuracy) and LLM-powered applications. Skilled in end-to-end
+Machine Learning pipelines — model fine-tuning, RAG-based retrieval, Agentic AI workflows, and full-stack deployment
+using LangChain, HuggingFace, OpenAI, FastAPI, and GCP.
+Experience
+My Trip Advisor|Blithe Boom Startup|Live Feb 2026 – May 2026
+AI/Full-Stack Developer
+•Built a GPT-4o powered travel planner in Next.js generating personalized itineraries in under 15 seconds, serving
+100+ active users.
+•Designed a multi-step LangChain prompt chaining pipeline for route optimization and budget planning, reducing
+manual effort by 70%.
+•Integrated OpenAI Streaming API with JWT authentication and dynamic PDF export; handled 100+ itinerary
+generations with zero downtime.
+Projects
+AI-Powered Cyber Threat Detection SystemNov 2025 – Jan 2026
+NLP|BERT Fine-Tuning|Flask|Flutter|Firebase|GitHub
+•Fine-tuned BERT (HuggingFace Transformers) on 15,000+ labeled samples; achieved91% classification accuracy
+for phishing and harassment detection.
+•Built a real-time inference pipeline using Flask; integrated with a Flutter mobile app achieving sub-200ms response
+time.
+•Automated SOS alerts via Firebase Cloud Messaging with push notifications delivered within 2 seconds of threat
+detection.
+RAG-Based Document Q&A ChatbotAug 2025 – Oct 2025
+RAG|FastAPI|Pinecone|OpenAI Embeddings|React|GitHub
+•Architected a production-grade RAG pipeline using FastAPI, Pinecone vector DB, and OpenAI embeddings for high
+accurate multi-document Q&A.
+•Implemented optimized text chunking and semantic similarity search for retrieval across diverse document types.
+•Deployed with Firebase Auth, per-user storage, and streaming chat; achieved end-to-end latency under 3 seconds.
+Technical Skills
+Languages:Python, Java, JavaScript.
+AI/ML:Machine Learning, HuggingFace Transformers, LangChain, OpenAI API, PyTorch, TensorFlow, Scikit-learn,
+OpenCV, Streamlit.
+Key Concepts:LLM Fine-Tuning, RAG Pipelines, Agentic AI, Prompt Engineering, NLP, Computer Vision, Deep
+Learning, ML Model Evaluation.
+Data:NumPy, Pandas, Matplotlib, Data Visualization.
+Databases:Pinecone (vector embeddings), Supabase, Firebase.
+Web Frameworks:FastAPI, Flask, Django, Next.js, MERN Stack.
+Cloud & DevOps:GCP (Cloud Run, Vertex AI), Docker, CI/CD, GitHub Actions.
+Tools:Git, Jupyter Notebook, VS Code, Postman.
+Education
+B.Tech. in Computer Science and EngineeringBareilly, India
+SRMS College of Engineering, Technology & Research|CGPA: 7.2/10|Expected May 2027 2023 – Present
+Achievements & Certifications
+•Naukri Young Turks 2025– Ranked428 nationallyout of thousands in a national-level technical assessment.
+•DSA– Solved700+ problemson LeetCode, CodeChef, and HackerRank; consistently top percentile rankings.
+•IBM SkillsBuild– Certified inIntroduction to RAG&Ethical Considerations of Generative AI.
+•Tata Group (Forage)– Completed simulations in Cybersecurity Analysis, GenAI Analytics, and Data Visualisation.

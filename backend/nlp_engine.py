@@ -505,12 +505,78 @@ def identify_adjacent_roles_and_transferable_skills(candidate_skills: list) -> l
                 "transferable_skills": overlap,
                 "confidence": round(match_ratio * 100, 1)
             })
-            
     # Sort by match confidence descending
     adjacent_matches.sort(key=lambda x: x["confidence"], reverse=True)
     return adjacent_matches
 
+def validate_resume_document(raw_text: str, filename: str) -> tuple[bool, str]:
+    """
+    Multi-layer validation of uploaded files to detect non-resume documents (Certificates, Invoices, Transcripts, Reports, Cover Letters).
+    Returns (is_valid, reason_or_message).
+    """
+    if not raw_text or len(raw_text.strip()) < 30:
+        return False, "This document does not look like a resume (Insufficient or unreadable text)."
+        
+    text_lower = raw_text.lower()
+    fname_lower = filename.lower()
+    
+    # 1. Non-resume document negative triggers (Certificates, Letters, Invoices, Contracts, Transcripts, IDs)
+    non_resume_phrases = [
+        "certificate of completion", "certificate of achievement", "certificate of participation",
+        "this certificate is awarded", "this is to certify", "has successfully completed",
+        "awarded to", "course certificate", "verify at coursera", "verify at udemy",
+        "verify at edx", "statement of accomplishment", "completion certificate", "experience certificate",
+        "relieving letter", "joining letter", "offer letter", "appointment letter",
+        "cover letter", "dear hiring manager", "to whom it may concern", "recommendation letter",
+        "letter of recommendation", "official transcript", "academic transcript", "grade sheet",
+        "marksheet", "scorecard", "diploma certificate", "invoice #", "receipt #", "tax invoice",
+        "bill to:", "payment receipt", "purchase order", "passport", "identity card", "driving license",
+        "driver's license", "national id", "aadhaar", "project report", "assignment", "lab manual",
+        "syllabus", "curriculum", "lecture notes", "user guide", "terms of service", "privacy policy"
+    ]
+    
+    for phrase in non_resume_phrases:
+        if phrase in text_lower:
+            return False, f"This document does not look like a resume (Detected Non-Resume Document: '{phrase.title()}')."
+            
+    # Check filename keywords
+    non_resume_file_keywords = ["certificate", "cert_", "receipt", "invoice", "passport", "license", "offer_letter", "cover_letter", "marksheet", "transcript", "report", "assignment"]
+    if any(k in fname_lower for k in non_resume_file_keywords):
+        if not any(k in fname_lower for k in ["resume", "cv"]):
+            return False, "This document does not look like a resume (File named as Certificate/Letter/Document)."
+
+    return True, "Valid Resume"
+
 def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0.5, team_profile: dict = None) -> dict:
+    # 0. Duplicate Content & Email Signature Pre-Pass Deduplication
+    unique_resumes = []
+    seen_content_hashes = {}
+    seen_candidate_signatures = set()
+
+    for res in resumes:
+        raw_t = res.get('raw_text', '')
+        clean_text = "".join(raw_t.lower().split())
+        c_hash = hash(clean_text[:4000]) if len(clean_text) > 20 else None
+        
+        email_match = re.search(r'\b[\w\.-]+@[\w\.-]+\.\w{2,}\b', raw_t)
+        cand_email = email_match.group(0).lower() if email_match else None
+        
+        if c_hash and c_hash in seen_content_hashes:
+            logger.info(f"Deduplicating resume file '{res['filename']}' - exact text content matches '{seen_content_hashes[c_hash]}'")
+            continue
+        if cand_email and cand_email in seen_candidate_signatures:
+            logger.info(f"Deduplicating resume file '{res['filename']}' - candidate email '{cand_email}' already processed")
+            continue
+            
+        if c_hash:
+            seen_content_hashes[c_hash] = res['filename']
+        if cand_email:
+            seen_candidate_signatures.add(cand_email)
+            
+        unique_resumes.append(res)
+
+    resumes = unique_resumes
+
     # 1. Parse Job Description Parameters
     jd_clean = preprocess_text(jd_raw)
     jd_skills_dict = extract_skills_from_text(jd_raw)
@@ -529,12 +595,12 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
     for res in resumes:
         cleaned_resumes.append(preprocess_text(res['raw_text']))
         
-    # 2. Calculate TF-IDF & Cosine Similarity
+    # 2. Calculate High-Granularity TF-IDF & Cosine Similarity using N-Grams
     tfidf_similarities = [0.0] * len(resumes)
     if jd_clean.strip() and any(r.strip() for r in cleaned_resumes):
         try:
             documents = [jd_clean] + cleaned_resumes
-            vectorizer = TfidfVectorizer()
+            vectorizer = TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True, max_features=5000)
             tfidf_matrix = vectorizer.fit_transform(documents)
             sim_scores = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:])
             tfidf_similarities = sim_scores[0].tolist()
@@ -559,6 +625,39 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
     candidates_list = []
     for idx, res in enumerate(resumes):
         raw_txt = res['raw_text']
+        
+        # Document Type & Validity Verification
+        is_valid_res, invalid_msg = validate_resume_document(raw_txt, res['filename'])
+        if not is_valid_res:
+            candidates_list.append({
+                "filename": res['filename'],
+                "score": 0.0,
+                "cosine_score": 0.0,
+                "skills_score": 0.0,
+                "experience_score": 0.0,
+                "matched_skills": [],
+                "missing_skills": sorted(list(jd_skills_set)),
+                "all_extracted_skills": {},
+                "candidate_exp": 0.0,
+                "experience_confidence": 0.0,
+                "candidate_degrees": [],
+                "degrees_confidence": 0.0,
+                "degree_match": False,
+                "soft_traits": [],
+                "model_version": "v2.1.0",
+                "is_valid_resume": False,
+                "invalid_reason": invalid_msg,
+                "explainability": {
+                    "is_valid_resume": False,
+                    "invalid_reason": invalid_msg,
+                    "reasons_high": [],
+                    "reasons_low": [invalid_msg],
+                    "breakdown": {"skills": 0, "experience": 0, "domain_fit": 0, "seniority_fit": 0, "soft_signals": 0, "team_fit": 0},
+                    "why_candidate": invalid_msg
+                }
+            })
+            continue
+
         c_skills_dict = extract_skills_from_text(raw_txt)
         
         c_skills = []
@@ -579,7 +678,11 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
         
         skills_score = 0.0
         if jd_skills_set:
-            skills_score = len(matched_skills) / len(jd_skills_set)
+            base_skills_ratio = len(matched_skills) / len(jd_skills_set)
+            skill_breadth_bonus = min(0.15, len(c_skills_set) * 0.015)
+            skills_score = min(1.0, max(0.0, (base_skills_ratio * 0.85) + skill_breadth_bonus))
+        else:
+            skills_score = min(1.0, len(c_skills_set) * 0.05)
             
         candidate_exp, exp_conf = parse_experience_years_with_confidence(raw_txt)
         experience_score = 0.0
@@ -589,7 +692,8 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
             else:
                 experience_score = candidate_exp / jd_exp
         else:
-            experience_score = 1.0
+            # Scaled experience weight when no explicit years are required by JD
+            experience_score = min(1.0, 0.40 + (candidate_exp / 5.0) * 0.60)
             
         candidate_degrees, deg_conf = parse_education_degrees_with_confidence(raw_txt)
         
@@ -623,8 +727,10 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
         else:
             cosine_sim = tfidf_sim
             
-        # Hybrid Scoring Blending (40% Semantic, 30% Required Skills, 30% Experience Alignment)
-        final_score = (cosine_sim * 0.40) + (skills_score * 0.30) + (experience_score * 0.30)
+        raw_blend = (cosine_sim * 0.40) + (skills_score * 0.30) + (experience_score * 0.30)
+        # Micro-variance tie-breaker based on document name hash to ensure exact distinct percentage values
+        micro_variance = ((abs(hash(res['filename'] + str(len(raw_txt)))) % 97) / 10000.0)
+        final_score = min(1.0, max(0.0, raw_blend + micro_variance))
         
         # 1. Domain Fit calculation
         domains = {
@@ -936,6 +1042,7 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
         
         candidates_list.append({
             "filename": res['filename'],
+            "email": res.get("email", ""),
             "score": round(final_score * 100, 1),
             "cosine_score": round(cosine_sim * 100, 1),
             "skills_score": round(skills_score * 100, 1),
@@ -950,6 +1057,8 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
             "degree_match": degree_match,
             "soft_traits": soft_traits,
             "model_version": "v2.1.0",
+            "is_duplicate": res.get("is_duplicate", False),
+            "duplicate_of": res.get("duplicate_of", None),
             "explainability": explainability,
             "snippet": raw_txt[:400] + ("..." if len(raw_txt) > 400 else "")
         })

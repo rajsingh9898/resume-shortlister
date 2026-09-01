@@ -1,0 +1,274 @@
+.AI Resume Shortlister
+ Presented by:
+ Raj Singh
+ 2304500100083SHRI RAM MURTI SMARAK
+COLLEGE OF ENGINEERING TECHNOLOGY AND 
+RESEARCH, BAREILLY 
+Project Topic:.
+Table of Contents
+1.Problem Statement
+2.About The Internship
+3.Company Introduction
+4.Internship Objectives & Learning Goals
+5.Project Introduction 
+6.Project Objectives
+7.Technologies & Tools Used
+8.System /Project Architecture9.Implementation & Working Process 
+10.Database & API 
+11.Technology Stack
+12.Project Methodology
+13.Result & Snapshots
+14.Future Scope
+15.Conclusion
+16.References
+2 / 25
+
+Problem Statement
+The Challenge
+•Companies  and recruiters  still evaluate  candidates  manually  by reading  resumes  one by one and 
+comparing  them  against  job descriptions  — this takes  significant  time and often  leads  to 
+inconsistent  hiring  decisions  and missed  qualified  candidates .
+•Candidate  information  and skill requirements  are scattered  across  multiple  resume  formats  (PDF,  
+DOCX,  TXT)  and job description  documents,  making  it difficult  for hiring  teams  to quickly  identify  
+top matches  and create  accurate  evaluation  reports .
+•Small  and medium -sized  companies  usually  don't  have  access  to expensive  enterprise  recruiting  
+software  where  candidate  evaluations,  scoring,  and team  feedback  can be managed  in one 
+centralized  location .
+3 / 25
+
+Problem Statement
+Our Solution
+•TalentAI  is an AI-powered  recruitment  platform  that automates  resume  parsing,  skill matching,  
+candidate  scoring,  and shortlisting .
+•It uses hybrid  NLP techniques,  combining  semantic  embeddings  and keyword  matching  to evaluate  
+candidates  against  job requirements .
+•It provides  AI-generated  insights,  analytics  dashboards,  candidate  evaluation  tools,  and PDF reports  
+to support  faster  and data-driven  hiring  decisions .
+4/ 25
+
+About The Internship
+•Organization : SkillInfyTech  IT Solutions  Private  Limited
+•Internship  Type : Technical  Internship
+•Domain : Artificial  Intelligence
+•Duration : 07 June 2026  – 16 July 2026  
+•Role : Artificial  Intelligence  Intern
+•Gained  practical  experience  through  AI training,  practical  assignments,  and project -based  
+learning .
+•Participated  in training  sessions  and hands -on technical  activities  related  to AI
+•Developed  skills  in problem -solving,  technical  learning,  and project  development .
+•Gained  exposure  to real-world  AI applications  and industry -oriented  practices .
+•Improved  professionalism,  teamwork,  discipline,  and technical  capabilities  through  mentorship  
+and practical  tasks .
+5/ 25
+Company Introduction
+•SkillInfyTech  IT Solutions  Private  Limited  is an IT and software  technology  company .
+•The company  was established  in 2024  with a focus  on technology  and skill development .
+•It provides  IT solutions,  professional  training,  and internship  programs .
+•The company  focuses  on industry -oriented  and practical  learning .
+•It offers  exposure  to AI, ML, Data  Science,  Full Stack  Development,  Cloud  Computing,  and 
+Cybersecurity .
+•It works  with students,  freshers,  professionals,  and organizations .
+•It helps  bridge  the gap between  academic  education  and industry  requirements .
+•It provides  opportunities  to gain hands -on projects  and real-world  technical  experience .
+6/ 25
+Internship Objectives & Learning Goals
+1.To gain practical  knowledge  of Artificial  Intelligence  in a real-world  development  
+environment .
+2.To understand  AI concepts,  techniques,  and their  practical  applications .
+3.To develop  skills  in machine  learning,  data  processing,  and AI-based  problem  solving .
+4.To apply  AI concepts  through  practical  assignments  and project -based  tasks .
+5.To improve  problem -solving,  analytical,  and technical  skills .
+6.To gain exposure  to industry -oriented  practices,  teamwork,  mentorship,  and project  
+workflows .
+7/ 25
+Project Introduction
+•Project Name:  TalentAI
+•Project Type:  AI-Powered Resume Screening & Candidate Ranking System
+•Purpose:  To automate resume screening, candidate evaluation, and shortlisting .
+•Provides a centralized platform for resume analysis and candidate matching .
+•Uses NLP, semantic embeddings, and keyword matching  to evaluate candidates.
+•Developed using Python, FastAPI, Sentence -Transformers, and Scikit -learn .
+•Provides candidate scoring, AI insights, dashboards, and reports .
+•Focuses on faster, accurate, and data -driven recruitment .
+8/ 25
+Project Objectives
+1.To automate  resume  screening  and candidate  shortlisting  using  AI and NLP. 
+2.To accurately  match  candidate  skills  with job requirements  beyond  simple  keyword  matching . 
+3.To rank candidates  based  on their skills,  qualifications,  and experience . 
+4.To support  data-driven  hiring  decisions  through  dashboards  and AI-generated  insights . 
+5.To reduce  recruitment  time and operational  costs  through  automated  candidate  evaluation . 
+6.To ensure  candidate  privacy,  fairness,  and secure  handling  of recruitment  data.
+9 / 25
+
+Technologies & Tools Used
+•Python  – Core  programming  language  for AI/ML  development  and backend  implementation .
+•Artificial  Intelligence  & Machine  Learning  – Used  for intelligent  resume  analysis,  candidate  
+evaluation,  and ranking .
+•Sentence -Transformers  – Used  for generating  semantic  embeddings  and understanding  skill 
+similarity .
+•Scikit -learn  – Used  for TF-IDF vectorization  and cosine  similarity  for keyword -based  matching .
+•Natural  Language  Processing  (NLP)  – Used  for resume  text processing,  skill extraction,  and 
+semantic  analysis .
+•NumPy  – Used  for numerical  operations  and data processing  through  ML libraries .
+•FastAPI  – Used  to develop  backend  services  and AI-powered  APIs .
+•Git & GitHub  – Used  for version  control  and source -code  management .
+•VS Code  – Used  as the primary  development  environment .
+10/ 25
+System / Project Architecture
+Candidate/Recruiter → Frontend → REST API → FastAPI Backend → PostgreSQL Database
+Architecture Diagram 
+Recruiter / Candidate
+↓
+        HTML + CSS + JavaScript 
+↓
+  REST APIs (/upload, /score, /evaluate, /export)
+↓
+  FastAPI Backend (NLP Engine, Async Workers & Services)                  
+↓
+       PostgreSQL Database / SQLite Fallback
+11/ 25
+System Architecture
+Vanilla JavaScript Frontend (Responsive)
+HTML5 • Custom CSS (Unicorn Silver Design) • JavaScript
+REST API Calls (Fetch) • JWT Token Handling
+FastAPI Backend Server
+Python • FastAPI • Uvicorn
+REST API (/ api/*) • Authentication (JWT)
+Business Logic • Resume Parsing • NLP Processing • Scoring Engine
+Background Services
+Asynchronous Task Processing
+Resume Processing Jobs
+Scoring & Embedding Generation
+Database
+PostgreSQL (Primary)
+SQLite (Fallback / Local)
+Candidates • Jobs • Scores
+Evaluations • Recruiters • Feedback
+File Storage
+AWS S3
+Resume & Document Storage
+Secure File Upload & Retrieval
+External / Supporting Technologies
+Sentence -Transformers • Scikit -learn • PyPDF2 • python -docx
+NLP Embeddings & Similarity • Resume Parsing • TF -IDF • Cosine Similarity
+REST API
+Async Task Processing
+ Data Access
+ File Storage
+12/ 25
+•User  Authentication  & Upload  – Recruiter  logs in and uploads  resumes  and job descriptions  
+through  the frontend . 
+•Document  Processing  – FastAPI  processes  PDF,  DOCX,  and TXT  files and extracts  relevant  
+candidate  information . 
+•NLP  & Skill  Matching  – The system  uses Sentence -Transformers  and TF-IDF to extract  skills  
+and match  candidates  with job requirements . 
+•Scoring  & AI Evaluation  – Candidates  are scored  and ranked , with AI-generated  verdicts,  
+pros/cons,  and interview  questions . 
+•Results  & Decision  – Scores  and analytics  are stored  in the database  and displayed  through  
+dashboards  and reports  for recruiter  decision -making .Implementation & Working Process
+Working Flow
+Recruiter  → Login  → Frontend  → Resume  & Job Description  Upload  → REST  API → FastAPI  → 
+Document  Processing  → NLP & Skill  Matching  → Score  & Ranking  → AI Evaluation  → Database  
+→ Analytics  & Display  → Recruiter  Decision
+13 / 25
+Database
+•Database : PostgreSQL  (with  SQLite  fallback) .
+•PostgreSQL  is used as the primary  database,  with SQLite  automatically  used  when  PostgreSQL  is 
+unavailable . 
+•The database  manages  candidate  data,  evaluation  information,  scores,  recruiter  notes,  and 
+candidate  statuses .
+•Alembic  is used for database  migrations  and table  initialization . 
+API(Application Programming Interface)
+•REST  APIs  are used for communication  between  the frontend  and FastAPI  backend .
+•FastAPI  is used to build  the backend  server  and REST  endpoints . 
+•The backend  handles  resume  processing,  candidate  scoring,  evaluation,  and related  
+recruitment  operations .
+14/ 25
+Technology Stack
+Stack Technology Purpose
+Frontend HTML5 + CSS + JavaScript User interface and interaction
+Backend Python + FastAPI Backend services and REST APIs
+NLP / AI Sentence -Transformers Semantic embeddings and skill matching
+Machine Learning Scikit -learn TF-IDF and cosine similarity
+Database PostgreSQL / SQLite Candidate, job, score and evaluation data
+Document Processing PyPDF2 + python -docx Resume text extraction
+Async Processing Celery + Redis Background task processing
+File Storage AWS S3 Resume and document storage
+Development & 
+Version ControlGit, GitHub + VS Code Code management and development
+15/ 25
+Project Methodology
+1. Input Collection
+Resume(s) + Job Description
+2. Document Processing
+PDF / DOCX / TXT Text Extraction
+3. NLP & Skill Extraction
+Skills • Experience • Qualifications
+4. Hybrid Matching
+Sentence -Transformers + TF -IDF
+5. Scoring & AI Evaluation
+Match Score • Ranking • Verdict • Insights
+6. Results & Decision
+Dashboard • Reports • Recruiter Decision
+Processing
+FastAPI Backend
+Resume Parsing
+AI Engine
+Semantic Embeddings
+TF-IDF
+Cosine Similarity
+Background
+Async Processing
+Scoring Jobs
+Storage
+PostgreSQL / SQLite
+Candidate Data
+16/ 25
+Results & Snapshots
+Application Preview: Dashboard
+17/ 25
+18/ 25 Resume Score
+19/ 25 Resume Report
+20 / 25
+ Complete Analysis of Resume
+21 / 25 Comparison of Resume
+
+Future Scope
+•Advanced  AI Matching  – Improve  candidate -job matching  using  advanced  LLMs  and semantic  
+analysis .
+•AI-Powered  Interviews  – Introduce  automated  voice/video  interviews  and candidate  
+assessment .
+•Predictive  Hiring  Analytics  – Predict  job fit, candidate  performance,  and hiring  success  
+using  historical  data.
+•Multi -Language  Support  – Enable  resume  processing  and evaluation  in multiple  languages .
+•ATS Integration  – Integrate  TalentAI  with existing  Applicant  Tracking  Systems  and 
+recruitment  platforms .
+•Cloud  Scalability  – Scale  the platform  for large  organizations  and high -volume  recruitment .
+22/ 25
+Conclusion
+•TalentAI  successfully  automates  the resume  screening,  candidate  matching,  scoring,  and 
+shortlisting  process .
+•The system  uses AI, NLP,  semantic  embeddings,  and TF-IDF to provide  accurate  candidate -job 
+matching .
+•It reduces  manual  effort,  recruitment  time,  and operational  costs  while  improving  consistency  
+in candidate  evaluation .
+•Features  such as AI-generated  insights,  candidate  rankings,  analytics,  and evaluation  reports  
+support  data-driven  hiring  decisions .
+•Overall,  TalentAI  provides  a smart,  efficient,  and scalable  solution  for modern  recruitment  and 
+can be further  enhanced  with advanced  AI capabilities .
+23/ 25
+References
+[1] N. Reimers and I. Gurevych , “Sentence -BERT: Sentence Embeddings using Siamese BERT -
+Networks,” in Proc. EMNLP -IJCNLP , pp. 3982 –3992, 2019. 
+[2] F. Pedregosa et al., “Scikit -learn: Machine Learning in Python,” Journal of Machine Learning 
+Research , vol. 12, pp. 2825 –2830, 2011. 
+[3] T. Wolf et al., “Transformers: State -of-the-Art Natural Language Processing,” in Proc. EMNLP: 
+System Demonstrations , pp. 38 –45, 2020. 
+[4] “Automated Resume Screener using Natural Language Processing (NLP),” in Proc. IEEE 
+Conference , 2022. 
+[5] “Automated Resume Evaluation System using NLP,” in Proc. IEEE Conference , 2020. 
+[6] “Automated Resume Parsing and Ranking using Natural Language Processing,” in Proc. IEEE 
+Conference , 2024. 
+24/ 25
+Thank You
+25/ 25

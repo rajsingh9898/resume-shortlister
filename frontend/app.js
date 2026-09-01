@@ -8,7 +8,7 @@ let currentJobId = null;
 let biasBlindMode = false;
 let currentHiringBrief = null;
 let currentPage = 1;
-let currentLimit = 10;
+let currentLimit = 50;
 let totalPages = 1;
 let currentUser = null;
 let userToken = localStorage.getItem('talentai_token') || null;
@@ -193,6 +193,7 @@ function handleFiles(files) {
         return;
     }
 
+    let dupCount = 0;
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const ext = file.name.split('.').pop().toLowerCase();
@@ -203,11 +204,22 @@ function handleFiles(files) {
             continue;
         }
 
-        if (selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+        const fileBaseStem = file.name.replace(/\s*\(\d+\)|_copy|- copy/gi, '').toLowerCase();
+        const isDuplicate = selectedFiles.some(f => {
+            const existingStem = f.name.replace(/\s*\(\d+\)|_copy|- copy/gi, '').toLowerCase();
+            return f.size === file.size || (existingStem === fileBaseStem && Math.abs(f.size - file.size) < 100);
+        });
+
+        if (isDuplicate) {
+            dupCount++;
             continue;
         }
 
         selectedFiles.push(file);
+    }
+
+    if (dupCount > 0) {
+        showToast(`Filtered out ${dupCount} duplicate file ${dupCount === 1 ? 'copy' : 'copies'}. Uploading unique files only.`, 'info');
     }
     updateFileListUI();
 }
@@ -494,6 +506,53 @@ function delay(ms) {
 }
 
 /* Submit Form to Backend API */
+let parsingStartTime = 0;
+let parsingTimerInterval = null;
+
+function startParsingTimer() {
+    parsingStartTime = Date.now();
+    const banner = document.getElementById('parsing-timer-banner');
+    const clock = document.getElementById('parsing-timer-clock');
+    const modalClock = document.getElementById('modal-parsing-timer-clock');
+    const subtext = document.getElementById('parsing-status-subtext');
+    
+    if (banner) {
+        banner.style.display = 'flex';
+        if (subtext) subtext.textContent = 'Celery background workers processing files...';
+    }
+    
+    if (parsingTimerInterval) clearInterval(parsingTimerInterval);
+    
+    parsingTimerInterval = setInterval(() => {
+        const elapsedMs = Date.now() - parsingStartTime;
+        const totalSeconds = (elapsedMs / 1000).toFixed(1);
+        const formatted = `${totalSeconds}s`;
+        if (clock) clock.textContent = formatted;
+        if (modalClock) modalClock.textContent = formatted;
+    }, 100);
+}
+
+function stopParsingTimer(success = true) {
+    if (parsingTimerInterval) {
+        clearInterval(parsingTimerInterval);
+        parsingTimerInterval = null;
+    }
+    const elapsedSec = ((Date.now() - parsingStartTime) / 1000).toFixed(1);
+    const banner = document.getElementById('parsing-timer-banner');
+    const clock = document.getElementById('parsing-timer-clock');
+    const subtext = document.getElementById('parsing-status-subtext');
+    
+    if (banner && success) {
+        if (subtext) subtext.textContent = `Completed successfully in ${elapsedSec}s!`;
+        if (clock) clock.textContent = `${elapsedSec}s`;
+        setTimeout(() => {
+            banner.style.display = 'none';
+        }, 4000);
+    } else if (banner) {
+        banner.style.display = 'none';
+    }
+}
+
 shortlistForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -518,14 +577,14 @@ shortlistForm.addEventListener('submit', async (e) => {
 
     showStageLoader();
     setStageStatus('ingest', 'active');
+    startParsingTimer();
 
     const blendWeightSlider = document.getElementById('semantic-blend-weight');
     const semanticWeight = blendWeightSlider ? parseFloat(blendWeightSlider.value) / 100.0 : 0.5;
 
     try {
-        // 1. Generate pre-signed upload URLs and upload files directly to S3
-        const resumesPayload = [];
-        for (const file of selectedFiles) {
+        // 1. Generate pre-signed upload URLs and upload files concurrently to S3
+        const uploadPromises = Array.from(selectedFiles).map(async (file) => {
             const presignRes = await fetch('/api/storage/presign-upload', {
                 method: 'POST',
                 headers: {
@@ -556,11 +615,13 @@ shortlistForm.addEventListener('submit', async (e) => {
                 throw new Error(`Failed to upload ${file.name} directly to storage bucket (Status: ${uploadRes.status} - ${errText}).`);
             }
             
-            resumesPayload.push({
+            return {
                 filename: file.name,
                 object_key: presignData.object_key
-            });
-        }
+            };
+        });
+
+        const resumesPayload = await Promise.all(uploadPromises);
 
         const mindsetEl = document.getElementById('team-mindset');
         const focusEl = document.getElementById('team-focus');
@@ -589,6 +650,7 @@ shortlistForm.addEventListener('submit', async (e) => {
         const data = await response.json();
         if (!response.ok || !data.success) {
             hideStageLoader();
+            stopParsingTimer(false);
             const errorMsg = data.detail || "Failed to start shortlisting.";
             showToast(errorMsg, "error");
             return;
@@ -596,11 +658,11 @@ shortlistForm.addEventListener('submit', async (e) => {
 
         setStageStatus('ingest', 'completed');
         setStageStatus('tfidf', 'active');
-        await delay(300);
+        await delay(100);
 
         setStageStatus('tfidf', 'completed');
         setStageStatus('cosine', 'active');
-        await delay(300);
+        await delay(100);
 
         // Hide stages loader and show task progress modal
         hideStageLoader();
@@ -615,8 +677,8 @@ shortlistForm.addEventListener('submit', async (e) => {
         const taskId = data.task_id;
         currentJobId = data.job_id;
 
-        // Start polling Celery task status
-        const pollInterval = setInterval(async () => {
+        // Start polling Celery task status with immediate first execution
+        const checkTaskStatus = async () => {
             try {
                 const pollRes = await fetch(`/api/tasks/${taskId}`, {
                     headers: { 'Authorization': `Bearer ${userToken}` }
@@ -625,12 +687,15 @@ shortlistForm.addEventListener('submit', async (e) => {
                 const pollData = await pollRes.json();
 
                 if (pollData.status === 'PROGRESS') {
-                    // Update progress bar
                     if (progressBar) progressBar.style.width = (pollData.progress * 100) + '%';
                     
-                    // Update files list checklist in modal
                     if (filesList && pollData.files) {
-                        filesList.innerHTML = '';
+                        const totalCount = Object.keys(pollData.files).length;
+                        const doneCount = Object.values(pollData.files).filter(s => s === 'done').length;
+                        
+                        let itemsHtml = `<div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Parsing Resumes (${doneCount}/${totalCount})</div>`;
+                        itemsHtml += `<div style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px;">`;
+                        
                         Object.entries(pollData.files).forEach(([filename, status]) => {
                             let badgeColor = '#94a3b8';
                             let icon = '<i class="fa-regular fa-clock"></i>';
@@ -641,21 +706,23 @@ shortlistForm.addEventListener('submit', async (e) => {
                                 badgeColor = '#22c55e';
                                 icon = '<i class="fa-solid fa-check"></i>';
                             }
-                            filesList.innerHTML += `
-                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; padding: 6px 12px; background: rgba(255, 255, 255, 0.02); border-radius: 6px;">
-                                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px;">${filename}</span>
-                                    <span style="color: ${badgeColor}; display: flex; align-items: center; gap: 6px;">${icon} ${status}</span>
+                            itemsHtml += `
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; padding: 6px 12px; background: rgba(255, 255, 255, 0.04); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px;">${filename}</span>
+                                    <span style="color: ${badgeColor}; display: flex; align-items: center; gap: 6px; font-weight: 600;">${icon} ${status}</span>
                                 </div>
                             `;
                         });
+                        itemsHtml += `</div>`;
+                        filesList.innerHTML = itemsHtml;
                     }
                 } else if (pollData.status === 'SUCCESS') {
-                    clearInterval(pollInterval);
+                    if (pollInterval) clearInterval(pollInterval);
+                    stopParsingTimer(true);
                     if (progressBar) progressBar.style.width = '100%';
-                    await delay(500);
+                    await delay(200);
                     if (taskModal) taskModal.style.display = 'none';
 
-                    // Reset filters
                     activeFilterCategory = 'all';
                     activeChartSkillFilter = null;
                     activeHistogramFilter = null;
@@ -666,7 +733,6 @@ shortlistForm.addEventListener('submit', async (e) => {
                     updateCompareBar();
                     updateFilterBadgesUI();
 
-                    // Load paginated candidates for page 1
                     currentPage = 1;
                     await fetchJobCandidates(currentJobId, 1);
                     
@@ -674,20 +740,25 @@ shortlistForm.addEventListener('submit', async (e) => {
 
                     setTimeout(() => {
                         collapseSidebar();
-                    }, 1000);
+                    }, 800);
 
                 } else if (pollData.status === 'FAILURE' || pollData.status === 'REVOKED') {
-                    clearInterval(pollInterval);
+                    if (pollInterval) clearInterval(pollInterval);
+                    stopParsingTimer(false);
                     if (taskModal) taskModal.style.display = 'none';
                     showToast(`Background process failed: ${pollData.error || 'Job revoked.'}`, "error");
                 }
             } catch (pollErr) {
                 console.error("Polling error:", pollErr);
             }
-        }, 1500);
+        };
+
+        checkTaskStatus();
+        const pollInterval = setInterval(checkTaskStatus, 600);
 
     } catch (error) {
         hideStageLoader();
+        stopParsingTimer(false);
         console.error(error);
         showToast("Server connection error. Ensure backend is running.", "error");
     }
@@ -1008,6 +1079,41 @@ function renderCandidatesList(candidates) {
             `;
         }
 
+        const isValidDoc = candidate.is_valid_resume !== false && !candidate.invalid_reason;
+
+        let invalidBadgeHtml = '';
+        if (!isValidDoc) {
+            invalidBadgeHtml = `
+                <span class="cand-meta-badge" style="background: rgba(225, 29, 72, 0.15); color: #e11d48; border: 1px solid rgba(225, 29, 72, 0.35); font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> This document does not look like a resume
+                </span>
+            `;
+        }
+
+        let scoreBadgeHtml = `
+            <div class="score-badge">
+                <span class="score-percent ${scoreClass}">${candidate.score}%</span>
+                <span class="score-lbl">Match Score</span>
+            </div>
+        `;
+        if (!isValidDoc) {
+            scoreBadgeHtml = `
+                <div class="score-badge" style="text-align: right;">
+                    <span class="score-percent low" style="color: #e11d48; font-size: 0.9rem;">Invalid</span>
+                    <span class="score-lbl" style="color: #ef4444; font-weight: 700;">Not a Resume</span>
+                </div>
+            `;
+        }
+
+        let dupBadgeHtml = '';
+        if (candidate.is_duplicate) {
+            dupBadgeHtml = `
+                <span class="cand-meta-badge" style="background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.35); font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;" title="Duplicate content of ${candidate.duplicate_of}">
+                    <i class="fa-solid fa-copy"></i> Duplicate Copy (${candidate.duplicate_of || 'Original'})
+                </span>
+            `;
+        }
+
         item.innerHTML = `
             <div class="candidate-card-top" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                 <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
@@ -1022,19 +1128,18 @@ function renderCandidatesList(candidates) {
                             </span>
                             <span class="candidate-subtitle" style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
                                 ${statusBadgeHtml}
-                                <span class="cand-meta-badge">${expLabel}</span>
-                                <span class="cand-meta-badge">${degreeLabel}</span>
-                                ${microBadgesHtml}
+                                ${invalidBadgeHtml}
+                                ${dupBadgeHtml}
+                                ${isValidDoc ? `<span class="cand-meta-badge">${expLabel}</span>` : ''}
+                                ${isValidDoc ? `<span class="cand-meta-badge">${degreeLabel}</span>` : ''}
+                                ${isValidDoc ? microBadgesHtml : ''}
                                 ${prefBadgeHtml}
                             </span>
                         </div>
                     </div>
                 </div>
                 <div class="candidate-right" style="display: flex; align-items: center; gap: 12px;">
-                    <div class="score-badge">
-                        <span class="score-percent ${scoreClass}">${candidate.score}%</span>
-                        <span class="score-lbl">Match Score</span>
-                    </div>
+                    ${scoreBadgeHtml}
                     <i class="fa-solid fa-chevron-right arrow-icon"></i>
                 </div>
             </div>
@@ -1973,7 +2078,22 @@ function openDrawer(candidate, rank) {
     drawerRecruiterNotes.value = savedNotes;
 
     // Generate dynamic Heuristic AI Verdict fit summary
-    detailAiVerdictText.innerHTML = generateCandidateVerdict(candidate);
+    const isValidDoc = candidate.is_valid_resume !== false && !candidate.invalid_reason;
+    if (!isValidDoc) {
+        detailAiVerdictText.innerHTML = `
+            <div style="background: rgba(225, 29, 72, 0.12); border: 1px solid rgba(225, 29, 72, 0.3); padding: 14px; border-radius: 10px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+                <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; font-size: 1.4rem;"></i>
+                <div>
+                    <strong style="color: #ef4444; display: block; font-size: 0.9rem;">This document does not look like a resume</strong>
+                    <span style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4; display: block; margin-top: 2px;">
+                        The uploaded file (${candidate.filename}) appears to be a certificate, invoice, or non-resume document and cannot be ranked as a valid candidate.
+                    </span>
+                </div>
+            </div>
+        `;
+    } else {
+        detailAiVerdictText.innerHTML = generateCandidateVerdict(candidate);
+    }
 
     // Render pros & cons list (Phase 7)
     renderProsAndConsList(candidate);
@@ -2673,26 +2793,34 @@ exportBtn.addEventListener('click', () => {
     }
 
     const headers = [
-        "Rank", "Candidate Name", "Match Score (%)", "Evaluation Status", "Semantic Similarity (%)", 
+        "Rank", "Candidate Name", "Candidate Email", "Match Score (%)", "Evaluation Status", "Semantic Similarity (%)", 
         "Required Skills Score (%)", "Experience Score (%)", 
         "Years of Experience", "Degrees Extracted", "Degree Match Status", "Recruiter Notes"
     ];
 
     const rows = rankedCandidates.map((cand, idx) => {
-        const savedStatus = localStorage.getItem(`talentai_status_${cand.filename}`) || 'Under Review';
-        const savedNotes = localStorage.getItem(`talentai_notes_${cand.filename}`) || '';
+        const savedStatus = localStorage.getItem(`talentai_status_${cand.filename}`) || cand.status || 'Under Review';
+        const savedNotes = localStorage.getItem(`talentai_notes_${cand.filename}`) || cand.notes || '';
         const cleanedNotes = savedNotes.replace(/"/g, '""');
+
+        let candidateEmail = cand.email || '';
+        if (!candidateEmail && cand.snippet) {
+            const match = cand.snippet.match(/[\w\.-]+@[\w\.-]+\.\w{2,}/);
+            if (match) candidateEmail = match[0];
+        }
+        if (!candidateEmail) candidateEmail = 'N/A';
 
         return [
             idx + 1,
             `"${cand.filename}"`,
+            `"${candidateEmail}"`,
             cand.score,
             `"${savedStatus}"`,
             cand.cosine_score,
             cand.skills_score.toFixed(1),
             cand.experience_score.toFixed(1),
             cand.candidate_exp,
-            `"${cand.candidate_degrees.join(', ')}"`,
+            `"${(cand.candidate_degrees || []).join(', ')}"`,
             cand.degree_match ? "Yes" : "No",
             `"${cleanedNotes}"`
         ];

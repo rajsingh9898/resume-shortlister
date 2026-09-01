@@ -1,0 +1,115 @@
+BLOOD CANCER
+ Detailed Notes – Community Health Nursing | B.Sc. Nursing
+ 
+1. Definition
+Blood cancer is a group of cancers affecting the blood, bone marrow, lymphatic system, or blood-forming
+cells. The three major types are leukemia, lymphoma and multiple myeloma.
+2. Major Types of Blood Cancer
+Leukemia: Cancer of blood-forming cells in which abnormal cells, commonly white blood cells, multiply
+excessively and interfere with normal blood-cell production.
+Lymphoma: Cancer of lymphocytes and the lymphatic system, commonly involving lymph nodes. It includes
+Hodgkin and non-Hodgkin lymphoma.
+Multiple myeloma: Cancer of plasma cells in the bone marrow. It may cause bone damage, anemia, infection
+and kidney problems.
+3. Types of Leukemia
+ ALL – Acute Lymphoblastic Leukemia
+ AML – Acute Myeloid Leukemia
+ CLL – Chronic Lymphocytic Leukemia
+ CML – Chronic Myeloid Leukemia
+4. Risk Factors
+ Increasing age
+ Genetic/chromosomal abnormalities
+ Family history in some blood cancers
+ Previous chemotherapy or radiotherapy
+ Significant radiation exposure
+ Certain occupational chemical exposures, such as benzene
+ Certain infections associated with specific blood cancers
+ Some immune-system disorders
+5. Pathophysiology – Simple Flow
+Genetic changes/risk factors → abnormal blood-forming cell → uncontrolled multiplication →
+abnormal cells occupy bone marrow/lymphatic tissue → normal blood-cell production decreases →
+anemia + infection risk + bleeding → tissue/organ involvement.
+6. Signs and Symptoms
+ Persistent fever or recurrent infections
+ Fatigue and weakness
+ Pallor due to anemia
+ Easy bruising or bleeding
+ Nose or gum bleeding
+ Unexplained weight loss
+ Night sweats
+ Painless lymph-node enlargement
+ Bone or joint pain
+ Loss of appetite
+
+ Recurrent infections
+7. Disease-wise Symptoms
+Leukemia: fever, infections, anemia, bruising/bleeding, bone pain and lymph-node enlargement.
+Lymphoma: painless lymph-node swelling, fever, night sweats, weight loss, fatigue and itching.
+Multiple myeloma: bone pain, fractures, anemia, recurrent infections, high calcium and kidney problems.
+8. Diagnosis
+1. CBC: assesses hemoglobin, WBCs and platelets.
+2. Peripheral blood smear: examines blood cells microscopically.
+3. Bone marrow aspiration/biopsy: important for diagnosing many leukemias and myeloma.
+4. Lymph-node biopsy: used when lymphoma is suspected.
+5. Imaging: CT, MRI, PET-CT or X-ray as clinically indicated.
+6. Special tests: flow cytometry, cytogenetic and molecular tests.
+
+9. Treatment
+Treatment depends on the exact type, stage/risk category and patient's condition.
+ Chemotherapy
+ Targeted therapy
+ Immunotherapy
+ Radiotherapy
+ Hematopoietic stem-cell transplantation
+ Blood or platelet transfusion and other supportive care
+10. Community Health Nursing Management
+A. Primary Prevention: Promote healthy lifestyle, balanced nutrition and physical activity; discourage
+tobacco; educate about occupational safety; reduce unnecessary radiation exposure; and promote awareness
+of cancer warning signs.
+B. Secondary Prevention: Recognize persistent warning symptoms, encourage early medical consultation,
+facilitate appropriate referral, support recommended investigations, and follow up referred patients.
+C. Tertiary Prevention: Promote treatment adherence, regular follow-up, infection and bleeding prevention,
+adequate nutrition, pain management, rehabilitation, psychological support and family education.
+11. Nursing Care at Community Level
+Infection prevention: hand hygiene, personal hygiene, safe food/water, avoiding exposure to infectious
+persons when immunity is low, temperature monitoring and prompt reporting of fever.
+Bleeding prevention: avoid unnecessary trauma, observe for bruising/bleeding, use oral-care measures
+advised by the treating team, and promptly report significant bleeding.
+Nutrition: balanced nutritious diet, adequate fluids unless restricted, small frequent meals when appetite is
+poor, and food-safety precautions.
+Psychological care: listen to concerns, provide understandable information, encourage family support and
+refer for professional support when needed.
+12. Health Education
+ Take medicines and treatment exactly as prescribed.
+ Do not stop cancer treatment without medical advice.
+ Attend regular follow-up visits and investigations.
+ Maintain hand hygiene and food safety.
+ Avoid tobacco and unnecessary alcohol.
+ Take adequate rest and maintain nutrition.
+ Report fever, unusual bleeding, severe weakness, breathlessness or sudden deterioration promptly.
+13. Role of Community Health Nurse
+ Health education
+ Risk-factor reduction
+ Early recognition of warning signs
+ Timely referral
+ Treatment-adherence support
+ Home visits and follow-up
+ Monitoring for complications
+
+ Infection and bleeding-prevention education
+ Nutritional and psychosocial support
+ Rehabilitation and family education
+14. Prevention & Control Flow
+Health education → Risk reduction → Early recognition → Timely referral → Diagnosis → Treatment
+adherence → Prevention of complications → Rehabilitation → Follow-up.
+15. Important Exam Points
+ Three major blood cancers: Leukemia, lymphoma, multiple myeloma.
+ Common complications: anemia, infection and bleeding.
+ Important investigations: CBC, peripheral smear, bone marrow examination and disease-specific tests.
+ Community nursing focus: prevention, early recognition, referral, follow-up, treatment adherence,
+complication prevention and health education.
+Conclusion
+Blood cancer requires early recognition, accurate diagnosis and specialized treatment. Community health
+nurses play an important role in prevention, health education, early referral, home-based support, treatment
+adherence, complication prevention, rehabilitation and family counselling.
+

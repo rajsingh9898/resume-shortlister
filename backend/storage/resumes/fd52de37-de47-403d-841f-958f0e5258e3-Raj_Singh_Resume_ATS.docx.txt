@@ -1,0 +1,40 @@
+RAJ SINGH
+Varanasi, UP, India  |  +91-7388445597  |  rajsingh98447859@gmail.com  |  LinkedIn  |  GitHub  |  Portfolio  |  LeetCode
+PROFESSIONAL SUMMARY
+
+Final-year Computer Science undergraduate and AI/ML Engineer with hands-on experience building and deploying end-to-end AI systems serving 100+ real users. Skilled in LLM fine-tuning, Retrieval-Augmented Generation (RAG) pipelines, Agentic AI workflows, and full-stack development with Next.js and Flask. Proficient in Python, LangChain, HuggingFace Transformers, OpenAI APIs, and cloud deployment on GCP. Strong foundation in NLP, deep learning, and software engineering best practices.
+TECHNICAL SKILLS
+
+Programming Languages: Python, JavaScript (ES6+), Java, SQL
+AI/ML & NLP: HuggingFace Transformers, LangChain, OpenAI API, PyTorch, BERT, Fine-Tuning LLMs, RAG Pipelines, Prompt Engineering, Agentic AI, Computer Vision (OpenCV), Streamlit
+Web & Backend: Next.js, React, Node.js, Express.js (MERN Stack), Flask, Django, REST APIs, FastAPI, JWT Authentication
+Databases & Storage: MySQL, Pinecone (Vector DB), Firebase, MongoDB
+Cloud, DevOps & Tools: Google Cloud Platform (GCP), Docker, Containerization, CI/CD, GitHub, Jupyter Notebook, VS Code
+Core CS Concepts: Data Structures & Algorithms (DSA), Object-Oriented Programming (OOP), Machine Learning, Deep Learning, Software Development Life Cycle (SDLC)
+PROJECTS
+
+My Trip Advisor  |  Next.js, GPT-4o, LangChain, OpenAI API  |  Live Demo	Feb 2026 – Apr 2026
+Designed and deployed a GPT-4o powered AI travel planning application in Next.js, generating personalized itineraries in under 10 seconds for 100+ active users.
+Engineered LangChain prompt chaining pipelines for automated route optimization and budget planning, reducing manual trip-planning effort by 70%.
+Integrated OpenAI Streaming API with real-time UI updates, dynamic PDF export, and JWT-based user authentication for a production-ready user experience.
+Implemented RESTful API endpoints and optimized server-side rendering (SSR) for fast load performance and SEO across all pages.
+AI-Powered Cyber Threat Detection App  |  Python, BERT, HuggingFace, Flask, Flutter, Firebase  |  GitHub	Nov 2025 – Jan 2026
+Fine-tuned a BERT model (HuggingFace Transformers) on 15,000+ labeled email and text samples to classify phishing and harassment threats, achieving 91% accuracy on test data.
+Built a real-time threat scoring pipeline using Flask REST API with prompt engineering techniques, reducing average response latency to under 300ms.
+Integrated cross-platform Flutter mobile app with Firebase Cloud Messaging (FCM) to trigger automated SOS push notifications within 2 seconds of threat detection.
+Applied NLP preprocessing techniques including tokenization, text normalization, and data augmentation to improve model robustness and reduce false positives.
+RAG-Based Document Q&A Chatbot  |  Python, FastAPI, React, Pinecone, OpenAI  |  GitHub	Aug 2025 – Oct 2025
+Architected a Retrieval-Augmented Generation (RAG) system using FastAPI, React, Pinecone vector database, and OpenAI embeddings for accurate multi-document question answering.
+Implemented semantic chunking and vector similarity search for context-aware document retrieval, improving answer relevance across diverse document types.
+Delivered a production-style user experience with Firebase authentication, per-user document storage isolation, and real-time streaming chat responses.
+EDUCATION
+
+SRMS College of Engineering, Technology & Research  •  Bareilly, India	2023 – Present
+B.Tech. in Computer Science and Engineering
+Relevant Coursework: Data Structures & Algorithms, Machine Learning, Database Management Systems, Computer Networks, Operating Systems, Software Engineering
+ACHIEVEMENTS & CERTIFICATIONS
+
+Solved 500+ DSA problems on LeetCode, CodeChef, and HackerRank, demonstrating strong algorithmic problem-solving skills.
+Ranked 428 nationally in Naukri Young Turks 2025, a competitive national-level technical assessment for engineering students.
+IBM SkillsBuild Certifications: Introduction to Retrieval-Augmented Generation (RAG) and Ethical Considerations of Generative AI.
+Tata Group (Forage) Virtual Job Simulations: Cybersecurity Analyst, Generative AI Analytics, and Data Visualization.

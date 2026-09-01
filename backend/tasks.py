@@ -167,45 +167,55 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
         if self.request.id:
             self.update_state(state="PROGRESS", meta={"progress": 0.0, "files": file_statuses})
         
-        # 2. Concurrently extract text from files (simulated progress updates)
-        resume_data = []
-        for idx, res in enumerate(resumes_info):
-            filename = res["filename"]
-            file_path = res["file_path"]
-            
-            # Update state to 'processing'
-            file_statuses[filename] = "processing"
-            progress_pct = (idx / total_files) * 0.5 # Ingest & parsing takes first 50%
-            if self.request.id:
-                self.update_state(state="PROGRESS", meta={"progress": progress_pct, "files": file_statuses})
-            
-            # Read and decrypt file contents from S3 or fallback storage
+        # 2. Concurrently extract text from files in parallel threads
+        def process_single_file(res_info):
+            fname = res_info["filename"]
+            fpath = res_info["file_path"]
             try:
-                disk_bytes = storage_client.download_bytes(file_path)
+                disk_bytes = storage_client.download_bytes(fpath)
                 try:
                     file_bytes = decrypt_data(disk_bytes)
                 except Exception:
-                    # If it's not encrypted (like new uploads directly to S3), treat as raw bytes
                     file_bytes = disk_bytes
-                raw_text = nlp_engine.extract_text(filename, file_bytes)
+                raw_text = nlp_engine.extract_text(fname, file_bytes)
             except Exception as e:
                 raw_text = f"Error reading/parsing file: {str(e)}"
                 
-            # Upload extracted text to S3/MinIO
             try:
-                text_key = file_path + ".txt"
+                text_key = fpath + ".txt"
                 storage_client.upload_bytes(text_key, raw_text.encode("utf-8"), content_type="text/plain")
             except Exception as e:
-                logger.error(f"Failed to upload extracted text for candidate {filename} to S3: {e}")
+                logger.error(f"Failed to upload extracted text for candidate {fname} to S3: {e}")
                 
-            resume_data.append({
-                "filename": filename,
+            return {
+                "filename": fname,
                 "raw_text": raw_text,
-                "file_path": file_path
-            })
-            
-            # Mark file as 'done' for parsing stage
-            file_statuses[filename] = "done"
+                "file_path": fpath
+            }
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        resume_data = []
+        file_statuses = {res["filename"]: "processing" for res in resumes_info}
+        if self.request.id:
+            self.update_state(state="PROGRESS", meta={"progress": 0.1, "files": file_statuses})
+
+        with ThreadPoolExecutor(max_workers=min(8, max(1, total_files))) as executor:
+            future_to_file = {executor.submit(process_single_file, res): res["filename"] for res in resumes_info}
+            completed_count = 0
+            for future in as_completed(future_to_file):
+                fname = future_to_file[future]
+                try:
+                    res_dict = future.result()
+                    resume_data.append(res_dict)
+                    file_statuses[fname] = "done"
+                except Exception as ex:
+                    logger.error(f"Error processing resume {fname}: {ex}")
+                    file_statuses[fname] = "done"
+                    resume_data.append({"filename": fname, "raw_text": f"Error: {ex}", "file_path": fname})
+                completed_count += 1
+                progress_pct = round(0.1 + (completed_count / total_files) * 0.4, 2)
+                if self.request.id:
+                    self.update_state(state="PROGRESS", meta={"progress": progress_pct, "files": file_statuses})
             
         # 3. Execute similarity computing and ranking
         if self.request.id:
@@ -213,17 +223,15 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
         team_profile = getattr(job, "team_profile", None)
         results = nlp_engine.compute_nlp_shortlist(jd, resume_data, semantic_weight, team_profile=team_profile)
         
-        # 4. Save results to DB
+        # 4. Save results to DB in single batch
         if self.request.id:
             self.update_state(state="PROGRESS", meta={"progress": 0.8, "files": file_statuses})
         
+        import re
         for cand in results["candidates"]:
             filename = cand["filename"]
-            raw_text = next(r["raw_text"] for r in resume_data if r["filename"] == filename)
-            file_path = next(r["file_path"] for r in resume_data if r["filename"] == filename)
-            
-            # Find or create Candidate (scoped under tenant Org)
-            import re
+            raw_text = next((r["raw_text"] for r in resume_data if r["filename"] == filename), "")
+            file_path = next((r["file_path"] for r in resume_data if r["filename"] == filename), "")
             
             # Extract email from raw resume text
             email_match = re.search(r'\b[\w\.-]+@[\w\.-]+\.\w{2,}\b', raw_text)
@@ -249,8 +257,7 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
                     organization_id=job.organization_id
                 )
                 db.add(candidate)
-                db.commit()
-                db.refresh(candidate)
+                db.flush()
             else:
                 candidate.name = clean_name
                 candidate.email = candidate_email
@@ -259,7 +266,6 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
                 candidate.degrees = cand["candidate_degrees"]
                 candidate.degrees_confidence = cand["degrees_confidence"]
                 candidate.soft_traits = cand["soft_traits"]
-                db.commit()
                 
             # Create or update Resume reference (keep raw_text empty in database to save space)
             resume = db.query(Resume).filter_by(candidate_id=candidate.id, filename=filename).first()
@@ -276,7 +282,6 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
                 resume.file_path = file_path
                 resume.raw_text = ""
                 resume.parsed_skills = cand["all_extracted_skills"]
-            db.commit()
             
             # Save Score
             score = Score(
@@ -292,7 +297,6 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
                 explainability=cand.get("explainability", {"reasons_high": [], "reasons_low": []})
             )
             db.add(score)
-            db.commit()
             
             # Carry over evaluations
             existing_eval = db.query(Evaluation).join(Candidate).filter(
@@ -310,7 +314,6 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
                 comments=comments
             )
             db.add(evaluation)
-            db.commit()
             
         # Log to AuditLog
         audit = AuditLog(

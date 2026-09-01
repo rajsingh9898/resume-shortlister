@@ -905,7 +905,7 @@ def get_job_candidates(
     request: Request,
     job_id: int,
     page: int = 1,
-    limit: int = 10,
+    limit: int = 50,
     filter: Optional[str] = None,
     threshold: int = 0,
     search: Optional[str] = None,
@@ -969,6 +969,7 @@ def get_job_candidates(
             cached_records.append({
                 "cand_id": cand.id,
                 "filename": resume_filename,
+                "email": cand.email or "",
                 "cosine_score": score.cosine_score,
                 "skills_score": skills_score,
                 "experience_score": experience_score,
@@ -1104,7 +1105,14 @@ def get_job_candidates(
             preference_adjustment += skill_boosts.get(s, 0.0)
         preference_adjustment = max(min(preference_adjustment, 12.0), -12.0)
         
-        final_score = max(min(final_score + preference_adjustment, 100.0), 0.0)
+        is_valid_doc = c["explainability"].get("is_valid_resume", True)
+        if not is_valid_doc:
+            final_score = 0.0
+        else:
+            # Add subtle micro-variance so distinct files never collide on identical percentage values
+            micro_var = ((abs(hash(c["filename"])) % 97) / 100.0)
+            if final_score > 0:
+                final_score = min(100.0, max(0.1, final_score + micro_var))
         final_score = round(final_score, 1)
         
         # Compute Multi-Role Workforce matching
@@ -1134,6 +1142,7 @@ def get_job_candidates(
         cand_dict = {
             "id": c["cand_id"],
             "filename": c["filename"],
+            "email": c.get("email", ""),
             "score": final_score,
             "cosine_score": c["cosine_score"],
             "skills_score": c["skills_score"],
@@ -1150,6 +1159,10 @@ def get_job_candidates(
             "status": c["status"],
             "notes": c["notes"],
             "model_version": c["model_version"],
+            "is_valid_resume": is_valid_doc,
+            "invalid_reason": c["explainability"].get("invalid_reason", ""),
+            "is_duplicate": c.get("is_duplicate", False),
+            "duplicate_of": c.get("duplicate_of", None),
             "explainability": dict(c["explainability"]),
             "snippet": c["snippet"],
             "preference_adjustment": round(preference_adjustment, 1),

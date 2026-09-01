@@ -1,0 +1,101 @@
+Advanced RAG - Course Outline
+
+Pre-requisite: LangGraph & LangChain Basics
+Module 1: RAG Fundamentals and Architecture
+Introduction to RAG (What it is and the problems it solves like hallucinations and knowledge cutoffs)
+Core components and RAG data flow (Knowledge Base → Retriever → Generator)
+Comparison: RAG vs Fine-Tuning vs Prompt Engineering
+Module 2: Document Processing and Chunking
+Document Loaders in LangChain (PDFs, Web, Structured data)
+Text Splitting Strategies (Recursive, Character, Semantic, Markdown, and Code splitters)
+Chunking Best Practices (Optimal chunk sizes and overlap strategies)
+Metadata Management and filtering
+Module 3: Embeddings and Vector Representations
+How Embeddings Work (Vector representations, semantic similarity, and distance metrics)
+Embedding Models Overview (OpenAI vs Open-source alternatives)
+Choosing the Right Embedding Model (Cost vs quality trade-offs)
+LangChain Embeddings Implementation
+Module 4: Vector Stores
+Vector Store Working and Indexing Strategies (IVF, HNSW)
+Vector Store Operations (Create, Read, Update, Delete)
+Module 5: Basic Retrieval Techniques
+Similarity Search Fundamentals
+Similarity Score Thresholds
+Maximal Marginal Relevance (MMR) to balance relevance and diversity
+Hybrid Search (Combining dense semantic vectors + sparse BM25 vectors)
+Ensemble Retriever
+Module 6: Advanced Retrieval Techniques
+Contextual Compression
+Parent Document Retriever
+Self-Query 
+Multi-Query Retrievers
+
+Module 7: Advanced RAG Patterns
+RAG Fusion and RRF
+HyDE (Hypothetical Document Embeddings)
+Corrective RAG (CRAG)
+Self-RAG, 
+Graph RAG
+Multi Modal RAG
+Module 8: Agentic RAG with LangGraph
+Introduction to Agentic RAG and its capabilities
+Using RAG as a Tool for Agents
+LangGraph Fundamentals for RAG (State, nodes, edges, checkpointing)
+Agentic RAG Design Patterns (ReAct, Plan-and-execute, Reflection)
+Module 9: RAG evaluation through RAGAS
+What is the RAGAS framework?
+Parts of RAG pipeline to evaluate
+RAG metrics in detail
+Code implementation of individual metrics.
+Code implementation of RAG pipeline using evaluate() API 
+Module 10 : Capstone Project with Deployment (added very soon)
+Project Assignment: Build a production-ready RAG system
+Multi-document ingestion and hybrid retrieval with re-ranking
+Agentic workflow with LangGraph
+Evaluation suite (RAGAS) and Monitoring (LangSmith)
+System Deployment
+Production RAG
+Pipeline Optimization
+Caching Strategies
+Cost Optimization
+Monitoring and Debugging
+Common Pitfalls and Solutions
+Security and Compliance
+Course: Building Multi-Agent Systems with CrewAI
+
+🧠 Module 1: From LLMs to AI Agents
+
+Understand the journey from Large Language Models (LLMs) to AI agents
+Learn what AI agents are
+Explore the key components of AI agents
+Discover the important characteristics that make AI agents effective
+🤖 Module 2: Getting Started with CrewAI
+Learn the basics of CrewAI
+Tasks
+Agents
+Crews
+Design and execute your first crew using code
+Get structured output using Pydantic models
+Implement guardrails in tasks
+🔁 Module 3: Process Types in CrewAI
+Understand Sequential processing
+Understand Hierarchical processing
+Learn when and why to use each process type
+Code walkthrough for hierarchical processing
+📚 Module 4: RAG and Agentic RAG
+Understand Retrieval-Augmented Generation (RAG)
+Learn about Agentic RAG
+Compare components and differences between RAG and Agentic RAG
+Implement RAG and Agentic RAG using tools in CrewAI
+🔄 Module 5: Flows in CrewAI
+Learn what flows are in CrewAI
+Integrate custom Python code with agents using flows
+Implement conditional flows
+Build router-based flows
+Create flows with unstructured state
+Create flows with structured state
+
+🚀 Module 6: Final Project – Build a Complete System
+Build a capstone project using CrewAI
+Integrate multiple crews into a complete flow
+Apply tasks, agents, processes, RAG, Agentic RAG, and flows in one system

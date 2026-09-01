@@ -515,6 +515,23 @@
                         </div>
                     </div>
 
+                    <!-- Live Resume Parsing Timer Banner -->
+                    <div id="parsing-timer-banner" style="display: none; background: linear-gradient(135deg, rgba(236, 72, 153, 0.12), rgba(139, 92, 246, 0.12)); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 15px rgba(236, 72, 153, 0.1);">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(236, 72, 153, 0.2); display: flex; align-items: center; justify-content: center; color: #ec4899; font-size: 1.1rem;">
+                                <i class="fa-solid fa-spinner fa-spin"></i>
+                            </div>
+                            <div>
+                                <strong style="color: var(--text-primary); font-size: 0.98rem; display: block;">Parsing & Ranking Candidate Resumes...</strong>
+                                <span style="color: var(--text-muted); font-size: 0.82rem;" id="parsing-status-subtext">Celery background workers processing files</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; background: rgba(0, 0, 0, 0.25); padding: 8px 16px; border-radius: 20px; border: 1px solid rgba(56, 189, 248, 0.3);">
+                            <i class="fa-regular fa-clock" style="color: #38bdf8; font-size: 1.1rem;"></i>
+                            <span style="font-size: 1.15rem; font-weight: 800; color: #38bdf8; letter-spacing: 1px;" id="parsing-timer-clock">0.0s</span>
+                        </div>
+                    </div>
+
                     <!-- Shortlist Header -->
                     <div class="ranking-header">
                         <div class="ranking-header-title">
@@ -1198,6 +1215,12 @@
                 <i class="fa-solid fa-microchip fa-spin"></i>
             </div>
             <h2 id="task-modal-title" style="margin-bottom: 8px; font-weight: 700; font-size: 1.5rem; background: linear-gradient(135deg, #fff 30%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Analyzing Resumes...</h2>
+            
+            <!-- Live Elapsed Parsing Timer -->
+            <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); padding: 4px 14px; border-radius: 20px; margin-bottom: 16px; color: #38bdf8; font-weight: 700; font-size: 0.88rem;">
+                <i class="fa-regular fa-clock"></i> Elapsed Time: <span id="modal-parsing-timer-clock">0.0s</span>
+            </div>
+
             <p id="task-modal-desc" style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 24px;">Please wait while Celery background workers process the files.</p>
             
             <!-- Progress Bar -->

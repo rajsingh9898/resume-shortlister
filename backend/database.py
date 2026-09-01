@@ -27,23 +27,44 @@ try:
         
         engine = create_engine(
             cleaned_url,
-            pool_size=20,
-            max_overflow=10,
+            pool_size=30,
+            max_overflow=20,
             pool_recycle=1800,
             pool_pre_ping=True,
-            connect_args={"connect_timeout": 5}
+            connect_args={"connect_timeout": 10}
         )
     else:
-        engine = create_engine(DATABASE_URL)
-    # Test the connection immediately
+        engine = create_engine(
+            DATABASE_URL,
+            connect_args={"check_same_thread": False, "timeout": 60} if "sqlite" in DATABASE_URL else {},
+            pool_pre_ping=True
+        )
+    # Test the connection immediately and set WAL mode for SQLite
     with engine.connect() as conn:
-        pass
+        if "sqlite" in str(engine.url):
+            try:
+                from sqlalchemy import text
+                conn.execute(text("PRAGMA journal_mode=WAL;"))
+                conn.execute(text("PRAGMA synchronous=NORMAL;"))
+            except Exception:
+                pass
 except (OperationalError, Exception) as e:
     print(f"\n[WARNING] PostgreSQL connection to {DATABASE_URL} failed: {str(e)}")
     print("[INFO] Automatically falling back to local SQLite database ('sqlite:///./talentai.db')\n")
-    # Fallback SQLite configuration
+    # Fallback SQLite configuration with 60s timeout & WAL mode
     SQLITE_URL = "sqlite:///./talentai.db"
-    engine = create_engine(SQLITE_URL, connect_args={"check_same_thread": False})
+    engine = create_engine(
+        SQLITE_URL,
+        connect_args={"check_same_thread": False, "timeout": 60},
+        pool_pre_ping=True
+    )
+    try:
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            conn.execute(text("PRAGMA journal_mode=WAL;"))
+            conn.execute(text("PRAGMA synchronous=NORMAL;"))
+    except Exception:
+        pass
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

@@ -1,0 +1,394 @@
+1 
+  
+Mini Project Synopsis  
+On 
+MTA (My Trip Advisor)  
+Group No. 01 
+ 
+Submitted by : 
+Raj Singh (2304500100 083) 
+Prakhar Gupta  (2304500100 077) 
+Dhirendra Kumar (2204500100038)  
+ 
+ Project Guide  
+ Dr. Shailesh Saxena  
+ 
+Submitted to  
+Mr. Pramod Kumar  
+ 
+Department of Computer Science and Engineering  
+Shri Ram Murti Smarak College of Engineering, Technology& Research, Bareilly  
+2025 -26 
+ 
+ 
+
+2 
+ TABLE OF CONTENT  
+ 
+1. Introduction………………………………………………… ……04  
+2. Motivation………………………………………………….… ….04 
+3. Problem Statement…………………………………………… ….05 
+4. Objective……………………………………………… ….……...06 
+5. Literature Review…………………………………...………. ......07 
+6. Tools and Technology…………………………….… .…....…08-09 
+7. Methodology………………………………………....… ……10-12 
+8. Application………………………………… …...…...… …… ….13 
+9. Conclusion………………………………………… ….…….….1 4 
+10.  References…… ………………………………………….…. ....15 
+ 
+ 
+3 
+ DECLARATION  
+ 
+We hereby declare that this submission is our own work and that, to the best of our knowledge and 
+beliefs, it contains no material previously published or written by another person nor material which 
+to substantial extent has been accepted for the award of  any other degree or diploma of the university 
+or other institute learning, except where due acknowledgement has been made in the text.  
+ 
+ 
+Signature………………  
+Name: Raj Singh  
+Roll no: 23045001000 83 
+Date…………  
+ 
+Signature………………  
+Name: Prakhar Gupta  
+Roll no: 23 045001000 77 
+Date…………   
+ 
+ 
+Signature………………  
+Name - Dhirendra Kumar  
+Roll no. -2304500100 038 
+Date…………  
+                                                                                                                                                                                                 
+Signature:  ……………………  
+                                                                                                Guide Name: Dr. Shailesh Saxena  
+4 
+ INTRODUCTION  
+With the increasing popularity of travel and tourism, people often face difficulties in planning trips 
+efficiently. Searching for destinations, booking hotels, estimating costs, and creating personalized 
+itineraries can be time -consuming and confusing. Tra ditional travel planning methods lack 
+automation, personalization, and real -time assistance.  
+The My Trip Advisor (MTA)  project aims to develop an intelligent web -based application that 
+helps users plan their trips easily and efficiently. The platform provides features such as itinerary 
+generation, hotel suggestions, cost estimation, and trip sharing.  
+The system leverages modern web technologies and AI -based APIs to generate personalized travel 
+plans based on user preferences such as destination, budget, duration, and interests. It also includes 
+user authentication, profile management, and an admin dash board for system monitoring.  
+This project aims to simplify travel planning by providing a centralized, user -friendly platform that 
+enhances user experience and reduces manual effort.  
+ 
+ 
+MOTIVATION  
+Travel planning is often stressful due to scattered information across multiple platforms. Users need 
+to search separately for hotels, routes, budgets, and itineraries.  
+The motivation behind this project includes:  
+• To simplify trip planning into a single platform   
+• To reduce time spent on manual research  
+• To provide AI-based personalized itineraries   
+• To help users estimate travel costs effectively  
+• To enable easy sharing of travel plans  
+Additionally, many users lack proper planning tools, which results in inefficient trips. This project 
+aims to bridge that gap using modern technologies.  
+ 
+ 
+5 
+ PROBLEM STATEMENT  
+In the modern digital age, travel planning has become both easier and more complicated at the same 
+time. While a vast amount of travel -related information is available online, users still face 
+significant challenges in organizing a complete trip efficientl y. Planning a trip involves tasks such 
+as selecting destinations, booking accommodations, estimating costs, and creating itineraries, often 
+requiring multiple platforms. This fragmented approach makes the process time -consuming, 
+confusing, and inefficient.  
+One of the major issues is the lack of a centralized platform that integrates all aspects of travel 
+planning into a single system. Users are forced to switch between different websites and 
+applications, which increases effort and reduces productivity. More over, most existing systems 
+provide generic recommendations that do not consider individual user preferences such as budget, 
+travel duration, interests, and group size, resulting in less effective travel plans.  
+Another significant challenge is the difficulty in creating structured and well -organized itineraries. 
+Travelers often struggle to plan their trips on a day -to-day basis, which may result in poor 
+scheduling, wasted time, and missed experiences. Additionall y, there is a lack of reliable tools for 
+accurate cost estimation, making budget management difficult.  
+Furthermore, sharing and managing travel plans for group trips is not seamless in many existing 
+systems, leading to coordination problems. Current platforms also lack intelligent automation and 
+do not fully utilize modern technologies such as Artificial In telligence (AI) for personalized 
+recommendations and real -time assistance.  
+Therefore, there is a strong need for a smart, integrated, and user -friendly system that can simplify 
+travel planning by combining all essential features into a single platform. The proposed system,  My 
+Trip Advisor (MTA),  aims to address these challenges by providing an efficient and personalized 
+solution.  
+The system should be able to:  
+• Provide a centralized platform for all travel -related activities  
+• Generate personalized itineraries automatically  
+• Suggest hotels and destinations based on user preferences  
+• Estimate travel costs accurately  
+• Allow users to manage, edit, and share their travel plans  
+• Utilize Artificial Intelligence (AI) for intelligent recommendations  
+ 
+6 
+  
+OBJECTIVE  
+The primary goal of this project is to develop an intelligent web -based application, My Trip Advisor 
+(MTA), that simplifies and enhances the travel planning experience by providing personalized, 
+efficient, and automated solutions. The system aims to integr ate all travel -related services into a 
+single platform, making trip planning easier, faster, and more user -friendly. The detailed objectives 
+are: 
+1. To develop an Intelligent Travel Planning System  
+• Use modern web technologies and APIs to generate personalized travel itineraries based on 
+user preferences such as destination, budget, and duration.  
+• Provide structured day -wise travel plans to improve trip organization and efficiency.  
+2. To enable User Authentication and Profile Management  
+• Implement secure user registration, login, and password recovery features.  
+• Allow users to manage their profiles and store travel history for future reference.  
+3. To provide Hotel and Destination Recommendations  
+• Suggest hotels and popular destinations based on user input and preferences.  
+• Integrate external APIs to fetch real -time and relevant travel data.  
+4. To implement Cost Estimation System  
+• Provide approximate travel cost calculations based on selected destination and duration.  
+• Help users manage their travel budget effectively and make informed decisions.  
+5. To enable Trip Management and Sharing  
+• Allow users to create, update, and delete their travel itineraries.  
+• Provide sharing features so users can share trip plans with friends and groups using links or 
+tokens.  
+6. To utilize Artificial Intelligence for Smart Recommendations  
+• Integrate AI -based services to generate intelligent and customized travel suggestions.  
+• Enhance user experience by providing automated and data -driven recommendations.  
+7. To ensure System Scalability and User -Friendly Interface  
+• Design a responsive and easy -to-use interface for better user experience.  
+• Build a scalable system that can handle multiple users and future enhancements.  
+ 
+7 
+  
+LITERATURE REVIEW  
+1. Travel Planning Systems  
+Traditional travel planning systems and platforms provide users with information about 
+destinations, hotels, and transportation. However, these systems often require users to manually 
+search and compare options across multiple platforms, making the process  time-consuming and 
+inefficient (Sharma et al., 2021). Studies highlight the need for integrated systems that can combine 
+multiple services into a single platform for better user experience (Gupta et al., 2020).  
+2. AI and Recommendation Systems in Travel  
+Artificial Intelligence (AI) and Machine Learning (ML) techniques are increasingly used in travel 
+applications to provide personalized recommendations. Algorithms analyze user preferences, past 
+behavior, and trends to suggest destinations, hotels, and acti vities (Verma et al., 2022; Singh et al., 
+2021). AI -driven systems improve decision -making and enhance user satisfaction by delivering 
+customized travel plans.  
+3. Itinerary Generation and Automation  
+Automated itinerary generation systems use algorithms and data analysis to create structured travel 
+plans. These systems help users organize their trips day -by-day, reducing manual effort and 
+improving time management (Kumar et al., 2020). Research shows t hat automated planning tools 
+significantly enhance travel efficiency and user convenience compared to manual planning 
+methods.  
+4. Cost Estimation and Budget Management  
+Budget planning is a crucial aspect of travel. Existing systems provide partial cost information, but 
+often lack accurate and integrated cost estimation tools (Rao et al., 2021). Research emphasizes the 
+importance of systems that can calculate approximate travel expenses based on user inputs such as 
+destination, duration, and preferences.  
+5. Social Sharing and Collaborative Planning  
+Travel planning for groups requires coordination and communication. Some platforms provide 
+sharing features, but they are often limited and not user -friendly (Mehta et al., 2020). Studies 
+suggest that collaborative tools, such as shared itineraries and lin ks, can significantly improve group 
+travel planning and coordination.   
+ 
+ 
+8 
+ TOOLS AND TECHNOLOGY  
+This project leverages a carefully selected stack of tools and technologies to build a scalable, 
+intelligent, and user -friendly web -based travel planning application. The stack is organized into two 
+primary layers: the frontend, which handles user interact ion and interface design, and the backend, 
+which manages application logic, APIs, database operations, and intelligent services.  
+1. Programming Languages  
+• TypeScript:  Used for developing both frontend and backend components of the application.  
+• SQL:  Used for managing and querying relational databases through ORM tools like Prisma.  
+2. AI and Recommendation Technologies  
+• OpenAI API:  Used for generating personalized travel itineraries and intelligent 
+recommendations.  
+• Perplexity API (optional):  Used for enhanced search and travel -related suggestions.  
+3. Databases and ORM  
+• PostgreSQL / MongoDB:  Used for storing user data, itineraries, and application data.  
+• Prisma ORM:  Used for database management, schema design, and efficient data querying.  
+4. Web Technologies  
+• Next.js (React Framework):  Used for building a fast, scalable, and SEO -friendly web  
+application.  
+• React.js:  For creating dynamic and reusable UI components.  
+• Tailwind CSS:  For responsive and modern UI design.  
+5. Authentication and Security  
+• NextAuth.js:  For implementing secure user authentication and session management.  
+• JWT (JSON Web Tokens):  For secure communication and user authorization.  
+6. APIs and Integrations  
+• REST APIs:  For communication between frontend and backend.  
+• Hotel and Travel APIs:  For fetching hotel and destination data.  
+• Unsplash API:  For displaying travel -related images dynamically.  
+9 
+ 7. Additional Tools  
+• Git/GitHub:  For version control and collaboration.  
+• Postman:  For testing APIs and backend services.  
+• Nodemailer:  For sending emails (e.g., verification and password reset).  
+8. Deployment and Hosting  
+• Vercel:  For deploying the web application.  
+9. Security Measures  
+• SSL/TLS Encryption:  To secure data transmission between client and server.  
+• Environment Variables (.env):  For protecting sensitive information like API keys.  
+• Rate Limiting & Validation:  To prevent misuse and ensure system stability.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+10 
+                                                        METHODOLOGY  
+The methodology for this project is organized into multiple phases, including system design, 
+development, integration, and deployment. It focuses on building a user -friendly web application 
+that enables efficient trip planning, intelligent recommendations,  and seamless user interaction. The 
+approach ensures proper data handling, secure authentication, and smooth system performance 
+across all stages.  
+Phase 1: User Access & Authentication  
+• This phase represents the entry point of the system. The process starts when the user visits 
+the website. The system then checks whether the user is a new user or an existing user.  
+• If the user is new, they must complete the registration process , followed by email 
+verification , and then log in.  
+• If the user is already registered, they can directly log in.  
+• This phase ensures secure access and user validation  before allowing entry into the system.  
+Phase 2: Dashboard Interaction  
+• After successful login, the user is redirected to the dashboard , which acts as the central 
+control panel of the application.  
+• From the dashboard, the user can choose different actions such as:  
+• Creating a new trip  
+• Viewing existing trips  
+• Managing profile  
+• Accessing admin features  
+• This phase controls the navigation and user interaction flow . 
+Phase 3: Trip Creation  
+• When the user selects Create New Trip , the system enters the trip creation phase.  
+• The user inputs trip details such as destination, budget, duration, and preferences.  
+• These inputs are then sent to the backend for processing.  
+• This phase collects all necessary data required for generating a travel plan.  
+Phase 4: Backend Processing  
+• This is the core processing phase of the system where all computations take place.  
+• The system validates the input data .  
+• Calls AI services to generate a personalized itinerary .  
+• Fetches hotel suggestions through external APIs .  
+• Estimates the total travel cost .  
+• This phase ensures intelligent and automated decision -making . 
+ 
+11 
+ Phase 5: Output Generation  
+• After processing, the system generates results and sends them to the user interface.  
+• The output includes:  
+• Day-wise travel itinerary  
+• Recommended hotels  
+• Estimated travel cost  
+• This phase presents meaningful information to help users plan their trips effectively.  
+Phase 6: Trip Management (User Actions)  
+Once the trip is generated, users can perform multiple actions:  
+• Edit trip details  
+• Save the trip  
+• Delete the trip  
+• Export the trip as a PDF  
+• Share the trip with others  
+• This phase provides flexibility and control  over the travel plans.  
+Phase 7: View Existing Trips  
+If the user chooses to view previous trips:  
+• The system fetches trip data from the database  
+• Displays a list of saved trips  
+• Allows users to select and view detailed information  
+• This phase ensures data retrieval and history management . 
+Phase 8: Profile Management  
+• In this phase, users can manage their account details.  
+• Update profile information  
+• Change password  
+• This ensures account customization and security . 
+ Phase 9: Admin Flow  
+• The system includes an admin module for monitoring and management.  
+• Admin logs into the system  
+• Views registered users  
+• Monitors trips and activities  
+• This phase ensures system control and maintenance . 
+All these phases flowchart are given at next page (figure 1)  
+12 
+  
+ 
+ 
+Figure 1  
+13 
+ APPLICATIONS  
+ 
+The My Trip Advisor (MTA) web application has a wide range of practical applications in the 
+field of travel and tourism, providing users with an efficient and intelligent platform for planning 
+and managing trips.  
+1. Personal Travel Planning  
+The system helps individual users plan their trips by providing personalized itineraries, hotel 
+suggestions, and cost estimation in one place.  
+2. Tourism and Travel Industry  
+Travel agencies and tourism companies can use this platform to assist customers in planning trips 
+efficiently and providing better services through automation and recommendations.  
+3. Budget Travel Management  
+The application enables users to estimate travel costs and manage their budget effectively, making 
+it especially useful for students and budget travellers . 
+4. Group Trip Planning  
+Users can easily share their itineraries with friends or family, improving coordination and 
+collaboration during group travel.  
+5. Educational and Learning Purpose  
+The project can be used as a learning model for students to understand full -stack development, 
+API integration, and AI -based recommendation systems.  
+6. Smart Recommendation Systems  
+The platform demonstrates how Artificial Intelligence can be used to provide intelligent 
+suggestions, enhancing user experience and decision -making.  
+7. Travel Blogging and Content Sharing  
+Users can utilize the platform to create and share travel plans or experiences, which can also 
+support content creators and travel bloggers.  
+ 
+14 
+  
+CONCLUSION  
+The My Trip Advisor (MTA) project presents an efficient and intelligent solution to the challenges 
+involved in modern travel planning. By integrating multiple features such as itinerary generation, 
+hotel recommendations, cost estimation, and trip managemen t into a single platform, the system 
+significantly reduces the complexity and time required for planning a trip. It eliminates the need for 
+users to rely on multiple applications, thereby improving convenience and overall user experience.  
+The application leverages modern web technologies and Artificial Intelligence (AI) to provide 
+personalized and automated travel solutions based on user preferences. Its user -friendly interface, 
+secure authentication system, and real -time data integration e nsure reliability, accessibility, and ease 
+of use for a wide range of users. The inclusion of features like trip sharing and profile management 
+further enhances the usability of the system, especially for group travel scenarios.  
+Moreover, the project demonstrates the practical implementation of full -stack development, API 
+integration, and intelligent recommendation systems, making it both a useful real -world application 
+and a valuable learning experience. The system is also scalab le and can be enhanced in the future 
+by adding features such as real -time booking, map integration, and advanced AI -based 
+recommendations.  
+In conclusion, the My Trip Advisor (MTA) application provides a comprehensive, user -centric, and 
+scalable solution for travel planning. It not only simplifies the process but also enhances decision -
+making, making travel planning smarter, faster, and more e fficient for modern users.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+15 
+  
+REFERENCE  
+1. Travel Planning Systems Developers. (2022). A Web -Based Intelligent Travel Planning 
+System with Personalized Recommendations. Retrieved from https://www.researchgate.net/   
+2. AI Travel Recommendation Developers. (2023). AI -Based Travel Recommendation System 
+Using Machine Learning Techniques. Retrieved from https://www.ijrte.org/   
+3. Smart Itinerary Generator Developers. (2021). Automated Travel Itinerary Generation 
+Using Artificial Intelligence. Retrieved from https://www.irjet.net/   
+4. Web Application Development Researchers. (2022). Modern Web Applications Using 
+React and Next.js Frameworks. Retrieved from https://www.ijfmr.com/   
+5. Cost Estimation System Developers. (2021). A Travel Cost Estimation System for Budget 
+Optimization. Retrieved from https://www.researchgate.net/   
+6. Tourism Technology Researchers. (2020). Impact of Digital Technologies on Travel and 
+Tourism Industry. Retrieved from https://www.sciencedirect.com/   
+7. User Experience Design Experts. (2019). Improving User Experience in Web -Based 
+Applications. Retrieved from https://www.nngroup.com/   
