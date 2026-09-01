@@ -38,11 +38,11 @@ def test_score_blending():
     resumes = [
         {
             "filename": "candidate1.txt",
-            "raw_text": "Python developer. SQL backend developer. 5 years experience."
+            "raw_text": "John Smith | john@email.com | +1-555-123-4567\n\nSummary: Python developer with 5 years experience.\n\nExperience:\n- Backend Developer at TechCorp (2019-2024)\n- Built SQL database systems\n\nEducation: B.Tech Computer Science, MIT\n\nSkills: Python, SQL, FastAPI, Django\n\nProjects: Designed scalable microservices architecture"
         },
         {
             "filename": "candidate2.txt",
-            "raw_text": "Accounting clerk. 2 years experience."
+            "raw_text": "Jane Doe | jane@email.com | +1-555-987-6543\n\nSummary: Accounting clerk with 2 years experience.\n\nExperience:\n- Accounting Clerk at FinanceCo (2022-2024)\n\nEducation: B.Com, State University\n\nSkills: Excel, QuickBooks, Data Entry"
         }
     ]
     
@@ -95,7 +95,7 @@ def test_explainable_ai_and_team_fit():
     resumes = [
         {
             "filename": "john_doe.txt",
-            "raw_text": "John Doe. Senior Software Architect with 7 years of Python experience in medical systems. Spearheaded multiple FastAPI backend platforms from scratch in an agile startup. Key traits: leadership, system architecture."
+            "raw_text": "John Doe | johndoe@healthtech.com | +1-555-222-3344\n\nSummary: Senior Software Architect with 7 years of Python experience in medical systems.\n\nExperience:\n- Lead Architect at HealthTech Inc (2017-2024) — Spearheaded multiple FastAPI backend platforms from scratch in an agile startup.\n- Senior Developer at MedSys Corp (2015-2017)\n\nEducation: M.Tech Computer Science, Stanford University\n\nSkills: Python, FastAPI, React, PostgreSQL, Docker, AWS\n\nKey traits: leadership, system architecture, ownership."
         }
     ]
     
@@ -398,7 +398,7 @@ def test_compute_nlp_shortlist_new_team_profiles():
             "filename": "ai_dev.pdf",
             "parsed_skills": ["python", "pytorch", "transformers", "llm"],
             "experience_years": 4.0,
-            "raw_text": "I am a Machine Learning Engineer. I develop models using PyTorch, Tensorflow, and Transformers. I lead research experiments."
+            "raw_text": "Alex Chen | alex@ailab.org | +1-555-444-5566\n\nSummary: Machine Learning Engineer with 4 years of experience in AI research.\n\nExperience:\n- ML Engineer at DeepAI Labs (2020-2024) — Developed models using PyTorch, Tensorflow, and Transformers. Led research experiments and published 3 papers.\n\nEducation: M.Sc Artificial Intelligence, CMU\n\nSkills: Python, PyTorch, Transformers, LLM, TensorFlow, Kubernetes\n\nProjects: Built production-grade NLP pipelines for document classification."
         }
     ]
     
