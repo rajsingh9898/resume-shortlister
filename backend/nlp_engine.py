@@ -512,6 +512,8 @@ def identify_adjacent_roles_and_transferable_skills(candidate_skills: list) -> l
 def validate_resume_document(raw_text: str, filename: str) -> tuple[bool, str]:
     """
     Multi-layer validation of uploaded files to detect non-resume documents (Certificates, Invoices, Transcripts, Reports, Cover Letters).
+    Layer 1: Negative keyword matching (reject known non-resume document types).
+    Layer 2: Positive structural validation (require resume-like sections/entities).
     Returns (is_valid, reason_or_message).
     """
     if not raw_text or len(raw_text.strip()) < 30:
@@ -520,7 +522,7 @@ def validate_resume_document(raw_text: str, filename: str) -> tuple[bool, str]:
     text_lower = raw_text.lower()
     fname_lower = filename.lower()
     
-    # 1. Non-resume document negative triggers (Certificates, Letters, Invoices, Contracts, Transcripts, IDs)
+    # Layer 1: Non-resume document negative triggers (Certificates, Letters, Invoices, Contracts, Transcripts, IDs)
     non_resume_phrases = [
         "certificate of completion", "certificate of achievement", "certificate of participation",
         "this certificate is awarded", "this is to certify", "has successfully completed",
@@ -532,7 +534,8 @@ def validate_resume_document(raw_text: str, filename: str) -> tuple[bool, str]:
         "marksheet", "scorecard", "diploma certificate", "invoice #", "receipt #", "tax invoice",
         "bill to:", "payment receipt", "purchase order", "passport", "identity card", "driving license",
         "driver's license", "national id", "aadhaar", "project report", "assignment", "lab manual",
-        "syllabus", "curriculum", "lecture notes", "user guide", "terms of service", "privacy policy"
+        "syllabus", "curriculum", "lecture notes", "user guide", "terms of service", "privacy policy",
+        "recovery codes", "backup codes", "verification code", "one-time password", "otp"
     ]
     
     for phrase in non_resume_phrases:
@@ -540,12 +543,42 @@ def validate_resume_document(raw_text: str, filename: str) -> tuple[bool, str]:
             return False, f"This document does not look like a resume (Detected Non-Resume Document: '{phrase.title()}')."
             
     # Check filename keywords
-    non_resume_file_keywords = ["certificate", "cert_", "receipt", "invoice", "passport", "license", "offer_letter", "cover_letter", "marksheet", "transcript", "report", "assignment"]
+    non_resume_file_keywords = ["certificate", "cert_", "receipt", "invoice", "passport", "license", "offer_letter", "cover_letter", "marksheet", "transcript", "report", "assignment", "recovery", "backup_codes"]
     if any(k in fname_lower for k in non_resume_file_keywords):
         if not any(k in fname_lower for k in ["resume", "cv"]):
             return False, "This document does not look like a resume (File named as Certificate/Letter/Document)."
 
-    return True, "Valid Resume"
+    # Layer 2: Positive structural validation — document MUST contain resume-like sections or entities
+    resume_section_keywords = [
+        "experience", "work experience", "professional experience", "employment history",
+        "education", "academic", "qualification", "university", "college", "school", "bachelor", "master", "b.tech", "b.sc", "m.tech", "m.sc", "mba", "phd",
+        "skills", "technical skills", "core competencies", "proficiency", "technologies",
+        "projects", "personal projects", "academic projects",
+        "summary", "objective", "profile summary", "career objective", "about me",
+        "certifications", "achievements", "awards", "publications",
+        "contact", "phone", "mobile", "linkedin", "github"
+    ]
+    
+    # Check for email presence (strong resume indicator)
+    has_email = bool(re.search(r'\b[\w\.-]+@[\w\.-]+\.\w{2,}\b', raw_text))
+    
+    # Check for phone number (strong resume indicator)
+    has_phone = bool(re.search(r'(\+?\d{1,3}[\s\-]?)?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{4}', raw_text))
+    
+    # Count how many resume section keywords are present
+    section_matches = sum(1 for kw in resume_section_keywords if kw in text_lower)
+    
+    # A valid resume should have: at least 3 section keywords, OR (email/phone + 2 section keywords)
+    has_contact = has_email or has_phone
+    
+    if section_matches >= 3:
+        return True, "Valid Resume"
+    elif has_contact and section_matches >= 2:
+        return True, "Valid Resume"
+    elif has_contact and section_matches >= 1 and len(raw_text.strip()) > 200:
+        return True, "Valid Resume"
+    else:
+        return False, "This document does not look like a resume (Missing resume sections like Experience, Education, Skills, or Contact Info)."
 
 def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0.5, team_profile: dict = None) -> dict:
     # 0. Duplicate Content & Email Signature Pre-Pass Deduplication
