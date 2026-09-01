@@ -623,12 +623,8 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
         else:
             cosine_sim = tfidf_sim
             
-        # Hybrid Scoring Blending (40% Semantic, 30% Keyword, 30% Rules)
-        semantic_component = cosine_sim
-        keyword_component = (tfidf_sim * 0.4) + (skills_score * 0.6)
-        rule_component = (experience_score * 0.5) + (degree_match_score * 0.4) + (soft_skills_score * 0.1)
-        
-        final_score = (semantic_component * 0.4) + (keyword_component * 0.3) + (rule_component * 0.3)
+        # Hybrid Scoring Blending (40% Semantic, 30% Required Skills, 30% Experience Alignment)
+        final_score = (cosine_sim * 0.40) + (skills_score * 0.30) + (experience_score * 0.30)
         
         # 1. Domain Fit calculation
         domains = {
@@ -864,9 +860,6 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
                     
             team_fit_score = round((mindset_score + focus_score + expectation_score) / 3.0, 2)
             
-            # Blend team fit score (20% weight) into the final ranking score
-            final_score = (final_score * 0.8) + (team_fit_score * 0.2)
-            
         # Generate Explainable AI "Why this candidate?" statement
         matched_str = ", ".join(matched_skills[:2]) if matched_skills else "none"
         why_candidate = ""
@@ -886,9 +879,9 @@ def compute_nlp_shortlist(jd_raw: str, resumes: list, semantic_weight: float = 0
         reasons_high = []
         reasons_low = []
         
-        if semantic_component > 0.6:
+        if cosine_sim > 0.6:
             reasons_high.append("Excellent semantic alignment with the job description context.")
-        elif semantic_component < 0.25:
+        elif cosine_sim < 0.25:
             reasons_low.append("Low contextual alignment with the overall job scope.")
             
         if matched_skills:
