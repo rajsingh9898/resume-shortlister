@@ -585,6 +585,22 @@ shortlistForm.addEventListener('submit', async (e) => {
     try {
         // 1. Generate pre-signed upload URLs and upload files concurrently to S3
         const uploadPromises = Array.from(selectedFiles).map(async (file) => {
+            let fileBase64 = null;
+            try {
+                fileBase64 = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const res = reader.result;
+                        const base64Str = typeof res === 'string' ? (res.includes(',') ? res.split(',')[1] : res) : '';
+                        resolve(base64Str);
+                    };
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(file);
+                });
+            } catch (e) {
+                console.warn("Base64 reading failed for file", file.name, e);
+            }
+
             const presignRes = await fetch('/api/storage/presign-upload', {
                 method: 'POST',
                 headers: {
@@ -603,21 +619,22 @@ shortlistForm.addEventListener('submit', async (e) => {
             const presignData = await presignRes.json();
             
             // PUT file directly to pre-signed URL (MinIO/S3 or simulated endpoint)
-            const uploadRes = await fetch(presignData.upload_url, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': file.type || "application/octet-stream"
-                },
-                body: file
-            });
-            if (!uploadRes.ok) {
-                const errText = await uploadRes.text().catch(() => "Unknown error");
-                throw new Error(`Failed to upload ${file.name} directly to storage bucket (Status: ${uploadRes.status} - ${errText}).`);
+            try {
+                await fetch(presignData.upload_url, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': file.type || "application/octet-stream"
+                    },
+                    body: file
+                });
+            } catch (putErr) {
+                console.warn(`Direct PUT upload warning for ${file.name}, using base64 fallback:`, putErr);
             }
             
             return {
                 filename: file.name,
-                object_key: presignData.object_key
+                object_key: presignData.object_key,
+                file_base64: fileBase64
             };
         });
 

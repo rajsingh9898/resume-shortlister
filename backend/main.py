@@ -664,6 +664,7 @@ class PresignRequest(BaseModel):
 class ShortlistResumeItem(BaseModel):
     filename: str
     object_key: str
+    file_base64: Optional[str] = None
 
 class TeamProfile(BaseModel):
     mindset: str = "Enterprise"
@@ -772,9 +773,13 @@ async def shortlist(
             team_profile=team_profile_dict
         )
         
-        # Build resumes info lists pointing to S3 keys
+        # Build resumes info lists pointing to S3 keys and in-memory base64 payloads
         resumes_info = [
-            {"filename": res.filename, "file_path": res.object_key}
+            {
+                "filename": res.filename,
+                "file_path": res.object_key,
+                "file_base64": res.file_base64
+            }
             for res in payload.resumes
         ]
             

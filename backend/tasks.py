@@ -171,15 +171,37 @@ def process_shortlist_task(self, job_id: int, resumes_info: list, semantic_weigh
         def process_single_file(res_info):
             fname = res_info["filename"]
             fpath = res_info["file_path"]
-            try:
-                disk_bytes = storage_client.download_bytes(fpath)
+            f_b64 = res_info.get("file_base64")
+            
+            file_bytes = None
+            if f_b64:
                 try:
-                    file_bytes = decrypt_data(disk_bytes)
-                except Exception:
-                    file_bytes = disk_bytes
-                raw_text = nlp_engine.extract_text(fname, file_bytes)
-            except Exception as e:
-                raw_text = f"Error reading/parsing file: {str(e)}"
+                    import base64
+                    file_bytes = base64.b64decode(f_b64)
+                    # Persist to storage_client asynchronously/safely
+                    try:
+                        storage_client.upload_bytes(fpath, file_bytes)
+                    except Exception:
+                        pass
+                except Exception as b64_err:
+                    logger.warning(f"Base64 payload decode failed for {fname}: {b64_err}")
+
+            if not file_bytes:
+                try:
+                    disk_bytes = storage_client.download_bytes(fpath)
+                    try:
+                        file_bytes = decrypt_data(disk_bytes)
+                    except Exception:
+                        file_bytes = disk_bytes
+                except Exception as e:
+                    file_bytes = None
+                    raw_text = f"Error reading/parsing file: {str(e)}"
+
+            if file_bytes:
+                try:
+                    raw_text = nlp_engine.extract_text(fname, file_bytes)
+                except Exception as e:
+                    raw_text = f"Error parsing document text: {str(e)}"
                 
             try:
                 text_key = fpath + ".txt"
